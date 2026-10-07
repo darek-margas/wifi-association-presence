@@ -76,7 +76,8 @@ Home Assistant. Requires Home Assistant **2026.9** or newer.
 
 1. **Settings → Devices & services → Add integration → Wi-Fi Association Presence.**
 2. On the integration page, **Add access point**: choose the type, then its settings.
-   The settings are tested by reading the AP's client list once.
+   The settings are tested by reading the AP once. Leave the name empty to use the name
+   the AP reports about itself (D-Link: its system name, e.g. "Studio").
 3. **Add tracked device**: pick one of the currently associated devices (labelled with AP,
    band, SSID and signal) or type a MAC address, and give it a name.
 4. Optional: **Configure** on the hub sets the grace period.

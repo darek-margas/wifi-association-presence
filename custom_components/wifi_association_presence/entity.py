@@ -18,7 +18,7 @@ def access_point_device_info(
     host = ap.driver.config.get("host")
     return DeviceInfo(
         identifiers={(DOMAIN, ap.subentry_id)},
-        name=ap.title,
+        name=coordinator.access_point_name(ap),
         manufacturer=ap.driver.MANUFACTURER,
         model=(info.model if info else None) or ap.driver.config.get(CONF_MODEL) or None,
         sw_version=info.firmware if info else None,

@@ -64,6 +64,14 @@ class ConfiguredAccessPoint:
     subentry_id: str
     title: str
     driver: AccessPointDriver
+    # Whether the user named it; otherwise the title is just the host.
+    named: bool
+
+    def display_name(self, info: AccessPointInfo | None) -> str:
+        """The user's name, else the name the AP reports about itself, else the host."""
+        if self.named or info is None or not info.name:
+            return self.title
+        return info.name
 
 
 class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
@@ -94,7 +102,10 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
                 continue
             self.access_points.append(
                 ConfiguredAccessPoint(
-                    subentry.subentry_id, subentry.title, driver_cls(dict(subentry.data))
+                    subentry.subentry_id,
+                    subentry.title,
+                    driver_cls(dict(subentry.data)),
+                    named=subentry.title != subentry.data.get("host"),
                 )
             )
         self._sightings: dict[str, Sighting] = {}
@@ -154,10 +165,11 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
                 LOGGER.info("Access point %s is readable again", ap.title)
                 self._failing.discard(ap.title)
 
+            name = ap.display_name(result.info)
             per_band: dict[str, int] = {}
             for client in result.clients:
                 per_band[client.band or "unknown"] = per_band.get(client.band or "unknown", 0) + 1
-                sighting = Sighting(ap.title, client.ssid, client.band, client.rssi, now)
+                sighting = Sighting(name, client.ssid, client.band, client.rssi, now)
                 current = best.get(client.mac)
                 # Seen on two APs in one poll (roaming): keep the stronger signal.
                 if current is None or (client.rssi or 0) > (current.rssi or 0):
@@ -178,6 +190,11 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
 
         self._sightings.update(best)
         return PresenceData(dict(self._sightings), dict(self._ap_states))
+
+    def access_point_name(self, ap: ConfiguredAccessPoint) -> str:
+        """Name to show for an access point (see ConfiguredAccessPoint.display_name)."""
+        state = self.data.access_points.get(ap.subentry_id) if self.data else None
+        return ap.display_name(state.info if state else None)
 
     def current_sighting(self, mac: str | None) -> Sighting | None:
         """The MAC's sighting if it is within the grace period, else None."""

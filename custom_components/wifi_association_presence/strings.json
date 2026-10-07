@@ -56,6 +56,9 @@
             "port": "Port",
             "username": "Username",
             "password": "Password"
+          },
+          "data_description": {
+            "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name), or else its host."
           }
         },
         "reconfigure": {
@@ -67,6 +70,9 @@
             "port": "Port",
             "username": "Username",
             "password": "Password"
+          },
+          "data_description": {
+            "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name), or else its host."
           }
         }
       },

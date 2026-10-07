@@ -166,10 +166,11 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
             if self._host_in_use(data.get("host")):
                 return self.async_abort(reason="already_configured")
             data = {CONF_DRIVER: self._driver_type, **data}
-            errors = await _async_test_access_point(driver_cls(data))
+            errors, reported_name = await _async_test_access_point(driver_cls(data))
             if not errors:
                 return self.async_create_entry(
-                    title=name or data.get("host") or driver_cls.NAME, data=data
+                    title=name or reported_name or data.get("host") or driver_cls.NAME,
+                    data=data,
                 )
         return self.async_show_form(
             step_id="details",
@@ -194,12 +195,12 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
             if self._host_in_use(changes.get("host"), except_id=subentry.subentry_id):
                 return self.async_abort(reason="already_configured")
             data = {**subentry.data, **{k: v for k, v in changes.items() if v not in (None, "")}}
-            errors = await _async_test_access_point(driver_cls(data))
+            errors, reported_name = await _async_test_access_point(driver_cls(data))
             if not errors:
                 return self.async_update_and_abort(
                     self._get_entry(),
                     subentry,
-                    title=name or data.get("host") or driver_cls.NAME,
+                    title=name or reported_name or data.get("host") or driver_cls.NAME,
                     data=data,
                 )
         suggested = {
@@ -261,19 +262,21 @@ def _split_name(user_input: dict[str, Any]) -> tuple[str | None, dict[str, Any]]
     return name, data
 
 
-async def _async_test_access_point(driver: AccessPointDriver) -> dict[str, str]:
-    """Read the AP once; map failures to form errors."""
+async def _async_test_access_point(
+    driver: AccessPointDriver,
+) -> tuple[dict[str, str], str | None]:
+    """Read the AP once; return form errors and the name the AP reports, if any."""
     try:
-        await asyncio.wait_for(driver.async_get_associated_clients(), TEST_TIMEOUT)
+        result = await asyncio.wait_for(driver.async_poll(), TEST_TIMEOUT)
     except AccessPointAuthError:
-        return {"base": "invalid_auth"}
+        return {"base": "invalid_auth"}, None
     except (AccessPointError, TimeoutError) as err:
         LOGGER.debug("Access point test failed: %s", err)
-        return {"base": "cannot_connect"}
+        return {"base": "cannot_connect"}, None
     except Exception:
         LOGGER.exception("Unexpected error testing the access point")
-        return {"base": "unknown"}
-    return {}
+        return {"base": "unknown"}, None
+    return {}, result.info.name if result.info else None
 
 
 class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
