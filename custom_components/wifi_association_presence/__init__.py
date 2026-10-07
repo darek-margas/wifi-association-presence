@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, SUBENTRY_TRACKED_DEVICE
@@ -46,6 +46,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEnt
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
+    # Home Assistant does not unload entries when it stops, so without this a restart
+    # would lose the sightings (and visit start times) since the last periodic write.
+    async def _async_stop(_event: Event) -> None:
+        unsubscribe_stop.clear()  # a one-time listener is gone once it has fired
+        await coordinator.async_save_sightings()
+
+    unsubscribe_stop = [hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_stop)]
+
+    @callback
+    def _async_remove_stop_listener() -> None:
+        for unsubscribe in unsubscribe_stop:
+            unsubscribe()
+
+    entry.async_on_unload(_async_remove_stop_listener)
     return True
 
 

@@ -17,6 +17,15 @@ Feedback, especially from UniFi users, is welcome in the issues.
   the data source and the list to pick the access point from come from a registry
   (`sources.py`), so the coordinator and setup forms don't name any driver.
 
+### Fixes
+- Sightings and visit start times survive a Home Assistant restart. Home Assistant does
+  not unload integrations when it stops, so the save on unload never ran then, and since
+  0.5.0b1 there was no pending delayed write for Home Assistant to flush either: a
+  restart lost up to 10 minutes of sightings and reset `arrived_at` to the boot time.
+  The file is now also written when Home Assistant stops, and it records when it was
+  written, so a device that was still within the grace period at that moment continues
+  its visit after a restart however long the restart took.
+
 ### Changes
 - A poll in which no access point at all can be read no longer makes every entity
   unavailable at once: within the grace period after the last successful poll it is
