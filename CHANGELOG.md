@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2 — deprecation fix
+
+### Changes
+- The area lookup uses Home Assistant's per-config-entry device lookup instead of the
+  deprecated `async_get_device` (it would stop working in Home Assistant 2027.8).
+
 ## 0.4.1 — one time at a time
 
 ### Changes

@@ -223,7 +223,9 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
 
     def access_point_area(self, subentry_id: str) -> ar.AreaEntry | None:
         """The Home Assistant area the user assigned to an access point's device."""
-        device = dr.async_get(self.hass).async_get_device(identifiers={(DOMAIN, subentry_id)})
+        device = dr.async_get(self.hass).async_get_device_by_identifier(
+            (DOMAIN, subentry_id), self.config_entry.entry_id
+        )
         if device is None or device.area_id is None:
             return None
         return ar.async_get(self.hass).async_get_area(device.area_id)
