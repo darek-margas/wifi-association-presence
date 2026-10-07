@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.5.0b1 — UniFi access points (beta)
+
+Beta: in HACS, enable "Show beta versions" for this integration to install it.
+Feedback, especially from UniFi users, is welcome in the issues.
 
 ### Features
 - New access point type **UniFi (via the UniFi Network integration)**: pick a UniFi AP
