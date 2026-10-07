@@ -41,14 +41,19 @@ __all__ = ["AccessPointState", "Sighting"]
 
 type WifiAssociationConfigEntry = ConfigEntry[AssociationCoordinator]
 
-# Upper bound for reading one AP (login plus all commands), well inside SCAN_INTERVAL.
-AP_POLL_TIMEOUT = 45
+# Polls in which no access point at all could be read are tolerated this many times in
+# a row before the entities go unavailable: the grace period still covers the tracked
+# devices meanwhile, exactly as it does when a single AP fails. Matters most for
+# controller-based drivers (UniFi), where one controller hiccup fails every AP at once.
+MAX_FAILED_ROUNDS = 3
 
 # Sightings are kept (and stored across reloads and restarts) this long, so devices that
 # sleep with Wi-Fi off (cars, tablets) can still be picked when adding a tracked device.
 SIGHTING_RETENTION = timedelta(days=7)
 STORAGE_VERSION = 1
-STORAGE_SAVE_DELAY = 60
+# The store only serves the "add tracked device" list and is also written on unload, so
+# a few minutes of staleness after a crash is fine; a write per poll is not (SD cards).
+STORAGE_SAVE_DELAY = 600
 # A device read in the latest poll must count as present, so a shorter grace period
 # acts as this one: away after one missed poll.
 MIN_CONSIDER_HOME = timedelta(seconds=30)
@@ -80,6 +85,13 @@ class ConfiguredAccessPoint:
         if self.named or info is None or not info.name:
             return self.title
         return info.name
+
+
+def build_driver(
+    hass: HomeAssistant, driver_cls: type[AccessPointDriver], data: dict[str, Any]
+) -> AccessPointDriver:
+    """Create a driver; one that reads through Home Assistant gets what it needs here."""
+    return driver_cls(data)
 
 
 def user_named(subentry: ConfigSubentry) -> bool:
@@ -119,17 +131,25 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
                     subentry.data[CONF_DRIVER],
                 )
                 continue
+            try:
+                driver = build_driver(hass, driver_cls, dict(subentry.data))
+            except (KeyError, ValueError) as err:
+                # A bad or missing setting only loses this AP, never the whole entry.
+                LOGGER.error(
+                    "Access point %s has an invalid setting (%s); skipping it",
+                    subentry.title,
+                    err,
+                )
+                continue
             self.access_points.append(
                 ConfiguredAccessPoint(
-                    subentry.subentry_id,
-                    subentry.title,
-                    driver_cls(dict(subentry.data)),
-                    named=user_named(subentry),
+                    subentry.subentry_id, subentry.title, driver, named=user_named(subentry)
                 )
             )
         self._sightings: dict[str, Sighting] = {}
         self._ap_states: dict[str, AccessPointState] = {}
         self._failing: set[str] = set()
+        self._failed_rounds = 0
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.sightings"
         )
@@ -161,7 +181,7 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
 
         results = await asyncio.gather(
             *(
-                asyncio.wait_for(ap.driver.async_poll(), AP_POLL_TIMEOUT)
+                asyncio.wait_for(ap.driver.async_poll(), ap.driver.POLL_TIMEOUT)
                 for ap in self.access_points
             ),
             return_exceptions=True,
@@ -190,7 +210,18 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
                 available=False, info=previous.info if previous else None
             )
         if len(merged.failed) == len(self.access_points):
-            raise UpdateFailed("None of the access points could be read")
+            self._failed_rounds += 1
+            # The first refresh must fail so setup is retried; afterwards a short total
+            # outage is ridden out on the previous sightings, like a single failing AP.
+            if self.data is None or self._failed_rounds >= MAX_FAILED_ROUNDS:
+                raise UpdateFailed("None of the access points could be read")
+            LOGGER.debug(
+                "No access point could be read (%d of %d tolerated)",
+                self._failed_rounds,
+                MAX_FAILED_ROUNDS,
+            )
+            return PresenceData(dict(self._sightings), dict(self._ap_states))
+        self._failed_rounds = 0
 
         seen = carry_visits(merged.sightings, self._sightings, now, self._visit_gap)
         self._sightings = prune({**self._sightings, **seen}, now, SIGHTING_RETENTION)
@@ -221,11 +252,39 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         state = self.data.access_points.get(ap.subentry_id) if self.data else None
         return ap.display_name(state.info if state else None)
 
+    def access_point_device(self, ap: ConfiguredAccessPoint) -> dr.DeviceEntry | None:
+        """The device that carries the access point's area.
+
+        Our own for drivers with OWN_DEVICE; else the one another integration (e.g.
+        UniFi Network) registered for the AP's MAC. Devices belong to one config entry
+        each, so that one can't be shared, only looked up; if several integrations
+        registered the MAC, the one with an area wins.
+        """
+        registry = dr.async_get(self.hass)
+        if ap.driver.OWN_DEVICE:
+            return registry.async_get_device_by_identifier(
+                (DOMAIN, ap.subentry_id), self.config_entry.entry_id
+            )
+        mac = ap.driver.device_mac()
+        if not mac:
+            return None
+        devices = registry.async_get_devices(
+            connections={(dr.CONNECTION_NETWORK_MAC, dr.format_mac(mac))}
+        )
+        return next((d for d in devices if d.area_id), devices[0] if devices else None)
+
+    def access_point_device_ids(self) -> set[str]:
+        """Ids of the devices whose area changes affect the tracked devices."""
+        ids: set[str] = set()
+        for ap in self.access_points:
+            if device := self.access_point_device(ap):
+                ids.add(device.id)
+        return ids
+
     def access_point_area(self, subentry_id: str) -> ar.AreaEntry | None:
         """The Home Assistant area the user assigned to an access point's device."""
-        device = dr.async_get(self.hass).async_get_device_by_identifier(
-            (DOMAIN, subentry_id), self.config_entry.entry_id
-        )
+        ap = next((ap for ap in self.access_points if ap.subentry_id == subentry_id), None)
+        device = self.access_point_device(ap) if ap else None
         if device is None or device.area_id is None:
             return None
         return ar.async_get(self.hass).async_get_area(device.area_id)

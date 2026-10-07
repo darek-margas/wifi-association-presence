@@ -140,7 +140,8 @@ Each tracked device is a Home Assistant device with:
 Each access point is a Home Assistant device with firmware, hardware revision, model, a
 link to its web UI, and sensors:
 - **Clients 2.4 GHz**, **Clients 5 GHz** and **Clients** (total).
-- Diagnostics: **CPU**, **Memory**, **Last boot**, **Location**.
+- Diagnostics: **Last boot**, **Location**, and **CPU** and **Memory** (disabled by
+  default: they change every poll, so each would be a recorder row per minute).
 - SSID names resolved from the AP (not just "SSID index 3").
 
 ### Easy and robust
@@ -396,6 +397,10 @@ it with `@register`, and set:
   `AccessPointAuthError` / `AccessPointError` on failure;
 - optionally `async_poll()` to return device details (`AccessPointInfo`) from the same
   session;
+- optionally `UNIQUE_FIELD` (the setting that identifies the AP, default `"host"`),
+  `POLL_TIMEOUT` (seconds allowed for one poll, default 45) and, for an AP that another
+  integration already registers as a device, `OWN_DEVICE = False` with `device_mac()`
+  returning its MAC: that device's area is used and no device or sensors are created;
 - for SSH consoles, an `SshPolicy` (algorithms and login method) for that model.
 
 Treat every reply as untrusted: return `None` for anything you can't parse rather than

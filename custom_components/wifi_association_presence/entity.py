@@ -12,7 +12,10 @@ from .coordinator import AssociationCoordinator, ConfiguredAccessPoint
 def access_point_device_info(
     coordinator: AssociationCoordinator, ap: ConfiguredAccessPoint
 ) -> DeviceInfo:
-    """The access point as a device, with what it reports about itself."""
+    """The access point as a device, with what it reports about itself.
+
+    Only for drivers with OWN_DEVICE; the others use another integration's device.
+    """
     state = coordinator.data.access_points.get(ap.subentry_id) if coordinator.data else None
     info = state.info if state else None
     host = ap.driver.config.get("host")

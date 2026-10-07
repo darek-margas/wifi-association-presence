@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Changes
+- A poll in which no access point at all can be read no longer makes every entity
+  unavailable at once: up to three such polls in a row are ridden out on the previous
+  sightings, so the grace period covers a controller restart or integration reload the
+  same way it covers a single failing AP. The first refresh still fails, so setup is
+  retried.
+- The access point CPU and memory sensors are disabled by default: they change on every
+  poll, which is a recorder row per access point per minute.
+- The tracked devices' Area sensors only react to area changes of the access points'
+  devices, not to every device registry update in the house.
+- The sightings file is written at most every 10 minutes instead of every poll (it is
+  still written on unload).
+- An access point whose settings the driver rejects is skipped with an error in the log
+  instead of failing the whole integration, and the form reports it on the field.
+- Driver hooks for other kinds of access point: `UNIQUE_FIELD` (the setting that
+  identifies an AP, "host" by default, used to refuse adding one twice), `POLL_TIMEOUT`
+  (per driver, 45 s by default) and `OWN_DEVICE` / `device_mac()` for drivers whose AP
+  is already a device of another integration: that device's area is used and no device
+  or sensors are created.
+
 ## 0.4.2 — deprecation fix
 
 ### Changes
