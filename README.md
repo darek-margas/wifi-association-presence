@@ -1,3 +1,5 @@
+<img src="docs/images/icon.svg" alt="" width="96" align="right">
+
 # Wi-Fi Association Presence
 
 Home Assistant presence detection from Wi-Fi access point **association tables**.
@@ -32,6 +34,20 @@ associated while it is idle, even when it sends no traffic for minutes.
 - **Fault tolerant**: an access point that is unreachable, slow, or answers with something
   unexpected only affects itself. Its sensors become unavailable and its clients age out
   after the grace period; the other APs keep updating.
+
+## Screenshots
+
+The integration page: one hub, with access points and tracked devices as entries.
+
+![Integration page](docs/images/integration-page.png)
+
+An access point device: firmware, hardware, client counts per band, CPU, memory, last boot.
+
+![Access point device](docs/images/access-point-device.png)
+
+A tracked device: its tracker, the access point it is connected to, and the signal.
+
+![Tracked device](docs/images/tracked-device.png)
 
 ## How presence is decided
 
@@ -123,8 +139,8 @@ Leaving an access point's password empty keeps the current one.
 - Each poll is a console login; the AP may log every login (syslog noise).
 
 **Project state**
-- Early development: limited testing (two AP models, one installation), English only, no
-  brand icon yet (local brand icons need Home Assistant 2026.10), not in HACS while private.
+- Early development: limited testing (two AP models, one installation), English only, not
+  in HACS while private.
 - Parser tests exist but no CI yet.
 
 ## Help add your access point
@@ -162,6 +178,9 @@ Assistant imports, so it can later become a standalone library.
 
 - Test an AP from the command line: `python3 scripts/probe.py --host <ip> --username admin`
 - Parser tests: `python3 -m pytest tests`
+- The icon's source is [`docs/images/icon.svg`](docs/images/icon.svg); the PNGs in
+  `custom_components/wifi_association_presence/brand/` (256 and 512 px) are rendered from
+  it. Home Assistant 2026.3+ uses them in place of the brands repository.
 
 ### Adding a driver
 

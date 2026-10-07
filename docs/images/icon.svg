@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="21 30 470 470">
+  <!-- Wi-Fi Association Presence: a location pin carrying Wi-Fi arcs. -->
+  <defs>
+    <linearGradient id="pin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#4f46e5"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#pin)"
+        d="M256 500 C200 420 86 330 86 200 A170 170 0 0 1 426 200 C426 330 312 420 256 500 Z"/>
+  <g fill="none" stroke="#fff" stroke-width="29" stroke-linecap="round">
+    <path d="M220.6 226.6 A50 50 0 0 1 291.4 226.6"/>
+    <path d="M188.8 194.8 A95 95 0 0 1 323.2 194.8"/>
+    <path d="M157 163 A140 140 0 0 1 355 163"/>
+  </g>
+  <circle cx="256" cy="268" r="26" fill="#fff"/>
+</svg>
