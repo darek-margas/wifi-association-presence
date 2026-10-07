@@ -1,0 +1,65 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Presence detection from Wi-Fi access point association tables. After this, add your access points and the devices to track from the integration page."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Already configured. Add access points and devices from the integration page."
+    }
+  },
+  "config_subentries": {
+    "access_point": {
+      "entry_type": "Access point",
+      "initiate_flow": {
+        "user": "Add access point"
+      },
+      "step": {
+        "user": {
+          "description": "Choose how this access point is read.",
+          "data": {
+            "driver": "Access point type"
+          }
+        },
+        "details": {
+          "description": "Settings for {type}. They are tested by reading the access point's client list once.",
+          "data": {
+            "host": "Host or IP address",
+            "port": "Port",
+            "username": "Username",
+            "password": "Password"
+          }
+        }
+      },
+      "error": {
+        "cannot_connect": "Could not connect to the access point or read its client list.",
+        "invalid_auth": "The access point rejected the username or password."
+      },
+      "abort": {
+        "already_configured": "This access point is already configured."
+      }
+    },
+    "tracked_device": {
+      "entry_type": "Tracked device",
+      "initiate_flow": {
+        "user": "Add tracked device"
+      },
+      "step": {
+        "user": {
+          "description": "Choose a currently associated device or type its Wi-Fi MAC address. For phones with private Wi-Fi addresses, use the address shown in the phone's settings for your network.",
+          "data": {
+            "mac": "MAC address",
+            "name": "Name"
+          }
+        }
+      },
+      "error": {
+        "invalid_mac": "Not a valid MAC address."
+      },
+      "abort": {
+        "already_configured": "This device is already tracked."
+      }
+    }
+  }
+}

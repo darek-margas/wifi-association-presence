@@ -1,0 +1,14 @@
+{
+  "domain": "wifi_association_presence",
+  "name": "Wi-Fi Association Presence",
+  "codeowners": ["@darek-margas"],
+  "config_flow": true,
+  "documentation": "https://github.com/darek-margas/wifi-association-presence",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/darek-margas/wifi-association-presence/issues",
+  "loggers": ["asyncssh"],
+  "requirements": ["asyncssh>=2.14.2"],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}
