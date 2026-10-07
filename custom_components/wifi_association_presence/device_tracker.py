@@ -68,23 +68,24 @@ class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntit
 
         Only values that change with the situation are attributes: Home Assistant
         records a row whenever an attribute changes, so a timestamp or signal updated
-        every poll would write a row per device per minute. Both times change once per
-        arrival or departure:
-        - arrived_at: when the current visit started (once away: the last visit);
-        - departed_at: when the device left (while home: the end of the previous visit).
+        every poll would write a row per device per minute. Exactly one of the times is
+        set, matching the state, so automations can trigger on it appearing:
+        - home: arrived_at = when this visit started, departed_at = None;
+        - away: arrived_at = None, departed_at = when it was last seen.
         The signal has its own sensor.
         """
         sighting = self.coordinator.data.sightings.get(self.mac_address or "")
         if sighting is None:
             return None
         home = self.coordinator.current_sighting(self.mac_address) is not None
-        departed = sighting.departed if home else sighting.last_seen
+        arrived = sighting.arrived if home else None
+        departed = None if home else sighting.last_seen
         area = self.coordinator.access_point_area(sighting.access_point_id)
         return {
             "access_point": sighting.access_point,
             "area": area.name if area else None,
             "ssid": sighting.ssid,
             "band": sighting.band,
-            "arrived_at": sighting.arrived.isoformat() if sighting.arrived else None,
+            "arrived_at": arrived.isoformat() if arrived else None,
             "departed_at": departed.isoformat() if departed else None,
         }

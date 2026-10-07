@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1 — one time at a time
+
+### Changes
+- Only the time that matches the state is set: while home `arrived_at` holds the arrival
+  and `departed_at` is `null`; while away `arrived_at` is `null` and `departed_at` holds
+  the time the device left. Automations can trigger on an attribute going from `null` to
+  a time. (In 0.4.0 both were always set, `departed_at` holding the previous departure
+  while home.)
+
 ## 0.4.0 — arrival and departure times
 
 ### Features

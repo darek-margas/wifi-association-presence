@@ -47,10 +47,9 @@ class Sighting:
     signal_unit: str
     quality: int | None  # 0-100, comparable across drivers
     last_seen: datetime
-    # The current (or, once away, the last) visit: when it started, and when the visit
-    # before it ended. Set by carry_visits; None until then.
+    # When the current (or, once away, the last) visit started; it ended at last_seen.
+    # Set by carry_visits; None until then.
     arrived: datetime | None = None
-    departed: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,11 +141,10 @@ def carry_visits(
     now: datetime,
     visit_gap: timedelta,
 ) -> dict[str, Sighting]:
-    """Attach arrival and previous departure times to this poll's sightings.
+    """Attach the visit's arrival time to this poll's sightings.
 
     A device seen again within `visit_gap` of its last sighting continues the same
-    visit. Otherwise a new visit starts now, and the previous one ended when the device
-    was last seen (not when the grace period ran out).
+    visit and keeps its arrival time; otherwise a new visit starts now.
     """
     carried: dict[str, Sighting] = {}
     for mac, sighting in seen.items():
@@ -154,10 +152,10 @@ def carry_visits(
         if before is not None and before.arrived is not None and (
             now - before.last_seen <= visit_gap
         ):
-            arrived, departed = before.arrived, before.departed
+            arrived = before.arrived
         else:
-            arrived, departed = now, before.last_seen if before else None
-        carried[mac] = replace(sighting, arrived=arrived, departed=departed)
+            arrived = now
+        carried[mac] = replace(sighting, arrived=arrived)
     return carried
 
 
@@ -174,7 +172,7 @@ def prune(
     return {mac: s for mac, s in sightings.items() if s.last_seen > cutoff}
 
 
-_TIME_FIELDS = ("last_seen", "arrived", "departed")
+_TIME_FIELDS = ("last_seen", "arrived")
 
 
 def sightings_to_storage(sightings: Mapping[str, Sighting]) -> dict[str, Any]:
@@ -206,7 +204,8 @@ def sightings_from_storage(
     """Read stored sightings, skipping malformed and expired entries.
 
     Entries written by 0.2.x (with "rssi", always percent) are converted; entries
-    written before visits were tracked start their visit at their last sighting.
+    written before visits were tracked start their visit at their last sighting, and
+    the "departed" field of 0.4.0 is dropped.
     """
     sightings: dict[str, Sighting] = {}
     items = (stored or {}).get("sightings")
@@ -217,6 +216,7 @@ def sightings_from_storage(
             item = dict(item)
             if "rssi" in item:
                 item["signal"] = item.pop("rssi")
+            item.pop("departed", None)
             item.setdefault("signal_unit", SIGNAL_PERCENT)
             item.setdefault("quality", signal_quality(item.get("signal"), item["signal_unit"]))
             for key in _TIME_FIELDS:

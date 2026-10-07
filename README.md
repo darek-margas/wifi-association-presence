@@ -65,13 +65,16 @@ Each tracked device is a Home Assistant device with:
 
   | | `arrived_at` | `departed_at` |
   |---|---|---|
-  | home | when this visit started | when the previous visit ended |
-  | away | when the last visit started | when it left |
+  | home | when it arrived | `null` |
+  | away | `null` | when it left |
 
-  The departure is when the device was last seen, not when the grace period ran out.
-  Both times change only on arrival or departure (no recorder row per poll) and survive
-  restarts. Template example: *home since*
-  `{{ state_attr('device_tracker.darek_phone', 'arrived_at') | as_datetime | relative_time }}`.
+  Exactly one of them is set, matching the state, so an automation can trigger on it
+  going from `null` to a time. The departure is when the device was last seen, not when
+  the grace period ran out. They change only on arrival or departure (no recorder row
+  per poll) and survive restarts. Template example: *home since*
+  `{{ state_attr('device_tracker.darek_phone', 'arrived_at') | as_datetime(default=none) | relative_time }}`.
+  A device that was already home when you installed or upgraded to 0.4 shows that moment
+  as its arrival until it next leaves and comes back.
 - **Access point** sensor: the AP's name (yours, or the name the AP reports, e.g. *Studio*).
 - **Signal** sensor: signal quality 0-100 %, comparable across access points and vendors
   (percent as reported by D-Link; dBm from other drivers is converted), with a matching

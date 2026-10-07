@@ -58,11 +58,9 @@ def sighting(
     last_seen: datetime,
     signal: int | None = 80,
     arrived: datetime | None = None,
-    departed: datetime | None = None,
 ) -> Sighting:
     return Sighting(
-        "Studio", "studio", "Home", "5GHz", signal, SIGNAL_PERCENT, signal, last_seen,
-        arrived, departed,
+        "Studio", "studio", "Home", "5GHz", signal, SIGNAL_PERCENT, signal, last_seen, arrived
     )
 
 
@@ -217,9 +215,8 @@ def test_storage_round_trip() -> None:
         PHONE: sighting(
             NOW - timedelta(hours=1),
             arrived=NOW - timedelta(hours=3),
-            departed=NOW - timedelta(hours=5),
         ),
-        CAR: Sighting("Garden", "garden", None, None, -67, SIGNAL_DBM, 66, NOW, NOW, None),
+        CAR: Sighting("Garden", "garden", None, None, -67, SIGNAL_DBM, 66, NOW, NOW),
     }
     assert sightings_from_storage(sightings_to_storage(original), NOW, timedelta(days=7)) == original
 
@@ -240,7 +237,7 @@ def test_storage_converts_0_2_entries() -> None:
     restored = sightings_from_storage(stored, NOW, timedelta(days=7))[PHONE]
     assert (restored.signal, restored.signal_unit, restored.quality) == (98, SIGNAL_PERCENT, 98)
     # No visit was recorded then: it starts at the last sighting.
-    assert (restored.arrived, restored.departed) == (NOW, None)
+    assert restored.arrived == NOW
 
 
 def test_storage_skips_bad_and_expired_entries() -> None:
@@ -255,7 +252,6 @@ def test_storage_skips_bad_and_expired_entries() -> None:
             "AA:00:00:00:00:05": "garbage",
             "AA:00:00:00:00:06": {**good, "last_seen": (NOW - timedelta(days=8)).isoformat()},
             "AA:00:00:00:00:07": {**good, "arrived": "yesterday"},
-            "AA:00:00:00:00:08": {**good, "departed": "2026-10-07T10:00:00"},  # no tz
         }
     }
     assert set(sightings_from_storage(stored, NOW, timedelta(days=7))) == {PHONE}
@@ -266,22 +262,21 @@ def test_storage_empty_or_broken_file(stored: object) -> None:
     assert sightings_from_storage(stored, NOW, timedelta(days=7)) == {}  # type: ignore[arg-type]
 
 
-# --- visits (arrived / departed) ------------------------------------------------
+# --- visits ---------------------------------------------------------------------
 
 GAP = timedelta(minutes=3)
 
 
 def test_first_sighting_starts_a_visit() -> None:
     seen = carry_visits({PHONE: sighting(NOW)}, {}, NOW, GAP)
-    assert (seen[PHONE].arrived, seen[PHONE].departed) == (NOW, None)
+    assert seen[PHONE].arrived == NOW
 
 
 def test_seen_again_within_the_gap_continues_the_visit() -> None:
     arrived = NOW - timedelta(hours=2)
-    departed = NOW - timedelta(hours=9)
-    before = {PHONE: sighting(NOW - timedelta(minutes=1), arrived=arrived, departed=departed)}
+    before = {PHONE: sighting(NOW - timedelta(minutes=1), arrived=arrived)}
     seen = carry_visits({PHONE: sighting(NOW)}, before, NOW, GAP)
-    assert (seen[PHONE].arrived, seen[PHONE].departed) == (arrived, departed)
+    assert seen[PHONE].arrived == arrived
     assert seen[PHONE].last_seen == NOW
 
 
@@ -292,14 +287,20 @@ def test_gap_at_the_limit_still_continues() -> None:
 
 
 def test_return_after_the_gap_starts_a_new_visit() -> None:
-    left = NOW - timedelta(hours=4)
-    before = {PHONE: sighting(left, arrived=NOW - timedelta(hours=8))}
+    before = {PHONE: sighting(NOW - timedelta(hours=4), arrived=NOW - timedelta(hours=8))}
     seen = carry_visits({PHONE: sighting(NOW)}, before, NOW, GAP)
-    # Departure is when it was really last seen, not when the grace period ran out.
-    assert (seen[PHONE].arrived, seen[PHONE].departed) == (NOW, left)
+    assert seen[PHONE].arrived == NOW
 
 
 def test_devices_not_seen_this_poll_are_untouched() -> None:
     before = {CAR: sighting(NOW - timedelta(hours=1), arrived=NOW - timedelta(hours=2))}
     seen = carry_visits({PHONE: sighting(NOW)}, before, NOW, GAP)
     assert set(seen) == {PHONE}
+
+
+def test_storage_drops_the_0_4_0_departed_field() -> None:
+    entry = sightings_to_storage({PHONE: sighting(NOW, arrived=NOW)})["sightings"][PHONE]
+    stored = {"sightings": {PHONE: {**entry, "departed": NOW.isoformat()}}}
+    assert sightings_from_storage(stored, NOW, timedelta(days=7)) == {
+        PHONE: sighting(NOW, arrived=NOW)
+    }
