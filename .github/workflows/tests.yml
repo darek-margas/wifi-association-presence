@@ -34,5 +34,9 @@ jobs:
           python-version: "3.14"
       - name: Install Home Assistant test harness
         run: pip install pytest-homeassistant-custom-component "asyncssh>=2.14.2"
+      - name: Install aiounifi as pinned by that Home Assistant's UniFi integration
+        # The UniFi driver uses it at runtime, where it comes with the UniFi integration.
+        run: |
+          pip install "$(python -c 'import json, pathlib, homeassistant.components.unifi as u; print(json.loads((pathlib.Path(u.__file__).parent / "manifest.json").read_text())["requirements"][0])')"
       - name: Run Home Assistant-level tests
         run: python -m pytest -v tests_ha

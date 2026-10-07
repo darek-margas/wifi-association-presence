@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import patch
 from types import SimpleNamespace
 
+from freezegun.api import FrozenDateTimeFactory
 import pytest
 from homeassistant.config_entries import ConfigEntryState, ConfigSubentryData
 from homeassistant.data_entry_flow import FlowResultType
@@ -134,7 +136,9 @@ async def _setup(hass, unifi, extra=()):
     return entry
 
 
-async def test_total_failure_is_tolerated_within_grace(hass, unifi):
+async def test_total_failure_is_tolerated_within_grace(
+    hass, unifi, freezer: FrozenDateTimeFactory
+):
     entry = await _setup(hass, unifi)
     assert hass.states.get("device_tracker.phone").state == "home"
     api = unifi.runtime_data.api
@@ -149,28 +153,32 @@ async def test_total_failure_is_tolerated_within_grace(hass, unifi):
     coordinator = entry.runtime_data
     def expire():
         hass.data["wifi_association_presence_unifi_clients"].clear()
-    for n in range(1, 3):  # two failed rounds: still home, AP sensors unavailable
+    # Default grace period (180 s) after the last successful poll.
+    for n in range(1, 3):  # 61 s and 122 s: still home, AP sensors unavailable
         expire()
+        freezer.tick(timedelta(seconds=61))
         await coordinator.async_refresh()
         await hass.async_block_till_done()
         assert coordinator.last_update_success, n
         assert hass.states.get("device_tracker.phone").state == "home", n
         assert not any(s.available for s in coordinator.data.access_points.values()), n
     expire()
-    await coordinator.async_refresh()  # third: give up
+    freezer.tick(timedelta(seconds=61))
+    await coordinator.async_refresh()  # 183 s: past the grace period, give up
     await hass.async_block_till_done()
     assert not coordinator.last_update_success
     assert attempts == 3  # one request per round, not one per AP
     assert hass.states.get("device_tracker.phone").state == "unavailable"
-    # recovery resets the counter
+    # recovery
     async def ok(req):
         return {"meta": {"rc": "ok"}, "data": CLIENTS}
     api.request = ok
     expire()
+    freezer.tick(timedelta(seconds=61))
     await coordinator.async_refresh()
     await hass.async_block_till_done()
     assert hass.states.get("device_tracker.phone").state == "home"
-    assert coordinator._failed_rounds == 0
+    assert coordinator.last_update_success
 
 
 async def test_first_refresh_failure_still_retries_setup(hass, unifi):

@@ -139,8 +139,14 @@ async def _async_request_active_clients(unifi: _UnifiHub) -> list[Mapping[str, A
     """Ask the controller for its currently connected clients (stat/sta)."""
     # aiounifi is installed with the UniFi integration, which is loaded by now.
     from aiohttp import ClientError
-    from aiounifi.errors import AiounifiException
-    from aiounifi.models.client import ClientListRequest
+
+    try:
+        from aiounifi.errors import AiounifiException
+        from aiounifi.models.client import ClientListRequest
+    except ImportError as err:
+        raise AccessPointError(
+            "the aiounifi library of the UniFi Network integration is not available"
+        ) from err
 
     try:
         response = await unifi.hub.api.request(ClientListRequest.create())
