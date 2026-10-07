@@ -1,6 +1,7 @@
 {
   "domain": "wifi_association_presence",
   "name": "Wi-Fi Association Presence",
+  "after_dependencies": ["unifi"],
   "codeowners": ["@darek-margas"],
   "config_flow": true,
   "documentation": "https://github.com/darek-margas/wifi-association-presence",

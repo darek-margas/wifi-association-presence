@@ -56,10 +56,12 @@
             "host": "Host or IP address",
             "port": "Port",
             "username": "Username",
-            "password": "Password"
+            "password": "Password",
+            "ap_mac": "Access point"
           },
           "data_description": {
-            "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name), or else its host."
+            "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name; for UniFi, its name in the UniFi Network application), or else its host.",
+            "ap_mac": "A UniFi access point known to the UniFi Network integration. Clients are read from its controller through that integration; no extra login is needed."
           }
         },
         "reconfigure": {
@@ -70,10 +72,12 @@
             "host": "Host or IP address",
             "port": "Port",
             "username": "Username",
-            "password": "Password"
+            "password": "Password",
+            "ap_mac": "Access point"
           },
           "data_description": {
-            "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name), or else its host."
+            "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name; for UniFi, its name in the UniFi Network application), or else its host.",
+            "ap_mac": "A UniFi access point known to the UniFi Network integration. Clients are read from its controller through that integration; no extra login is needed."
           }
         }
       },
@@ -86,7 +90,8 @@
       "abort": {
         "already_configured": "This access point is already configured.",
         "reconfigure_successful": "Access point updated.",
-        "unknown_driver": "This access point uses a type that is no longer available. Remove it and add it again."
+        "unknown_driver": "This access point uses a type that is no longer available. Remove it and add it again.",
+        "no_unifi_access_points": "No UniFi access points are available. Set up the UniFi Network integration first (with a site that has access points), or all of its access points are already added."
       }
     },
     "tracked_device": {
