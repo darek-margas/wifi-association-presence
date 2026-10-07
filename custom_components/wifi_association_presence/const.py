@@ -14,6 +14,7 @@ SUBENTRY_TRACKED_DEVICE = "tracked_device"
 CONF_DRIVER = "driver"
 CONF_MAC = "mac"
 CONF_NAME = "name"
+CONF_MODEL = "model"
 CONF_CONSIDER_HOME = "consider_home"
 
 # Fixed by design (Home Assistant integrations don't expose polling intervals).

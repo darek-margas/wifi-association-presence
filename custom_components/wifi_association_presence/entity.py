@@ -5,7 +5,7 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 
-from .const import CONF_MAC, DOMAIN
+from .const import CONF_MAC, CONF_MODEL, DOMAIN
 from .coordinator import AssociationCoordinator, ConfiguredAccessPoint
 
 
@@ -20,7 +20,7 @@ def access_point_device_info(
         identifiers={(DOMAIN, ap.subentry_id)},
         name=ap.title,
         manufacturer=ap.driver.MANUFACTURER,
-        model=info.model if info else None,
+        model=(info.model if info else None) or ap.driver.config.get(CONF_MODEL) or None,
         sw_version=info.firmware if info else None,
         hw_version=info.hardware if info else None,
         configuration_url=f"http://{host}" if host else None,

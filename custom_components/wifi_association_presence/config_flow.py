@@ -44,6 +44,7 @@ from .const import (
     CONF_CONSIDER_HOME,
     CONF_DRIVER,
     CONF_MAC,
+    CONF_MODEL,
     CONF_NAME,
     DEFAULT_CONSIDER_HOME,
     DOMAIN,
@@ -199,6 +200,7 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
                 )
         suggested = {
             CONF_NAME: subentry.title,
+            CONF_MODEL: subentry.data.get(CONF_MODEL),
             **{f.key: subentry.data.get(f.key) for f in driver_cls.FIELDS if not f.secret},
         }
         return self.async_show_form(
@@ -220,7 +222,11 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
 
 def _access_point_schema(driver_cls: type[AccessPointDriver], editing: bool) -> vol.Schema:
     """Form fields: an optional name, then the driver's own settings."""
-    schema: dict[Any, Any] = {vol.Optional(CONF_NAME): TextSelector()}
+    schema: dict[Any, Any] = {
+        vol.Optional(CONF_NAME): TextSelector(),
+        # Shown on the device; drivers may also report it themselves.
+        vol.Optional(CONF_MODEL): TextSelector(),
+    }
     for field in driver_cls.FIELDS:
         if field.secret:
             # When editing, leaving the secret blank keeps the stored value.

@@ -1,0 +1,60 @@
+name: New access point model
+description: Help add support for an access point that isn't supported yet.
+title: "Support for <vendor> <model>"
+labels: ["new access point"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping! The most useful thing is a report from `scripts/collect.py`:
+        it logs into your access point, runs read-only commands only, and redacts MAC
+        and IP addresses and secret-looking settings.
+
+        ```bash
+        pip install asyncssh
+        python3 scripts/collect.py --host <AP IP> --username <user>
+        ```
+        If the connection fails with an algorithm error, add `--legacy-ssh`.
+        Add `--command "<cmd>"` (repeatable) for any command you know lists connected
+        clients. **Review the report before attaching it.**
+  - type: input
+    id: model
+    attributes:
+      label: Vendor and model
+      placeholder: e.g. D-Link DAP-2660, TP-Link EAP245
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware version
+    validations:
+      required: true
+  - type: checkboxes
+    id: access
+    attributes:
+      label: Management access the AP offers
+      options:
+        - label: SSH console
+        - label: Telnet console
+        - label: Web UI that lists connected clients
+        - label: SNMP
+        - label: Other (describe below)
+  - type: textarea
+    id: clients_command
+    attributes:
+      label: How do you see connected clients today?
+      description: The CLI command, web page or app screen that lists associated clients per band/SSID.
+  - type: textarea
+    id: report
+    attributes:
+      label: collect.py report
+      description: Paste the report, or drag the file here.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Quirks you noticed, e.g. clients per band need a command first, login methods, timeouts.

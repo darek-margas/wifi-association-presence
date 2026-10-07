@@ -51,6 +51,7 @@
           "description": "Settings for {type}. They are tested by reading the access point's client list once.",
           "data": {
             "name": "Name (optional)",
+            "model": "Model (optional)",
             "host": "Host or IP address",
             "port": "Port",
             "username": "Username",
@@ -61,6 +62,7 @@
           "description": "Settings for {type}. Leave the password empty to keep the current one.",
           "data": {
             "name": "Name (optional)",
+            "model": "Model (optional)",
             "host": "Host or IP address",
             "port": "Port",
             "username": "Username",
