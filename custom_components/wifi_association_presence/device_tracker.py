@@ -74,6 +74,7 @@ class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntit
             "area": area.name if area else None,
             "ssid": sighting.ssid,
             "band": sighting.band,
-            "rssi": sighting.rssi,
+            "signal": sighting.signal,
+            "signal_unit": sighting.signal_unit,
             "last_seen": sighting.last_seen.isoformat(),
         }

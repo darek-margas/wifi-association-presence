@@ -100,7 +100,7 @@ def parse_clientinfo(text: str, band: str | None = None) -> list[AssociatedClien
                         mac=normalized,
                         ssid=record.get("ssid") or None,
                         band=band,
-                        rssi=_int(record.get("rssi")),
+                        signal=_int(record.get("rssi")),  # percent on DAP
                         connected_seconds=_int(record.get("time")),
                     )
                 )
@@ -150,6 +150,7 @@ class DlinkDapSsh(AccessPointDriver):
     TYPE = "dlink_dap_ssh"
     NAME = "D-Link DAP (SSH console)"
     MANUFACTURER = "D-Link"
+    SIGNAL_UNIT = "%"
     SSH_POLICY = DAP_SSH_POLICY
     FIELDS = (
         DriverField("host"),

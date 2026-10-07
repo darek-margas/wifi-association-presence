@@ -33,6 +33,7 @@ from homeassistant.helpers.selector import (
     TextSelectorConfig,
     TextSelectorType,
 )
+from homeassistant.util import dt as dt_util
 
 from .ap_drivers import (
     DRIVERS,
@@ -53,6 +54,8 @@ from .const import (
     SUBENTRY_ACCESS_POINT,
     SUBENTRY_TRACKED_DEVICE,
 )
+from .coordinator import AssociationCoordinator, user_named
+from .presence import Sighting
 
 
 TEST_TIMEOUT = 45
@@ -165,7 +168,8 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
             name, data = _split_name(user_input, driver_cls)
             if self._host_in_use(data.get("host")):
                 return self.async_abort(reason="already_configured")
-            data = {CONF_DRIVER: self._driver_type, **data}
+            # The name is stored explicitly, so "user named it" isn't guessed later.
+            data = {CONF_DRIVER: self._driver_type, **data, CONF_NAME: name or ""}
             errors, reported_name = await _async_test_access_point(driver_cls(data))
             if not errors:
                 return self.async_create_entry(
@@ -194,7 +198,11 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
             name, changes = _split_name(user_input, driver_cls)
             if self._host_in_use(changes.get("host"), except_id=subentry.subentry_id):
                 return self.async_abort(reason="already_configured")
-            data = {**subentry.data, **{k: v for k, v in changes.items() if v not in (None, "")}}
+            data = {
+                **subentry.data,
+                **{k: v for k, v in changes.items() if v not in (None, "")},
+                CONF_NAME: name or "",
+            }
             errors, reported_name = await _async_test_access_point(driver_cls(data))
             if not errors:
                 return self.async_update_and_abort(
@@ -204,7 +212,7 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
                     data=data,
                 )
         suggested = {
-            CONF_NAME: subentry.title,
+            CONF_NAME: subentry.title if user_named(subentry) else None,
             CONF_MODEL: subentry.data.get(CONF_MODEL),
             **{f.key: subentry.data.get(f.key) for f in driver_cls.FIELDS if not f.secret},
         }
@@ -289,6 +297,19 @@ async def _async_test_access_point(
     return {}, result.info.name if result.info else None
 
 
+def _sighting_label(mac: str, sighting: Sighting, coordinator: AssociationCoordinator) -> str:
+    """ "MAC  (AP, band, SSID, signal 98%)", plus when it was seen if not connected now."""
+    signal = f"{sighting.signal}{sighting.signal_unit}" if sighting.signal is not None else "?"
+    label = (
+        f"{mac}  ({sighting.access_point}, {sighting.band or '?'}, "
+        f"{sighting.ssid or '?'}, signal {signal})"
+    )
+    if coordinator.current_sighting(mac) is None:
+        last_seen = dt_util.as_local(sighting.last_seen).strftime("%d %b %H:%M")
+        label += f", last seen {last_seen}"
+    return label
+
+
 class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
     """Add a device to track by its Wi-Fi MAC address, or rename it."""
 
@@ -316,14 +337,13 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
 
         coordinator = getattr(entry, "runtime_data", None)
         seen = coordinator.data.sightings if coordinator and coordinator.data else {}
+        # Most recently seen first; devices not connected now (e.g. a sleeping car)
+        # are still offered, with when they were last seen.
         options = [
-            SelectOptionDict(
-                value=mac,
-                label=f"{mac}  ({sighting.access_point}, {sighting.band or '?'}, "
-                f"{sighting.ssid or '?'}, rssi "
-                f"{sighting.rssi if sighting.rssi is not None else '?'})",
+            SelectOptionDict(value=mac, label=_sighting_label(mac, sighting, coordinator))
+            for mac, sighting in sorted(
+                seen.items(), key=lambda item: item[1].last_seen, reverse=True
             )
-            for mac, sighting in sorted(seen.items())
             if mac not in tracked
         ]
         return self.async_show_form(

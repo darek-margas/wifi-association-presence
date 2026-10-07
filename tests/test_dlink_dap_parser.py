@@ -69,7 +69,7 @@ def test_parses_all_clients_with_restarting_numbering() -> None:
     first = clients[0]
     assert first.ssid == "primary SSID"
     assert first.band == "5GHz"
-    assert first.rssi == 98
+    assert first.signal == 98
     assert first.connected_seconds == 1430
     assert clients[2].ssid == "MULTI-SSID index 3"
 
@@ -160,4 +160,4 @@ def test_garbled_and_truncated_clientinfo() -> None:
     )
     clients = parse_clientinfo(text, "5GHz")
     assert [c.mac for c in clients] == ["76:F4:C1:CB:89:12"]
-    assert clients[0].rssi is None
+    assert clients[0].signal is None

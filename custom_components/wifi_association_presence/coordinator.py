@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import area_registry as ar, device_registry as dr
 from homeassistant.helpers.storage import Store
@@ -18,12 +18,25 @@ from .ap_drivers import DRIVERS, AccessPointDriver, AccessPointError, AccessPoin
 from .const import (
     CONF_CONSIDER_HOME,
     CONF_DRIVER,
+    CONF_NAME,
     DEFAULT_CONSIDER_HOME,
     DOMAIN,
     LOGGER,
     SCAN_INTERVAL,
     SUBENTRY_ACCESS_POINT,
 )
+from .presence import (
+    AccessPointRead,
+    AccessPointState,
+    Sighting,
+    is_present,
+    merge_reads,
+    prune,
+    sightings_from_storage,
+    sightings_to_storage,
+)
+
+__all__ = ["AccessPointState", "Sighting"]
 
 type WifiAssociationConfigEntry = ConfigEntry[AssociationCoordinator]
 
@@ -35,28 +48,6 @@ AP_POLL_TIMEOUT = 45
 SIGHTING_RETENTION = timedelta(days=7)
 STORAGE_VERSION = 1
 STORAGE_SAVE_DELAY = 60
-
-
-@dataclass(frozen=True, slots=True)
-class Sighting:
-    """Where and how a MAC was last seen associated."""
-
-    access_point: str
-    access_point_id: str  # the access point's subentry id
-    ssid: str | None
-    band: str | None
-    rssi: int | None
-    last_seen: datetime
-
-
-@dataclass(frozen=True, slots=True)
-class AccessPointState:
-    """Latest read of one access point."""
-
-    available: bool
-    clients_by_band: dict[str, int] = field(default_factory=dict)
-    info: AccessPointInfo | None = None
-    last_boot: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,14 +65,25 @@ class ConfiguredAccessPoint:
     subentry_id: str
     title: str
     driver: AccessPointDriver
-    # Whether the user named it; otherwise the title is just the host.
+    # Whether the user gave it a name; otherwise the name it reports is preferred.
     named: bool
 
     def display_name(self, info: AccessPointInfo | None) -> str:
-        """The user's name, else the name the AP reports about itself, else the host."""
+        """The user's name, else the name the AP reports about itself, else the title."""
         if self.named or info is None or not info.name:
             return self.title
         return info.name
+
+
+def user_named(subentry: ConfigSubentry) -> bool:
+    """Whether the user named this access point.
+
+    Stored explicitly since 0.3.0; older entries had no name in their data, and their
+    title was the host unless the user typed a name.
+    """
+    if CONF_NAME in subentry.data:
+        return bool(subentry.data[CONF_NAME])
+    return subentry.title != subentry.data.get("host")
 
 
 class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
@@ -115,7 +117,7 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
                     subentry.subentry_id,
                     subentry.title,
                     driver_cls(dict(subentry.data)),
-                    named=subentry.title != subentry.data.get("host"),
+                    named=user_named(subentry),
                 )
             )
         self._sightings: dict[str, Sighting] = {}
@@ -134,33 +136,14 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         return bool(self.access_points)
 
     async def async_restore_sightings(self) -> None:
-        """Load the sightings saved before the last reload or restart.
-
-        Unreadable entries are skipped; a broken file only means starting empty.
-        """
-        stored = await self._store.async_load() or {}
-        cutoff = dt_util.utcnow() - SIGHTING_RETENTION
-        for mac, item in stored.get("sightings", {}).items():
-            try:
-                sighting = Sighting(
-                    **{**item, "last_seen": dt_util.parse_datetime(item["last_seen"])}
-                )
-            except (TypeError, KeyError, ValueError):
-                continue
-            if sighting.last_seen is not None and sighting.last_seen > cutoff:
-                self._sightings[mac] = sighting
+        """Load the sightings saved before the last reload or restart."""
+        self._sightings = sightings_from_storage(
+            await self._store.async_load(), dt_util.utcnow(), SIGHTING_RETENTION
+        )
 
     async def async_save_sightings(self) -> None:
         """Save now (on unload, so the next setup starts from current data)."""
-        await self._store.async_save(self._sightings_for_storage())
-
-    def _sightings_for_storage(self) -> dict[str, Any]:
-        return {
-            "sightings": {
-                mac: {**asdict(s), "last_seen": s.last_seen.isoformat()}
-                for mac, s in self._sightings.items()
-            }
-        }
+        await self._store.async_save(sightings_to_storage(self._sightings))
 
     async def _async_update_data(self) -> PresenceData:
         """Read every AP in parallel; keep previous sightings for APs that fail."""
@@ -174,71 +157,56 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             ),
             return_exceptions=True,
         )
-        now = dt_util.utcnow()
-        best: dict[str, Sighting] = {}
-        failed = 0
+        reads: list[AccessPointRead] = []
         for ap, result in zip(self.access_points, results, strict=True):
-            if isinstance(result, asyncio.CancelledError):
-                raise result
-            if isinstance(result, Exception):
-                # Any failure of one AP, expected or a driver bug, only makes that AP
-                # unreadable; it never stops the others from updating.
-                failed += 1
-                if ap.title not in self._failing:
-                    if isinstance(result, (AccessPointError, TimeoutError)):
-                        LOGGER.warning(
-                            "Cannot read access point %s: %s", ap.title, result or "timeout"
-                        )
-                    else:
-                        LOGGER.error(
-                            "Unexpected error reading access point %s",
-                            ap.title,
-                            exc_info=result,
-                        )
-                    self._failing.add(ap.title)
-                previous = self._ap_states.get(ap.subentry_id)
-                self._ap_states[ap.subentry_id] = AccessPointState(
-                    available=False, info=previous.info if previous else None
+            if isinstance(result, BaseException) and not isinstance(result, Exception):
+                raise result  # cancellation and the like are not AP failures
+            reads.append(
+                AccessPointRead(
+                    ap.subentry_id,
+                    ap.display_name(None if isinstance(result, Exception) else result.info),
+                    ap.driver.SIGNAL_UNIT,
+                    result,
                 )
-                continue
-            if isinstance(result, BaseException):
-                raise result
+            )
+            self._log_read(ap, result)
+
+        now = dt_util.utcnow()
+        merged = merge_reads(reads, now)
+        self._ap_states.update(merged.states)
+        for subentry_id in merged.failed:
+            # Keep what the AP last reported about itself (name, firmware) while down.
+            previous = self._ap_states.get(subentry_id)
+            self._ap_states[subentry_id] = AccessPointState(
+                available=False, info=previous.info if previous else None
+            )
+        if len(merged.failed) == len(self.access_points):
+            raise UpdateFailed("None of the access points could be read")
+
+        self._sightings = prune(
+            {**self._sightings, **merged.sightings}, now, SIGHTING_RETENTION
+        )
+        self._store.async_delay_save(
+            lambda: sightings_to_storage(self._sightings), STORAGE_SAVE_DELAY
+        )
+        return PresenceData(dict(self._sightings), dict(self._ap_states))
+
+    def _log_read(self, ap: ConfiguredAccessPoint, result: object) -> None:
+        """Log an AP going unreadable once, and coming back."""
+        if not isinstance(result, Exception):
             if ap.title in self._failing:
                 LOGGER.info("Access point %s is readable again", ap.title)
                 self._failing.discard(ap.title)
-
-            name = ap.display_name(result.info)
-            per_band: dict[str, int] = {}
-            for client in result.clients:
-                per_band[client.band or "unknown"] = per_band.get(client.band or "unknown", 0) + 1
-                sighting = Sighting(
-                    name, ap.subentry_id, client.ssid, client.band, client.rssi, now
-                )
-                current = best.get(client.mac)
-                # Seen on two APs in one poll (roaming): keep the stronger signal.
-                if current is None or (client.rssi or 0) > (current.rssi or 0):
-                    best[client.mac] = sighting
-            uptime = result.info.uptime_seconds if result.info else None
-            self._ap_states[ap.subentry_id] = AccessPointState(
-                available=True,
-                clients_by_band=per_band,
-                info=result.info,
-                # Rounded so the boot time doesn't drift by a second on every poll.
-                last_boot=(now - timedelta(seconds=uptime)).replace(second=0, microsecond=0)
-                if uptime is not None
-                else None,
-            )
-
-        if failed == len(self.access_points):
-            raise UpdateFailed("None of the access points could be read")
-
-        self._sightings.update(best)
-        cutoff = now - SIGHTING_RETENTION
-        self._sightings = {
-            mac: s for mac, s in self._sightings.items() if s.last_seen > cutoff
-        }
-        self._store.async_delay_save(self._sightings_for_storage, STORAGE_SAVE_DELAY)
-        return PresenceData(dict(self._sightings), dict(self._ap_states))
+            return
+        if ap.title in self._failing:
+            return
+        self._failing.add(ap.title)
+        # Any failure of one AP, expected or a driver bug, only makes that AP
+        # unreadable; it never stops the others from updating.
+        if isinstance(result, (AccessPointError, TimeoutError)):
+            LOGGER.warning("Cannot read access point %s: %s", ap.title, result or "timeout")
+        else:
+            LOGGER.error("Unexpected error reading access point %s", ap.title, exc_info=result)
 
     def access_point_name(self, ap: ConfiguredAccessPoint) -> str:
         """Name to show for an access point (see ConfiguredAccessPoint.display_name)."""
@@ -257,6 +225,4 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         if not mac or self.data is None:
             return None
         sighting = self.data.sightings.get(mac)
-        if sighting is None or dt_util.utcnow() - sighting.last_seen >= self.consider_home:
-            return None
-        return sighting
+        return sighting if is_present(sighting, dt_util.utcnow(), self.consider_home) else None

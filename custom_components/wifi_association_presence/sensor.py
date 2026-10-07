@@ -117,7 +117,7 @@ TRACKED_SENSORS = (
         translation_key="signal",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda _, s: s.rssi,
+        value_fn=lambda _, s: s.quality,
     ),
     TrackedSensorDescription(
         key="area",

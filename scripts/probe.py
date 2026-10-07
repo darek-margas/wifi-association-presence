@@ -61,10 +61,10 @@ def main() -> int:
         return 1
 
     print(f"{len(clients)} associated client(s) on {args.host}")
-    print(f"{'MAC':17}  {'band':6}  {'rssi':>4}  {'connected':>9}  ssid")
+    print(f"{'MAC':17}  {'band':6}  {'signal':>6}  {'connected':>9}  ssid")
     for c in sorted(clients, key=lambda c: (c.band or "", c.ssid or "", c.mac)):
         print(
-            f"{c.mac:17}  {c.band or '?':6}  {c.rssi if c.rssi is not None else '?':>4}"
+            f"{c.mac:17}  {c.band or '?':6}  {c.signal if c.signal is not None else '?':>6}"
             f"  {c.connected_seconds if c.connected_seconds is not None else '?':>8}s"
             f"  {c.ssid or '?'}"
         )

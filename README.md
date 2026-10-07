@@ -14,7 +14,7 @@ tablet or laptop you track becomes a device in Home Assistant with:
 
 Each access point becomes a device too, with client counts, firmware, CPU, memory and uptime.
 
-> **Status:** early development (0.2.x). Supports **D-Link DAP** access points (tested
+> **Status:** early development (0.3.x). Supports **D-Link DAP** access points (tested
 > with DAP-2610 and DAP-3662) on Home Assistant 2026.9+. More vendors can be added through
 > pluggable drivers; see [Help add your access point](#help-add-your-access-point).
 
@@ -58,10 +58,12 @@ and brief gaps, so `not_home` means *gone*, not *quiet*.
 
 ### Per device insight
 Each tracked device is a Home Assistant device with:
-- **Tracker** with attributes `access_point`, `area`, `ssid`, `band`, `rssi`, `last_seen`.
+- **Tracker** with attributes `access_point`, `area`, `ssid`, `band`, `signal`,
+  `signal_unit`, `last_seen` (kept after the device leaves, as "last seen at").
 - **Access point** sensor: the AP's name (yours, or the name the AP reports, e.g. *Studio*).
-- **Signal** sensor: strength on the AP's scale (percent on D-Link), with a matching
-  Wi-Fi strength icon.
+- **Signal** sensor: signal quality 0-100 %, comparable across access points and vendors
+  (percent as reported by D-Link; dBm from other drivers is converted), with a matching
+  Wi-Fi strength icon. The raw value and its unit are in the tracker's attributes.
 - **Area** sensor, as above.
 
 ### Access point monitoring
@@ -134,8 +136,10 @@ Requires Home Assistant **2026.9** or newer.
    the AP reports about itself (D-Link: its system name, e.g. "Studio").
 3. Open each access point's device and set its **Area** (✏️ → Area). This is what the
    trackers' *Area* sensor reports.
-4. **Add tracked device**: pick one of the currently associated devices (labelled with AP,
-   band, SSID and signal) or type a MAC address, and give it a name.
+4. **Add tracked device**: pick a device from the list or type its MAC address, and give it
+   a name. The list holds every device seen in the last 7 days, most recent first, labelled
+   with AP, band, SSID and signal; devices not connected right now (a sleeping car or
+   tablet) show when they were last seen. This memory survives restarts.
 5. Optional: **Configure** on the hub sets the grace period.
 
 Access points and tracked devices can be edited from their **⋮** menu (**Reconfigure**).
@@ -169,8 +173,8 @@ Leaving an access point's password empty keeps the current one.
   - the AP's MAC address (`get macaddress` fails on this firmware);
   - clients' IP addresses or host names, so trackers have no `ip`/`host_name`, and Home
     Assistant features that rely on a tracker's IP aren't available.
-- Signal strength is the AP's own scale (D-Link: percent), not dBm, and isn't comparable
-  across vendors.
+- Signal quality is an approximation: D-Link reports a percentage, and dBm values are
+  mapped linearly (-100 dBm = 0 %, -50 dBm = 100 %).
 
 **Presence**
 - **Wi-Fi only.** Wired devices, and devices on networks served by other equipment, are
@@ -198,7 +202,6 @@ Leaving an access point's password empty keeps the current one.
 **Project state**
 - Early development: limited testing (two AP models, one installation), English only, not
   in the default HACS list (add it as a custom repository).
-- Parser tests exist but no CI yet.
 
 ## Help add your access point
 
@@ -234,7 +237,11 @@ The access point code lives in
 Assistant imports, so it can later become a standalone library.
 
 - Test an AP from the command line: `python3 scripts/probe.py --host <ip> --username admin`
-- Parser tests: `python3 -m pytest tests`
+- Tests: `python3 -m pytest tests` (needs `pytest` and `asyncssh`). The presence rules
+  (merging AP reads, roaming, grace period, retention, storage) live in
+  [`presence.py`](custom_components/wifi_association_presence/presence.py) without Home
+  Assistant imports and are tested directly; CI runs the tests, ruff, hassfest and the
+  HACS validation on every push.
 - The icon's source is [`docs/images/icon.svg`](docs/images/icon.svg); the PNGs in
   `custom_components/wifi_association_presence/brand/` (256 and 512 px) are rendered from
   it. Home Assistant 2026.3+ uses them in place of the brands repository.
@@ -245,7 +252,8 @@ Create a module in `ap_drivers/` with a class deriving from `AccessPointDriver`,
 it with `@register`, and set:
 
 - `TYPE` (stable ID stored in configuration; never change it), `NAME` (shown in the type
-  list), `MANUFACTURER`, and `FIELDS` (the settings it needs);
+  list), `MANUFACTURER`, `FIELDS` (the settings it needs) and `SIGNAL_UNIT` (`"%"` or
+  `"dBm"`, the scale of `AssociatedClient.signal`);
 - `async_get_associated_clients()`, returning `AssociatedClient` objects and raising
   `AccessPointAuthError` / `AccessPointError` on failure;
 - optionally `async_poll()` to return device details (`AccessPointInfo`) from the same

@@ -35,8 +35,8 @@ class AssociatedClient:
     """SSID as the AP reports it (may be an index label rather than the name)."""
     band: str | None = None
     """Radio band, e.g. "2.4GHz" or "5GHz"."""
-    rssi: int | None = None
-    """Signal strength on the AP's own scale (percent on D-Link DAP)."""
+    signal: int | None = None
+    """Signal strength on the driver's scale, see AccessPointDriver.SIGNAL_UNIT."""
     connected_seconds: int | None = None
     """Seconds since the client associated."""
 
@@ -83,6 +83,8 @@ class AccessPointDriver(ABC):
     """Shown on the access point's device in Home Assistant."""
     FIELDS: ClassVar[tuple[DriverField, ...]]
     """Settings this driver needs, in the order they are asked for."""
+    SIGNAL_UNIT: ClassVar[str]
+    """Scale of AssociatedClient.signal: "%" (0-100) or "dBm" (e.g. -67)."""
 
     def __init__(self, config: dict[str, Any]) -> None:
         """Store the settings (keys as declared in FIELDS)."""
