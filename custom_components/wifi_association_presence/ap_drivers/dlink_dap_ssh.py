@@ -37,21 +37,29 @@ from . import (
     register,
 )
 
+from .ssh import SshPolicy
+
 RADIOS = (("0", "2.4GHz"), ("1", "5GHz"))
 
-# Older DAP firmware only offers these; listed after the modern ones so newer units
-# still negotiate something stronger.
-KEX_ALGS = [
-    "curve25519-sha256",
-    "ecdh-sha2-nistp256",
-    "diffie-hellman-group14-sha256",
-    "diffie-hellman-group14-sha1",
-    "diffie-hellman-group1-sha1",
-]
-HOST_KEY_ALGS = ["ssh-ed25519", "rsa-sha2-256", "rsa-sha2-512", "ssh-rsa"]
-ENCRYPTION_ALGS = ["aes128-ctr", "aes256-ctr", "aes128-cbc", "aes256-cbc", "3des-cbc"]
+# DAP-2610 offers only diffie-hellman-group-exchange-sha1, -group14-sha1 and
+# -group1-sha1 key exchange, ssh-rsa host keys, and accepts password login (it lists
+# publickey and keyboard-interactive, but neither works). Modern algorithms come first
+# so newer firmware negotiates something stronger.
+DAP_SSH_POLICY = SshPolicy(
+    kex_algs=(
+        "curve25519-sha256",
+        "ecdh-sha2-nistp256",
+        "diffie-hellman-group14-sha256",
+        # Proven with OpenSSH: +diffie-hellman-group1-sha1,diffie-hellman-group14-sha1
+        "diffie-hellman-group14-sha1",
+        "diffie-hellman-group1-sha1",
+        "diffie-hellman-group-exchange-sha1",
+    ),
+    server_host_key_algs=("ssh-ed25519", "rsa-sha2-256", "rsa-sha2-512", "ssh-rsa"),
+    encryption_algs=("aes128-ctr", "aes256-ctr", "aes128-cbc", "aes256-cbc", "3des-cbc"),
+    preferred_auth=("password",),
+)
 
-CONNECT_TIMEOUT = 10
 COMMAND_TIMEOUT = 15
 
 _PROMPT = re.compile(r"[\w.\-]+->\s*$")
@@ -109,6 +117,7 @@ class DlinkDapSsh(AccessPointDriver):
 
     TYPE = "dlink_dap_ssh"
     NAME = "D-Link DAP (SSH console)"
+    SSH_POLICY = DAP_SSH_POLICY
     FIELDS = (
         DriverField("host"),
         DriverField("port", default=22),
@@ -124,11 +133,7 @@ class DlinkDapSsh(AccessPointDriver):
                 port=int(self.config.get("port") or 22),
                 username=self.config["username"],
                 password=self.config["password"],
-                known_hosts=None,
-                kex_algs=KEX_ALGS,
-                server_host_key_algs=HOST_KEY_ALGS,
-                encryption_algs=ENCRYPTION_ALGS,
-                connect_timeout=CONNECT_TIMEOUT,
+                **self.SSH_POLICY.connect_options(),
             ) as conn:
                 async with conn.create_process(
                     term_type="vt100", term_size=(200, 1000)
