@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Features
+- New access point type **UniFi (via the UniFi Network integration)**: pick a UniFi AP
+  known to Home Assistant's UniFi Network integration; its associated clients are read
+  from the controller's active client list over that integration's connection, with no
+  separate login. One request per poll serves all the APs of a controller, and a failed
+  one is remembered for the same 20 s so a down controller gets one attempt per poll.
+  The AP gets no device or sensors of its own: the area of its UniFi device is what the
+  tracked devices report, and UniFi already has its client count, uptime, CPU and memory.
+
 ### Changes
 - A poll in which no access point at all can be read no longer makes every entity
   unavailable at once: within the grace period after the last successful poll it is

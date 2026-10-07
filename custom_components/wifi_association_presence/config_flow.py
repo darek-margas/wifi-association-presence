@@ -54,8 +54,10 @@ from .const import (
     SUBENTRY_ACCESS_POINT,
     SUBENTRY_TRACKED_DEVICE,
 )
+from .ap_drivers.unifi_network import UnifiNetworkDriver
 from .coordinator import AssociationCoordinator, build_driver, user_named
 from .presence import Sighting
+from .unifi_source import access_point_options
 
 
 TEST_TIMEOUT = 45
@@ -179,10 +181,14 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
                     or driver_cls.NAME,
                     data=data,
                 )
+        choices = self._field_choices(driver_cls)
+        if choices is not None and not any(choices.values()):
+            return self.async_abort(reason="no_unifi_access_points")
         return self.async_show_form(
             step_id="details",
             data_schema=self.add_suggested_values_to_schema(
-                _access_point_schema(driver_cls, editing=False), user_input or {}
+                _access_point_schema(driver_cls, editing=False, choices=choices),
+                user_input or {},
             ),
             errors=errors,
             description_placeholders={"type": driver_cls.NAME},
@@ -229,7 +235,12 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=self.add_suggested_values_to_schema(
-                _access_point_schema(driver_cls, editing=True), user_input or suggested
+                _access_point_schema(
+                    driver_cls,
+                    editing=True,
+                    choices=self._field_choices(driver_cls, except_id=subentry.subentry_id),
+                ),
+                user_input or suggested,
             ),
             errors=errors,
             description_placeholders={"type": driver_cls.NAME},
@@ -244,8 +255,29 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
             for sub in self._get_entry().get_subentries_of_type(SUBENTRY_ACCESS_POINT)
         )
 
+    def _field_choices(
+        self, driver_cls: type[AccessPointDriver], except_id: str | None = None
+    ) -> dict[str, list[SelectOptionDict]] | None:
+        """Settings picked from a list rather than typed (None if the driver has none).
 
-def _access_point_schema(driver_cls: type[AccessPointDriver], editing: bool) -> vol.Schema:
+        UniFi access points are picked from those the UniFi Network integration
+        knows, leaving out the ones already added.
+        """
+        if not issubclass(driver_cls, UnifiNetworkDriver):
+            return None
+        taken = {
+            sub.data.get(driver_cls.UNIQUE_FIELD)
+            for sub in self._get_entry().get_subentries_of_type(SUBENTRY_ACCESS_POINT)
+            if sub.subentry_id != except_id
+        }
+        return {driver_cls.UNIQUE_FIELD: access_point_options(self.hass, exclude=taken)}
+
+
+def _access_point_schema(
+    driver_cls: type[AccessPointDriver],
+    editing: bool,
+    choices: dict[str, list[SelectOptionDict]] | None = None,
+) -> vol.Schema:
     """Form fields: an optional name, then the driver's own settings."""
     schema: dict[Any, Any] = {
         vol.Optional(CONF_NAME): TextSelector(),
@@ -257,6 +289,13 @@ def _access_point_schema(driver_cls: type[AccessPointDriver], editing: bool) -> 
             # When editing, leaving the secret blank keeps the stored value.
             key = vol.Optional(field.key) if editing else vol.Required(field.key)
             schema[key] = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+            continue
+        if choices and field.key in choices:
+            schema[vol.Required(field.key)] = SelectSelector(
+                SelectSelectorConfig(
+                    options=choices[field.key], mode=SelectSelectorMode.DROPDOWN
+                )
+            )
             continue
         key = (
             vol.Required(field.key, default=field.default)

@@ -139,4 +139,4 @@ def normalize_mac(mac: str) -> str:
 
 
 # Import the driver modules last so they can use the definitions above and register.
-from . import dlink_dap_ssh  # noqa: E402, F401
+from . import dlink_dap_ssh, unifi_network  # noqa: E402, F401

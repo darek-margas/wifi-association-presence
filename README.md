@@ -15,8 +15,9 @@ tablet or laptop you track becomes a device in Home Assistant with:
 
 Each access point becomes a device too, with client counts, firmware, CPU, memory and uptime.
 
-> **Status:** early development (0.4.x). Supports **D-Link DAP** access points (tested
-> with DAP-2610 and DAP-3662) on Home Assistant 2026.9+. More vendors can be added through
+> **Status:** early development (0.5.x). Supports **D-Link DAP** access points (tested
+> with DAP-2610 and DAP-3662) and **UniFi** access points through Home Assistant's
+> UniFi Network integration, on Home Assistant 2026.9+. More vendors can be added through
 > pluggable drivers; see [Help add your access point](#help-add-your-access-point).
 
 ## Why association, not ARP or MAC tables
@@ -226,6 +227,25 @@ Leaving an access point's password empty keeps the current one.
 | Type | Models | Method |
 |---|---|---|
 | D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI | SSH: `config wlan 0/1` + `get clientinfo` |
+| UniFi (via the UniFi Network integration) | Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
+
+### UniFi setup notes
+
+- Set up Home Assistant's **UniFi Network** integration first. No credentials are entered
+  here: this integration reuses that one's connection to the controller.
+- **Add access point → UniFi (via the UniFi Network integration)**, then pick the AP from
+  the list (one access point entry per physical AP). APs already added are left out of
+  the list.
+- No new device or AP sensors are created: the entry attaches to the AP's **existing
+  UniFi device**, and the area you set on that device is what the tracked devices' Area
+  sensor reports. UniFi already provides the AP's client count, uptime, CPU and memory
+  there.
+- Each poll requests the controller's active client list once, shared by all its APs; a
+  client is associated to an AP while the controller lists it there. Signal is in dBm.
+- An AP the controller reports as offline (or not adopted) counts as unreadable, and
+  tracked devices on it fall back to the grace period, as with a failing D-Link AP.
+- The UniFi integration's own device trackers can stay enabled or be disabled; they are
+  independent of this integration's trackers.
 
 ### D-Link DAP setup notes
 
@@ -354,7 +374,7 @@ a collector report and test a build.
 
 | Next | How | What's needed |
 |---|---|---|
-| **UniFi APs** | SSH to each AP, `mca-dump` (JSON with each radio's station table and dBm signal) | `collect.py --profile unifi` report |
+| **UniFi APs without a controller in HA** | SSH to each AP, `mca-dump` (JSON with each radio's station table and dBm signal) | `collect.py --profile unifi` report |
 | **SNMP drivers** | One SNMP base driver plus a small table map per vendor (MikroTik registration table first; Cisco, Aruba, Ruckus as reports arrive) | `collect.py --snmp` report |
 | **OpenWrt** | SSH, `iw dev <radio> station dump` | `collect.py --command "iw dev"` and a station dump |
 | **Controller-only systems** (Omada, Cisco WLC, Aruba Instant) | Only where the APs can't be read directly: one entry that reports several APs, each still its own device with its own area | interest and a test setup |
