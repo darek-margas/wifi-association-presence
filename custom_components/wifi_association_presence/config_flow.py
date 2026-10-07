@@ -162,7 +162,7 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
         driver_cls = DRIVERS[self._driver_type]
         errors: dict[str, str] = {}
         if user_input is not None:
-            name, data = _split_name(user_input)
+            name, data = _split_name(user_input, driver_cls)
             if self._host_in_use(data.get("host")):
                 return self.async_abort(reason="already_configured")
             data = {CONF_DRIVER: self._driver_type, **data}
@@ -191,7 +191,7 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
             return self.async_abort(reason="unknown_driver")
         errors: dict[str, str] = {}
         if user_input is not None:
-            name, changes = _split_name(user_input)
+            name, changes = _split_name(user_input, driver_cls)
             if self._host_in_use(changes.get("host"), except_id=subentry.subentry_id):
                 return self.async_abort(reason="already_configured")
             data = {**subentry.data, **{k: v for k, v in changes.items() if v not in (None, "")}}
@@ -255,9 +255,19 @@ def _access_point_schema(driver_cls: type[AccessPointDriver], editing: bool) -> 
     return vol.Schema(schema)
 
 
-def _split_name(user_input: dict[str, Any]) -> tuple[str | None, dict[str, Any]]:
-    """Separate the display name (subentry title) from the driver settings."""
-    data = dict(user_input)
+def _split_name(
+    user_input: dict[str, Any], driver_cls: type[AccessPointDriver]
+) -> tuple[str | None, dict[str, Any]]:
+    """Separate the display name (subentry title) from the driver settings.
+
+    Text settings are stripped of surrounding spaces (a pasted " 192.168.1.10" would
+    otherwise fail to connect); secrets are kept exactly as typed.
+    """
+    secrets = {field.key for field in driver_cls.FIELDS if field.secret}
+    data = {
+        key: value.strip() if isinstance(value, str) and key not in secrets else value
+        for key, value in user_input.items()
+    }
     name = (data.pop(CONF_NAME, None) or "").strip() or None
     return name, data
 
@@ -301,7 +311,7 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
                 if mac in tracked:
                     return self.async_abort(reason="already_configured")
                 return self.async_create_entry(
-                    title=user_input[CONF_NAME], data={CONF_MAC: mac}, unique_id=mac
+                    title=user_input[CONF_NAME].strip(), data={CONF_MAC: mac}, unique_id=mac
                 )
 
         coordinator = getattr(entry, "runtime_data", None)
@@ -343,7 +353,7 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
         subentry = self._get_reconfigure_subentry()
         if user_input is not None:
             return self.async_update_and_abort(
-                self._get_entry(), subentry, title=user_input[CONF_NAME]
+                self._get_entry(), subentry, title=user_input[CONF_NAME].strip()
             )
         return self.async_show_form(
             step_id="reconfigure",
