@@ -275,6 +275,9 @@ def parse_cli_value(output: str, command: str) -> str | None:
     if not lines:
         return None
     last = lines[-1]
+    # Judge the whole line: in "Invalid parameter: 9" the error is before the colon.
+    if _ERROR_REPLY.search(last):
+        return None
     if match := _IS_VALUE.match(last):
         value = match.group(1).strip()
     elif ":" in last:
