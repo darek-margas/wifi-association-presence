@@ -58,12 +58,12 @@ and brief gaps, so `not_home` means *gone*, not *quiet*.
 
 ### Per device insight
 Each tracked device is a Home Assistant device with:
-- **Tracker** with attributes `access_point`, `area`, `ssid`, `band`, `signal`,
-  `signal_unit`, `last_seen` (kept after the device leaves, as "last seen at").
+- **Tracker** with attributes `access_point`, `area`, `ssid`, `band` (kept after the device
+  leaves, as "last seen at"), and `last_seen` while it is away.
 - **Access point** sensor: the AP's name (yours, or the name the AP reports, e.g. *Studio*).
 - **Signal** sensor: signal quality 0-100 %, comparable across access points and vendors
   (percent as reported by D-Link; dBm from other drivers is converted), with a matching
-  Wi-Fi strength icon. The raw value and its unit are in the tracker's attributes.
+  Wi-Fi strength icon. Its attributes hold the raw value and unit (`signal`, `signal_unit`).
 - **Area** sensor, as above.
 
 ### Access point monitoring

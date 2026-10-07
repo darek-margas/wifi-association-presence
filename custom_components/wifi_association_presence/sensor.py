@@ -97,6 +97,13 @@ def _area_name(coordinator: AssociationCoordinator, sighting: Sighting) -> str |
     area = coordinator.access_point_area(sighting.access_point_id)
     return area.name if area else None
 
+
+def _area_id(coordinator: AssociationCoordinator, sighting: Sighting) -> dict[str, Any]:
+    """The area id, stable across renames, for automations."""
+    area = coordinator.access_point_area(sighting.access_point_id)
+    return {"area_id": area.id if area else None}
+
+
 @dataclass(frozen=True, kw_only=True)
 class TrackedSensorDescription(SensorEntityDescription):
     """A tracked device sensor read from its current sighting."""
@@ -104,6 +111,8 @@ class TrackedSensorDescription(SensorEntityDescription):
     value_fn: Callable[[AssociationCoordinator, Sighting], StateValue]
     # Re-evaluate when areas or device areas change, not only on polls.
     follows_areas: bool = False
+    # Attributes; keep to values that change together with the state (recorder rows).
+    attrs_fn: Callable[[AssociationCoordinator, Sighting], dict[str, Any]] | None = None
 
 
 TRACKED_SENSORS = (
@@ -118,12 +127,15 @@ TRACKED_SENSORS = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda _, s: s.quality,
+        # The raw value on the driver's own scale, e.g. 98 % or -67 dBm.
+        attrs_fn=lambda _, s: {"signal": s.signal, "signal_unit": s.signal_unit},
     ),
     TrackedSensorDescription(
         key="area",
         translation_key="area",
         follows_areas=True,
         value_fn=_area_name,
+        attrs_fn=_area_id,
     ),
 )
 
@@ -210,12 +222,12 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        """The area id (stable across renames) for the area sensor."""
-        if not self.entity_description.follows_areas:
-            return None
+        """Details for the current value, while the device is home."""
+        attrs_fn = self.entity_description.attrs_fn
         sighting = self.coordinator.current_sighting(self._mac)
-        area = self.coordinator.access_point_area(sighting.access_point_id) if sighting else None
-        return {"area_id": area.id if area else None}
+        if attrs_fn is None or sighting is None:
+            return None
+        return attrs_fn(self.coordinator, sighting)
 
     async def async_added_to_hass(self) -> None:
         """Also follow area changes, for sensors that show an area."""

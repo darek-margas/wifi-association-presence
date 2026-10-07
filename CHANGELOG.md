@@ -20,7 +20,10 @@ Supports D-Link DAP access points over SSH (tested: DAP-2610, DAP-3662).
 - `scripts/collect.py` to collect redacted data for supporting new access points.
 
 ### Changes since the 0.2 test builds
-- Tracker attribute `rssi` is now `signal`, with a new `signal_unit` attribute.
+- Tracker attributes no longer include the signal (see the *Signal* sensor, whose
+  attributes hold the raw `signal` and `signal_unit`), and `last_seen` is shown only while
+  the device is away. Attributes now change only when the situation does, so the recorder
+  no longer writes a row per device on every poll.
 - The *Signal* sensor is a 0-100 % quality that is comparable across drivers; roaming
   attribution never prefers an unknown signal over a known one.
 - Whether an access point was named by the user is stored explicitly (existing entries
