@@ -42,6 +42,28 @@ class AssociatedClient:
 
 
 @dataclass(frozen=True, slots=True)
+class AccessPointInfo:
+    """What an access point reports about itself (any field may be unknown)."""
+
+    name: str | None = None
+    location: str | None = None
+    model: str | None = None
+    firmware: str | None = None
+    hardware: str | None = None
+    uptime_seconds: int | None = None
+    cpu_percent: int | None = None
+    memory_percent: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PollResult:
+    """One read of an access point."""
+
+    clients: list[AssociatedClient]
+    info: AccessPointInfo | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class DriverField:
     """A setting a driver needs, e.g. host or password."""
 
@@ -57,6 +79,8 @@ class AccessPointDriver(ABC):
     """Stable identifier stored in configuration. Never change it once released."""
     NAME: ClassVar[str]
     """Human readable name shown when choosing the AP type."""
+    MANUFACTURER: ClassVar[str | None] = None
+    """Shown on the access point's device in Home Assistant."""
     FIELDS: ClassVar[tuple[DriverField, ...]]
     """Settings this driver needs, in the order they are asked for."""
 
@@ -71,6 +95,14 @@ class AccessPointDriver(ABC):
         Raises AccessPointAuthError for rejected credentials and AccessPointError
         for any other failure.
         """
+
+    async def async_poll(self) -> PollResult:
+        """Clients plus whatever the AP reports about itself.
+
+        Drivers that can read device details in the same session override this;
+        the default returns clients only.
+        """
+        return PollResult(await self.async_get_associated_clients())
 
 
 DRIVERS: dict[str, type[AccessPointDriver]] = {}

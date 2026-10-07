@@ -35,8 +35,10 @@ from . import (
     AccessPointAuthError,
     AccessPointDriver,
     AccessPointError,
+    AccessPointInfo,
     AssociatedClient,
     DriverField,
+    PollResult,
     normalize_mac,
     register,
 )
@@ -65,11 +67,12 @@ DAP_SSH_POLICY = SshPolicy(
 )
 
 COMMAND_TIMEOUT = 15
-SSID_NAMES_TTL = 3600  # re-read SSID names hourly
+CACHE_TTL = 3600  # re-read SSID names and static device details hourly
 
 _PROMPT = re.compile(r"[\w.\-]+->\s*$")
 _SSID_LABEL = re.compile(r"^(?:primary ssid|multi-ssid index (\d+))$", re.IGNORECASE)
 _IS_VALUE = re.compile(r"^.*\(index \d+\) is (.*)$", re.IGNORECASE)
+_UPTIME = re.compile(r"Day\s+(\d+),\s*(\d+):(\d+):(\d+)", re.IGNORECASE)
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 _FIELD = re.compile(r"^Client\d+--(\w+):\s*(.*?)\s*$")
 
@@ -111,6 +114,22 @@ def parse_clientinfo(text: str, band: str | None = None) -> list[AssociatedClien
     return clients
 
 
+def parse_uptime(output: str) -> int | None:
+    """Seconds from "AP Uptime -- Day 62,  0:41:46"."""
+    if match := _UPTIME.search(output):
+        days, hours, minutes, seconds = (int(part) for part in match.groups())
+        return ((days * 24 + hours) * 60 + minutes) * 60 + seconds
+    return None
+
+
+def parse_hardware(output: str) -> str | None:
+    """Revision from "rev A1G"."""
+    value = parse_cli_value(output, "get hardware")
+    if value and value.lower().startswith("rev "):
+        value = value[4:].strip()
+    return value or None
+
+
 def _int(value: str | None) -> int | None:
     try:
         return int(value) if value is not None else None
@@ -124,6 +143,7 @@ class DlinkDapSsh(AccessPointDriver):
 
     TYPE = "dlink_dap_ssh"
     NAME = "D-Link DAP (SSH console)"
+    MANUFACTURER = "D-Link"
     SSH_POLICY = DAP_SSH_POLICY
     FIELDS = (
         DriverField("host"),
@@ -133,37 +153,69 @@ class DlinkDapSsh(AccessPointDriver):
     )
 
     def __init__(self, config: dict[str, Any]) -> None:
-        """Set up the SSID name cache."""
+        """Set up the caches for SSID names and static device details."""
         super().__init__(config)
         self._ssid_names: dict[tuple[str, str], str] = {}
-        self._ssid_names_read_at = 0.0
+        self._static_info: AccessPointInfo | None = None
+        self._cache_read_at = 0.0
 
     async def async_get_associated_clients(self) -> list[AssociatedClient]:
         """Log in, read both radios' association tables and log out."""
-        if time.monotonic() - self._ssid_names_read_at > SSID_NAMES_TTL:
-            self._ssid_names.clear()
-            self._ssid_names_read_at = time.monotonic()
+        self._expire_cache()
         async with self._console() as process:
-            clients: list[AssociatedClient] = []
-            for radio, band in RADIOS:
-                await _run(process, f"config wlan {radio}")
-                radio_clients = parse_clientinfo(await _run(process, "get clientinfo"), band)
-                for label in {c.ssid for c in radio_clients if c.ssid}:
-                    if (band, label) in self._ssid_names:
-                        continue
-                    command = ssid_name_command(label)
-                    name = (
-                        parse_cli_value(await _run(process, command), command)
-                        if command
-                        else None
-                    )
-                    # Unresolvable labels are cached as-is until the next refresh.
-                    self._ssid_names[(band, label)] = name or label
-                clients += [
-                    replace(c, ssid=self._ssid_names.get((band, c.ssid or ""), c.ssid))
-                    for c in radio_clients
-                ]
-            return clients
+            return await self._read_clients(process)
+
+    async def async_poll(self) -> PollResult:
+        """Clients plus device details, in one console session."""
+        self._expire_cache()
+        async with self._console() as process:
+            clients = await self._read_clients(process)
+            if self._static_info is None:
+                self._static_info = AccessPointInfo(
+                    name=parse_cli_value(await _run(process, "get systemname"), "get systemname"),
+                    location=parse_cli_value(
+                        await _run(process, "get location"), "get location"
+                    ),
+                    firmware=parse_cli_value(await _run(process, "version"), "version"),
+                    hardware=parse_hardware(await _run(process, "get hardware")),
+                )
+            info = replace(
+                self._static_info,
+                uptime_seconds=parse_uptime(await _run(process, "get uptime")),
+                cpu_percent=_int(parse_cli_value(await _run(process, "get cpuinfo"), "get cpuinfo")),
+                memory_percent=_int(
+                    parse_cli_value(await _run(process, "get meminfo"), "get meminfo")
+                ),
+            )
+            return PollResult(clients, info)
+
+    def _expire_cache(self) -> None:
+        """Re-read SSID names and static device details hourly."""
+        if time.monotonic() - self._cache_read_at > CACHE_TTL:
+            self._ssid_names.clear()
+            self._static_info = None
+            self._cache_read_at = time.monotonic()
+
+    async def _read_clients(self, process: asyncssh.SSHClientProcess) -> list[AssociatedClient]:
+        """Both radios' association tables, with SSID labels resolved to names."""
+        clients: list[AssociatedClient] = []
+        for radio, band in RADIOS:
+            await _run(process, f"config wlan {radio}")
+            radio_clients = parse_clientinfo(await _run(process, "get clientinfo"), band)
+            for label in {c.ssid for c in radio_clients if c.ssid}:
+                if (band, label) in self._ssid_names:
+                    continue
+                command = ssid_name_command(label)
+                name = (
+                    parse_cli_value(await _run(process, command), command) if command else None
+                )
+                # Unresolvable labels are cached as-is until the next refresh.
+                self._ssid_names[(band, label)] = name or label
+            clients += [
+                replace(c, ssid=self._ssid_names.get((band, c.ssid or ""), c.ssid))
+                for c in radio_clients
+            ]
+        return clients
 
     async def async_run_commands(self, commands: list[str]) -> list[str]:
         """Run read-only console commands and return their raw output (for diagnostics)."""

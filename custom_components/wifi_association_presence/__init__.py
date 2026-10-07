@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 
+from .const import SUBENTRY_TRACKED_DEVICE
 from .coordinator import AssociationCoordinator, WifiAssociationConfigEntry
+from .entity import access_point_device_info, tracked_device_info
 
-PLATFORMS = [Platform.DEVICE_TRACKER]
+PLATFORMS = [Platform.DEVICE_TRACKER, Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEntry) -> bool:
@@ -15,6 +18,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEnt
     coordinator = AssociationCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+
+    # Register devices before the platforms, so each device_tracker finds the device
+    # carrying its MAC and attaches to it on the first start.
+    device_registry = dr.async_get(hass)
+    for ap in coordinator.access_points:
+        device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            config_subentry_id=ap.subentry_id,
+            **access_point_device_info(coordinator, ap),
+        )
+    for subentry in entry.get_subentries_of_type(SUBENTRY_TRACKED_DEVICE):
+        device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            config_subentry_id=subentry.subentry_id,
+            **tracked_device_info(subentry),
+        )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -24,7 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEnt
 async def _async_update_listener(
     hass: HomeAssistant, entry: WifiAssociationConfigEntry
 ) -> None:
-    """Reload when access points or tracked devices are added, changed or removed."""
+    """Reload when options, access points or tracked devices change."""
     hass.config_entries.async_schedule_reload(entry.entry_id)
 
 

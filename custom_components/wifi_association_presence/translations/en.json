@@ -21,6 +21,19 @@
       }
     }
   },
+  "entity": {
+    "sensor": {
+      "clients_2_4ghz": { "name": "Clients 2.4 GHz" },
+      "clients_5ghz": { "name": "Clients 5 GHz" },
+      "clients_total": { "name": "Clients" },
+      "cpu": { "name": "CPU" },
+      "memory": { "name": "Memory" },
+      "last_boot": { "name": "Last boot" },
+      "location": { "name": "Location" },
+      "access_point": { "name": "Access point" },
+      "signal": { "name": "Signal" }
+    }
+  },
   "config_subentries": {
     "access_point": {
       "entry_type": "Access point",

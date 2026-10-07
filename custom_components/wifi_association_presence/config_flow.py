@@ -289,7 +289,7 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
                 )
 
         coordinator = getattr(entry, "runtime_data", None)
-        seen = (coordinator.data or {}) if coordinator else {}
+        seen = coordinator.data.sightings if coordinator and coordinator.data else {}
         options = [
             SelectOptionDict(
                 value=mac,

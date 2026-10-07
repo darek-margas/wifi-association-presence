@@ -16,6 +16,8 @@ sys.path.insert(
 from ap_drivers import normalize_mac  # noqa: E402
 from ap_drivers.dlink_dap_ssh import (  # noqa: E402
     parse_cli_value,
+    parse_hardware,
+    parse_uptime,
     parse_clientinfo,
     ssid_name_command,
 )
@@ -110,3 +112,16 @@ def test_parse_cli_value() -> None:
         parse_cli_value("get multi-ssid 9\nInvalid parameter: 9\nWAP-> ", "get multi-ssid 9")
         is None
     )
+
+
+def test_device_details() -> None:
+    # Real DAP-2610 replies.
+    assert parse_cli_value("version\n\n SOFTWARE_VERSION: v2.06\nWAP->\n", "version") == "v2.06"
+    assert parse_cli_value("get systemname\nStudio\nWAP->\n", "get systemname") == "Studio"
+    assert parse_cli_value("get location\nLevel1\nWAP->\n", "get location") == "Level1"
+    assert parse_cli_value("get cpuinfo\ncpuinfo:15\nWAP->\n", "get cpuinfo") == "15"
+    assert parse_hardware("get hardware\nrev A1G\nWAP->\n") == "A1G"
+    assert parse_uptime("get uptime\nAP Uptime -- Day 62,  0:41:46\nWAP->\n") == (
+        62 * 86400 + 41 * 60 + 46
+    )
+    assert parse_uptime("get uptime\nWAP->\n") is None

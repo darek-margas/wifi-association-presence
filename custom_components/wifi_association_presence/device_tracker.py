@@ -9,7 +9,6 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.util import dt as dt_util
 
 from .const import CONF_MAC, SUBENTRY_TRACKED_DEVICE
 from .coordinator import AssociationCoordinator, WifiAssociationConfigEntry
@@ -22,12 +21,11 @@ async def async_setup_entry(
 ) -> None:
     """Create one tracker per tracked-device subentry."""
     coordinator = entry.runtime_data
-    for subentry_id, subentry in entry.subentries.items():
-        if subentry.subentry_type == SUBENTRY_TRACKED_DEVICE:
-            async_add_entities(
-                [AssociationTracker(coordinator, subentry)],
-                config_subentry_id=subentry_id,
-            )
+    for subentry in entry.get_subentries_of_type(SUBENTRY_TRACKED_DEVICE):
+        async_add_entities(
+            [AssociationTracker(coordinator, subentry)],
+            config_subentry_id=subentry.subentry_id,
+        )
 
 
 class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntity):
@@ -38,6 +36,8 @@ class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntit
         super().__init__(coordinator)
         self._attr_mac_address = subentry.data[CONF_MAC]
         self._attr_name = subentry.title
+        # Home Assistant names the device it links this tracker to after the hostname.
+        self._attr_hostname = subentry.title
 
     @property
     def entity_registry_enabled_default(self) -> bool:
@@ -57,16 +57,12 @@ class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntit
         """
         if not self.coordinator.has_access_points:
             return None
-        sighting = self.coordinator.data.get(self.mac_address or "")
-        return (
-            sighting is not None
-            and dt_util.utcnow() - sighting.last_seen < self.coordinator.consider_home
-        )
+        return self.coordinator.current_sighting(self.mac_address) is not None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Where the device was last seen."""
-        sighting = self.coordinator.data.get(self.mac_address or "")
+        """Where the device was last seen (kept after it leaves, for reference)."""
+        sighting = self.coordinator.data.sightings.get(self.mac_address or "")
         if sighting is None:
             return None
         return {
