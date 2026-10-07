@@ -1,0 +1,893 @@
+# profile: dlink_dap  legacy-ssh: True
+# server version: SSH-2.0-OpenSSH_8.2
+# --- login banner / prompt ---
+WAP-> 
+# --- help ---
+help
+List of Access Point CLI commands:
+ config wlan                        -- config wlan (0:2.4G, 1:5G)
+ del key                            -- Delete Encryption key (index:1--4)
+ tftp getconfig                     -- Use tftp to get configuration from PC
+ tftp getfirmware                   -- Use tftp to get Firmware from PC
+ tftp putconfig                     -- Use tftp to put configuration to PC
+ get acctstate                      -- Display Accounting state
+ get acctip                         -- Display Accounting server IP address
+ get acctport                       -- Display Accounting port number
+ get acktimeout                     -- Display ACKTIMEOUT
+ get acl                            -- Display ACL
+ get acl-table                      -- Display macfilter table
+ get apmode                         -- Display AP Operate Mode
+ get uapsd                          -- Display UAPSD Status
+ get assoclimitstatus               -- Display Association Limit setting status
+ get authentication                 -- Display Authentication Type
+ get autochannel                    -- Display AutoChannel
+ get autorekey                      -- Display autorekey
+ get autorekey_smtp                 -- Display autorekey
+ get availablechannel               -- Display Available channel list
+ get backup-acctip                  -- Display Backup Accounting server IP address
+ get backup-acctport                -- Display Backup Accounting port number
+ get backup-radiusip                -- Display Backup RADIUS server IP address
+ get backup-radiusport              -- Display Backup RADIUS port number
+ get band                           -- Display band
+ get ch_env                         -- Display channel environment
+ get time                           -- Display time
+ get beaconinterval                 -- Display Beaconinterval
+ get channel                        -- Display Channel
+ get cipher                         -- Display Encryption cipher
+ get devstat                        -- Display devstat
+ get clientinfo                     -- Display ClientInfo
+ get country                        -- Display Country
+ get cwm                            -- Display CWM
+ get daylightsaving                 -- Display Day Light Saving Time
+ get defkeyindex                    -- Display Default Key Index
+ get dtim                           -- Display DTIM
+ get dhcp_dns                       -- Display dhcp server dns ip
+ get dhcp_domain                    -- Display dhcp server domain name
+ get dhcp_endip                     -- Display dhcp server end ip
+ get dhcp_gateway                   -- Display dhcp server gateway ip
+ get dhcp_leasetime                 -- Display dhcp server leasetime
+ get dhcp_netmask                   -- Display dhcp server netmask
+ get dhcp_server                    -- Display dhcp server states
+ get dhcp_inner_only                -- Display get ip from inner dhcp server only states
+ get dhcp_startip                   -- Display dhcp server start ip
+ get dhcp_sta_expire                -- Display dhcp server sta's expire time
+ get dhcp_sta_hostname              -- Display dhcp server sta's hostname
+ get dhcp_sta_mac                   -- Display dhcp server sta's mac
+ get dhcp_sta_ip                    -- Display dhcp server sta's ip
+ get dhcp_staticip_mode             -- Display dhcp server static mode states
+ get dhcp_staticip_ip               -- Display dhcp server static mode ip
+ get dhcp_staticip_mac              -- Display dhcp server static mode mac
+ get dhcp_staticip_hostname         -- Display dhcp server static mode hostname
+ get dhcp_staticip_pool_state       -- Display dhcp server static mode pool state
+ get dhcp_wins                      -- Display dhcp server wins ip
+ get dhcp_force_broadcast           -- Display server force broadcast states
+ get dhcp_force_unicast             -- Display server force unicast states
+ get d-wepkeylen                    -- Display 802.1X dynamic WEP Key Length
+ get d-wepkeyupdate                 -- Display 802.1X dynamic WEP Rekey Interval(in Secs)
+ get e_partition                    -- Display e_partition
+ get ethlink                        -- Display ethernet integration
+ get eth-updownlink                 -- Display ethernet uplink/downlink state
+ get ethernetcount                  -- Display ethernet count
+ get wlancount                      -- Display wlan count
+ get gateway                        -- Display Gateway IP Address
+ get groupkeyupdate                 -- Display Group Key Update Interval (in Secs)
+ get hardware                       -- Display Hardware Revisions
+ get igmpsnoop                      -- Display IGMP Snoop status
+ get intrusion                      -- Display intrusion
+ get ipaddr                         -- Display IP Address
+ get ipmask                         -- Display IP Subnet Mask
+ get nameaddr                       -- Display DNS Address
+ get ipmode                         -- Display IP Mode
+ get stpsatus                       -- Display stp status
+ get ipv6                           -- Display IPv6 settings
+ get key                            -- Display Encryption Key (index:1--4)
+ get keyentrymethod                 -- Display Encryption Key Entry Method [index:1--4]  
+ get keylength                      -- Display Encryption Key Length (in Bits)[index:1--4]
+ get ladtype                        -- Limited Administration Type
+ get ladvid                         -- Vlan ID which can control device
+ get ladippool                      -- Start IP of Limited Administration IP pool
+ get macaddress                     -- Display Mac address 
+ get ssidmac                        -- Display primary/mutli ssid macaddress 
+ get macaddrlist                    -- Display MAC Address List
+ get macclonetype                   -- Display MAC address clone type
+ get maccloneaddr                   -- Display MAC clone address
+ get multi-acl                      -- Display ACL of Multi-SSID[index]
+ get multi-acctstate                -- Display Accounting server state of Multi-SSID[index]
+ get multi-acctip                   -- Display Accounting server IP address of Multi-SSID[index]
+ get multi-acctport                 -- Display Accounting port number of Multi-SSID[index]
+ get multi-auth                     -- Display Authentication Type of Multi-SSID[index]
+ get multi-backup-acctip            -- Display Backup Accounting server IP address of Multi-SSID[index]
+ get multi-backup-acctport          -- Display Backup Accounting port number of Multi-SSID[index]
+ get multi-backup-radiusip          -- Display Backup RADIUS server IP address of Multi-SSID[index]
+ get multi-backup-radiusport        -- Display Backup RADIUS port number of Multi-SSID[index]
+ get multi-cipher                   -- Display Encryption cipher of Multi-SSID[index]
+ get multi-d-wepkeylen              -- Display 802.1X dynamic WEP Key Length of Multi-SSID[index]
+ get multi-d-wepkeyupdate           -- Display 802.1X dynamic WEP Rekey Interval of Multi-SSID[index]
+ get multi-defkeyindex              -- Display Default Key Index of Multi-SSID[index]
+ get multi-groupkeyupdate           -- Display Group Key Update Interval (in Secs) of Multi-SSID[index]
+ get multi-ind-state                -- Display Multi-SSID [index] individual state
+ get multi-macaddrlist              -- Display MAC Address List of Multi-SSID[index]
+ get multi-radiusip                 -- Display RADIUS server IP address of Multi-SSID[index]
+ get multi-radiusport               -- Display RADIUS port number of Multi-SSID[index]
+ get multi-ssid                     -- Display ESSID of Multi-SSID[index]
+ get multi-ssidhidden               -- Display ssid-hidden state of Multi-SSID[index]
+ get multi-state                    -- Display Multi-SSID state
+ get multi-pvid                     -- Display PVID of Multi-SSID[index]
+ get multi-groupvid                 -- Display Group VID of Multi-SSID[index]
+ get multi-wmm                      -- Display WMM state of Multi-SSID[index]
+ get multi-wepkey                   -- Display Encryption Key (index:1--4) of Multi-SSID[index]
+ get multi-pri-state                -- Display Multi-SSID pripority state
+ get multi-priority                 -- Display Priority of Multi-SSID[index]
+ get multi-updownlink               -- Display uplink/downlink state of Multi-SSID[index]
+ get priority                       -- Display Priority of primary SSID
+ get multi-w-partition              -- Display wlan partition state of Multi-SSID[index]
+ get multicast_bwctrl               -- Display Multicast Bandwidth Control
+ get multicast_max_bw               -- Display  Maximum Multicast Bandwidth 
+ get pingctl                        -- Ping Control
+ get dhcp_mc2uc                     -- transfer DHCP OFFER to unicast
+ get arpspoofing                    -- Display ARP Spoofing
+ get qos                            -- Display QOS setting
+ get trafficmgr                     -- Display Traffic Manager setting
+ get radiuscli_auth_status          -- Display RADIUSClient Auth status
+ get radiusclient                   -- Display RADIUS Client status
+ get radiuscli_user                 -- Display RADIUS Client User name
+ get radiuscli_pass                 -- Display RADIUS Client User password
+ get radiuscli_ser_ip               -- Display RADIUSClinet's Server ip
+ get radiuscli_ser_pass             -- Display RADIUSClient's Server password
+ get radiusip                       -- Display RADIUS server IP address
+ get radiusport                     -- Display RADIUS port number
+ get rogue_ap                       -- Display Rogue AP List
+ get shortgi                        -- Display Shortgi
+ get scheduled                      -- Display scheduled
+ get ssid                           -- Display Service Set ID
+ get ssidhidden                     -- Display SSIDhidden
+ get sntpserver                     -- Display SNTP/NTP Server IP Address
+ get syslog                         -- Display Syslog Information
+ get txpower                        -- Display Txpower
+ get tzonelist                      -- Display Time Zone
+ get uptime                         -- Display UpTime
+ get loginwaittime                  -- Display wait time if AP is attacked
+ get vlanstate                      -- Display VLAN state
+ get vlanmode                       -- Display VLAN mode
+ get autosetpvid                    -- Display auto setting pvid by group VID
+ get pvid_primary                   -- Display primary SSID PVID
+ get pvid_eth                       -- Display ethernet PVID
+ get pvid_sys                       -- Display system PVID
+ get groupvid_primary               -- Display wlan port member of group VID
+ get groupvid_eth                   -- Display LAN port member of group VID
+ get groupvid_sys                   -- Display System port member of group VID
+ get updownlink                     -- Display primary ssid uplink/downlink state
+ get uplink_bandwidth               -- Display uplink bandwidth
+ get downlink_bandwidth             -- Display downuplink bandwidth
+ get w_partition                    -- Display w_partition
+ get cpuinfo                        -- Display cpu info percentage
+ get meminfo                        -- Display mem info percentage
+ get wdsinfo                        -- Display wds Info
+ get wdsmac                         -- Display WDS MAC Address List
+ get wdsscaninfo                    -- Display wds site survey Info
+ get wds-pvid                       -- Get PVID of WDS[index]
+ get wds-groupvid                   -- Get group VID of WDS[index]
+ get wds-updownlink                 -- Get uplink/downlink state of WDS[index]
+ get apcscaninfo                    -- Display wireless client site survey Info
+ get web                            -- Display WEB Information
+ get wireless                       -- Display Wireless
+ get wlmode_db                      -- Display Wlmode
+ get wmm                            -- Display WMM
+ get wlan_utilization               -- Get Wlan utilization
+ get location                       -- Get Location string
+ get systemname                     -- Get System Name
+ get zonedefence                    -- Display Zonedefence
+ get zonedefence-ip                 -- Display Zonedefence IP table list
+ get inact                          -- Display the value of a specific inact
+ get multi-inact                    -- Display the value of a specific inact of Multi-SSID[index] 
+ get bootcodeinfo                   -- Display bootcode information 
+ get agbyrssiordrstatus             -- Display aging out by rssi/data rate status 
+ get agingtime                      -- Display aging out time 
+ get agingchecktime                 -- Display aging out check time 
+ get aclbywlmode                    -- Display acl by wlan mode status 
+ get aclbywlmodeperssid             -- Display acl by wlan mode status per ssid
+ get aclbyrssi                      -- Display acl by rssi status 
+ get agingbyrssithreshold           -- Display aging out by rssi threshold 
+ get aclbyrssithreshold             -- Display acl by rssi threshold 
+ get agingbydataratethreshold       -- Display aging out by datarate threshold 
+ get multi-agbyrssiordrstatus       -- Display aging out by rssi/data rate status 
+ get multi-aclbywlmodeperssid       -- Display acl by wlan mode status per ssid
+ get multi-aclbyrssi                -- Display acl by rssi status 
+ get multi-agingbyrssithreshold     -- Display aging out by rssi threshold 
+ get multi-aclbyrssithreshold       -- Display acl by rssi threshold 
+ get multi-agingbydataratethreshold -- Display aging out by datarate threshold 
+ get atfd                           -- atfd params
+ get ddpclient                      -- Display ddpclient setting status
+ get nmsManaged                     -- Display nms managed information
+ help                               -- Display CLI Command List
+ ping                               -- Send ICMP ECHO_REQUEST to network hosts
+ pwd                                -- Print name of current/working directory
+ reboot                             -- Reboot Access Point
+ set username                       -- Set login username (size:1--64)
+ set password                       -- Set login password (size:1--64)
+ set acctstate                      -- Set Accounting state
+ set acctip                         -- Set Accounting server IP address
+ set acctport                       -- Set Accounting port number
+ set acctsecret                     -- Set Accounting shared secret (size:1--64)
+ set acktimeout_a                   -- Set acktimeput in A band (range:25--200)
+ set acktimeout_g                   -- Set acktimeput in G band (range:48--200)
+ set acl                            -- Set ACL
+ set band                           -- Set ap band (2.4G or 5G)
+ set time                           -- Set time (year month day hour min sec)
+ set apmode                         -- Set AP Operate Mode
+ set uapsd                          -- Set UAPSD
+ set apply                          -- Apply the seting
+ set assoclimit                     -- Set Association Limit
+ set authentication                 -- Set Authentication Type
+ set autoChannel                    -- Set AutoChannel
+ set autorekey                      -- Set autorekey enable
+ set backup-acctip                  -- Set Backup Accounting server IP address
+ set backup-acctport                -- Set Backup Accounting port number
+ set backup-acctsecret              -- Set Backup Accounting shared secret (size:1--64)
+ set backup-radiusip                -- Set Backup RADIUS IP address
+ set backup-radiusport              -- Set Backup RADIUS port number
+ set backup-radiussecret            -- Set Backup RADIUS shared secret (size:1--64)
+ set beaconinterval                 -- Set Beaconinterval (range:25--500)
+ set channel                        -- Set Channel 
+ set cipher                         -- Set Cipher of wep,tkip,aes, or auto
+ set cwm                            -- Set CWM
+ set daylightsaving                 -- Set Day Light Saving Time
+ set dhcp_dns                       -- Set dhcp server dns ip  
+ set dhcp_domain                    -- Set dhcp server domain name  
+ set dhcp_endip                     -- Set dhcp server end ip  
+ set dhcp_gateway                   -- Set dhcp server gateway ip  
+ set dhcp_leasetime                 -- set dhcp server lease time
+ set dhcp_netmask                   -- set dhcp server netmask
+ set dhcp_server                    -- Set dhcp server states 
+ set dhcp_inner_only                -- Set Station get ip from inner dhcp server only
+ set dhcp_server_static_ip_mode     -- Set dhcp server static ip mode states 
+ set dhcp_startip                   -- Set dhcp server start ip  
+ set dhcp_staticip_set_disable      -- set dhcp staticip disable
+ set dhcp_staticip_set_enable       -- set dhcp staticip enable
+ set dhcp_staticip_set_hostname     -- set dhcp staticip's hostname 
+ set dhcp_staticip_set_ip           -- set dhcp staticip's ip 
+ set dhcp_staticip_set_mac          -- set dhcp staticip's mac <macaddradd macaddress>  
+ set dhcp_wins                      -- Set dhcp server wins ip  
+ set dhcp_force_broadcast           -- Set dhcp server force broadcast states 
+ set dhcp_force_unicast             -- Set dhcp server force unicast states 
+ set defkeyindex                    -- Set Default Key Index [1--4]
+ set d-wepkeylen                    -- Set 802.1X dynamic WEP Key Length
+ set d-wepkeyupdate                 -- Set 802.1X dynamic WEP Rekey Interval(in Secs)
+ set dtim                           -- Set DTIM (1--15)
+ set e_partition                    -- Set e_partition
+ set ethlink                        -- Set ethernet integration
+ set eth-updownlink                 -- Set ethernet uplink/downlink state
+ set factorydefault                 -- Restore to factory default setting
+ set gateway                        -- Set Gateway IP Address
+ set groupkeyupdate                 -- Set Group Key Update Interval (in Secs: 0(no update) or 300-99999)
+ set igmpsnoop                      -- Set igmp snooping states
+ set intrusion                      -- Set intrusion
+ set ipaddr                         -- Set IP Address
+ set ipmask                         -- Set IP Subnet Mask
+ set nameaddr                       -- Set DNS Address
+ set ipmode                         -- Set IP Mode(Static or Dynamic)
+ set stpstaus                       -- Set  stp status
+ set ipv6                           -- Set IPv6 settings
+ set key                            -- Set Encryption Key Index [1--4][value]
+ set keyentrymethod                 -- Select Encryption Key Entry Method of key [index 1--4]
+ set keylength                      -- Set Encryption Key Length of key Index [1--4] 
+ set ladtype                        -- Limited Administration Type
+ set ladvid                         -- Vlan ID which can control device
+ set ladippool-add                  -- Start IP of Limited Administration IP pool
+ set ladippool-del                  -- del IP of Limited Administration IP pool
+ set macaddradd                     -- Add MAC Addr <macaddradd macaddress>  
+ set macaddrdel                     -- DEL MAC Addr <macaddrdel macaddress>
+ set macclonetype                   -- Set MAC address clone type
+ set maccloneaddr                   -- Set MAC clone address
+ set multi-acctstate                -- Set Accounting server state of Multi-SSID[index]
+ set multi-acctip                   -- Set Accounting server IP of Multi-SSID[index]
+ set multi-acctport                 -- Set Accounting server port number of Multi-SSID[index]
+ set multi-acctsecret               -- Set Accounting server secret  (size:1--64) of Multi-SSID[index]
+ set multi-acl                      -- Set ACL of Multi-SSID[index]
+ set multi-macaddradd               -- Add MAC ACL of Multi-SSID [Index] 
+ set multi-macaddrdel               -- Del MAC ACL of Multi-SSID [Index] 
+ set multi-auth                     -- Set Authentication Type of Multi-SSID[index]
+ set multi-backup-acctip            -- Set Backup Accounting server IP of Multi-SSID[index]
+ set multi-backup-acctport          -- Set Backup Accounting server port number of Multi-SSID[index]
+ set multi-backup-acctsecret        -- Set Backup Accounting server secret  (size:1--64) of Multi-SSID[index]
+ set multi-backup-radiusip          -- Set Backup RADIUS IP address of Multi-SSID[index]
+ set multi-backup-radiusport        -- Set Backup RADIUS port number of Multi-SSID[index]
+ set multi-backup-radiussecret      -- Set Backup RADIUS server secret (size:1--64) of Multi-SSID[index]
+ set multi-cipher                   -- Set Cipher type of Multi-SSID[index]
+ set multi-d-wepkeylen              -- Set 802.1X dynamic WEP Key Length of Multi-SSID[index]
+ set multi-d-wepkeyupdate           -- Set 802.1X dynamic WEP Rekey Interval(in Secs) of Multi-SSID[index]
+ set multi-defkeyindex              -- Set Default Key Index [1-4] of Multi-SSID[index]
+ set multi-groupkeyupdate           -- Set Group Key Update Interval (in Secs: 0(no update) or 300-99999) of Multi-SSID[index]
+ set multi-ind-state                -- Set Multi-SSID [index] individual state
+ set multi-passphrase               -- Modify Passphrase (size:8--63) of Multi-SSID[index]
+ set multi-radiusip                 -- Set RADIUS IP address of Multi-SSID[index]
+ set multi-radiusport               -- Set RADIUS port number of Multi-SSID[index]
+ set multi-radiussecret             -- Set RADIUS server secret (size:1--64) of Multi-SSID[index]
+ set multi-state                    -- Set Multi-SSID state
+ set multi-ssid                     -- Set ESSID of Multi-SSID[index]
+ set multi-ssidhidden               -- Set ssid hidden state of Multi-SSID[index]
+ set multi-pvid                     -- Set PVID of Multi-SSID[index]
+ set multi-groupvid                 -- Set Group VID of Multi-SSID[index]
+ set multi-wmm                      -- Set WMM state of Multi-SSID[index]
+ set multi-pri-state                -- Set Multi-SSID pripority state
+ set multi-priority                 -- Set priority of Multi-SSID[index]
+ set multi-updownlink               -- Set uplink/downlink state of Multi-SSID[index]
+ set priority                       -- Set priority of primary SSID
+ set multi-w-partition              -- Set wlan partition state of Multi-SSID[index]
+ set multicast_bwctrl               -- Set Multicast Bandwidth Control 
+ set multicast_max_bw               -- Set multicat_bwctrl (0--1024) 
+ set passphrase                     -- Modify Passphrase (size:8--63)
+ set pingctl                        -- Ping Control
+ set dhcp_mc2uc                     -- tansfer DHCP OFFER to unicast
+ set qos                            -- Set Quality of Service
+ set trafficmgr                     -- Set Traffic Manager
+ set arpspoofing                    -- Set ARP Spoofing
+ set radiusClient                   -- Set RADIUS Client Status
+ set radiusCliSerIp                 -- Set RADIUSClient's RADIUS IP address
+ set radiusCliSersecret             -- Set RADIUSClient's RADIUS shared secret (size:1--64)
+ set radiusCliUserName              -- Set RADIUSClient's User Name
+ set radiusCliUserPass              -- Set RADIUSClient's Password (size:1--64)
+ set radiusip                       -- Set RADIUS IP address
+ set radiusport                     -- Set RADIUS port number
+ set radiussecret                   -- Set RADIUS shared secret (size:1--64)
+ set rogue_set_type_mac             -- set rogue ap index type and mac < type   macaddradd macaddress>  
+ set shortgi                        -- Set Shortgi
+ set scheduled                      -- Set scheduled
+ set sntpserver                     -- Set SNTP/NTP Server IP Address
+ set ssid                           -- Set Service Set ID
+ set ssidhidden                     -- Set ssidhidden
+ set syslog                         -- Set sysLog settings
+ set txpower                        -- Set Txpower
+ set tzone                          -- Set Time Zone Setting
+ set vlanstate                      -- Set VLAN state
+ set vlanmode                       -- Set VLAN mode
+ set autosetpvid                    -- Auto setting pvid by group VID
+ set pvid_primary                   -- Set primary SSID PVID
+ set pvid_eth                       -- Set ethernet(LAN1) PVID
+ set pvid_sys                       -- Set system PVID
+ set groupvid_primary               -- Set wlan port member of group VID
+ set groupvid_eth                   -- Set LAN port member of group VID
+ set groupvid_sys                   -- Set system port member of group VID
+ set groupviddel                    -- Delete port member of group VID 
+ set groupvidname                   -- Set VID name and VLAN ID
+ set uplink_bandwidth               -- Set uplink bandwidth
+ set downlink_bandwidth             -- Set downlink bandwidth
+ set updownlink                     -- Set primary ssid uplink/downlink state
+ set w_partition                    -- Set w_partition
+ set wdsmacadd                      -- Add WDS MAC Addr <macaddress xx:xx:xx:xx:xx:xx> [index]
+ set wdsmacdel                      -- DEL WDS MAC Addr[index] 
+ set wdsscan                        -- set wds site survey 
+ set wds-pvid                       -- Set PVID of WDS[index]
+ set wds-groupvid                   -- Set group VID of WDS[index]
+ set wds-updownlink                 -- Set uplink/downlink state of WDS[index]
+ set apcscan                        -- set wireless client site survey 
+ set web                            -- Set WEB Status
+ set wireless                       -- Set Wireless
+ set wlan_utilization               -- Set wlan utilization
+ set wlmode_db                      -- Set Wlmode for dual band
+ set wmm                            -- Set WMM
+ set location                       -- Set Location Data
+ set systemname                     -- Set System Name
+ set zonedefence                    -- Set Zone Defence status
+ set zone-defence-addip             -- Add Zone Defence IP Address
+ set zone-defence-delip             -- Del Zone Defence IP Address
+ set zone-defence-addipv6           -- Add Zone Defence IP Address <Plese input complete and correct ipv6 address> 
+ set zone-defence-delipv6           -- Del Zone Defence IP Address
+ set inact                          -- Set the value of a specific inact
+ set multi-inact                    -- Set the value of a specific inact of Multi-SSID[index]
+ set agbyrssiordrstatus             -- Set aging out by datarate status 
+ set agingtime                      -- Set aging out time 
+ set agingchecktime                 -- Set aging out check time 
+ set aclbywlmode                    -- Set acl by wlan mode status 
+ set aclbywlmodeperssid             -- Set acl by wlan mode status per ssid
+ set aclbyrssi                      -- Set acl by rssi status 
+ set agingbyrssithreshold           -- Set aging out by rssi threshold 
+ set aclbyrssithreshold             -- Set acl by rssi threshold 
+ set agingbydataratethreshold       -- Set aging out by datarate threshold 
+ set multi-agbyrssiordrstatus       -- Set aging out by datarate status 
+ set multi-aclbywlmodeperssid       -- Set acl by wlan mode status per ssid
+ set multi-aclbyrssi                -- Set acl by rssi status 
+ set multi-agingbyrssithreshold     -- Set aging out by rssi threshold 
+ set multi-aclbyrssithreshold       -- Set acl by rssi threshold 
+ set multi-agingbydataratethreshold -- Set aging out by datarate threshold 
+ set ddpclient                      -- Set ddpclient enable or disable
+ set nmsManaged                     -- set nms managed enable/disable
+ set fotacheck                      -- fota check new firmware
+ set fotaupgrade                    -- fota upgrade firmware
+ clear language-pack                -- clear language pack
+ snmp addcomm                       -- Add Communication String
+ snmp addgroup                      -- Add User Group
+ snmp addhost                       -- Add Host To Notify List
+ snmp adduser                       -- Add User To SNMP Agent
+ snmp addview                       -- Add User View
+ snmp delcomm                       -- Delete Communication String
+ snmp delgroup                      -- Delete User Group
+ snmp delhost                       -- Delete Host From Notify List
+ snmp deluser                       -- Delete User From SNMP Agent
+ snmp delview                       -- Delete User View
+ snmp editpubliccomm                -- Edit Communication String
+ snmp editprivatecomm               -- Edit Communication String
+ snmp resume                        -- Resume SNMP Agent
+ snmp settrap                       -- Set Trap status
+ snmp settrapServerIp               -- Set Trap Server Ipaddress
+ snmp settrapVersion                -- Set Trap Version
+ snmp showcomm                      -- Show Communication String
+ snmp showgroup                     -- Show User Group
+ snmp showhost                      -- Show Host In Notify List
+ snmp showtrap                      -- Show Trap status
+ snmp showtrapServerIp              -- Show Trap Server Ipaddress
+ snmp showtrapVersion               -- Show Trap Version
+ snmp showuser                      -- Show User In SNMP Agent
+ snmp showview                      -- Show User View
+ snmp status                        -- Display SNMP Agent status
+ snmp suspend                       -- Suspend SNMP Agent
+ snmp showSWinfo                    -- show software control info
+ tcm status                         -- tc monitor enable/disable
+ tcm mode                           -- tcm mode disable/ssid_average/ssid_fixed/sta_wlmode/sta_fixed ssid 1-16(9-16 for dual)
+ tcm uprate                         -- tcm uprate xx kbps/mbps [ssid 1-16]/total (total must be mbps)
+ tcm downrate                       -- tcm downrate  xx kbps/mbps [ssid 1-16]/total (total must be mbps)
+ tcm show                           -- show setting of tc monitor
+ ssl freset                         -- Use freset to factorydefault
+ version                            -- Display software version
+ captival ssid                      -- ex: captival ssid [show/1-8/9-16] [disable/ticket/local/radius/ldap/pop3/sc/aparray]
+ captival ticket                    -- ex: captival ticket
+ captival local                     -- ex: captival local
+ captival radius                    -- ex: captival remote radius
+ captival ldap                      -- ex: captival ldap
+ captival pop3                      -- ex: captival pop3
+ captival sc                        -- ex: captival software control
+ captival aparray                   -- ex: captival aparray
+ captival timeout                   -- ex: captival timeout
+ atfd status                        -- set atfd <enable|disable>
+ atfd queue                         -- set atfd queue  <0|1>
+ atfd period                        -- set atfd period seconds <value> 
+ atfd airtime                       -- set atfd airtime <value>
+ atfd list                          -- set atfd interface list <all | ath0,ath1...>
+ atfd threshold                     -- set atfd threshold <value>
+WAP-> 
+# --- get ---
+get
+get acctstate                       -- Display Accounting state
+get acctip                          -- Display Accounting server IP address
+get acctport                        -- Display Accounting port number
+get acktimeout                      -- Display ACKTIMEOUT
+get acl                             -- Display ACL
+get acl-table                       -- Display macfilter table
+get apmode                          -- Display AP Operate Mode
+get uapsd                           -- Display UAPSD Status
+get assoclimitstatus                -- Display Association Limit setting status
+get authentication                  -- Display Authentication Type
+get autochannel                     -- Display AutoChannel
+get autorekey                       -- Display autorekey
+get autorekey_smtp                  -- Display autorekey
+get availablechannel                -- Display Available channel list
+get backup-acctip                   -- Display Backup Accounting server IP address
+get backup-acctport                 -- Display Backup Accounting port number
+get backup-radiusip                 -- Display Backup RADIUS server IP address
+get backup-radiusport               -- Display Backup RADIUS port number
+get band                            -- Display band
+get ch_env                          -- Display channel environment
+get time                            -- Display time
+get beaconinterval                  -- Display Beaconinterval
+get channel                         -- Display Channel
+get cipher                          -- Display Encryption cipher
+get devstat                         -- Display devstat
+get clientinfo                      -- Display ClientInfo
+get country                         -- Display Country
+get cwm                             -- Display CWM
+get daylightsaving                  -- Display Day Light Saving Time
+get defkeyindex                     -- Display Default Key Index
+get dtim                            -- Display DTIM
+get dhcp_dns                        -- Display dhcp server dns ip
+get dhcp_domain                     -- Display dhcp server domain name
+get dhcp_endip                      -- Display dhcp server end ip
+get dhcp_gateway                    -- Display dhcp server gateway ip
+get dhcp_leasetime                  -- Display dhcp server leasetime
+get dhcp_netmask                    -- Display dhcp server netmask
+get dhcp_server                     -- Display dhcp server states
+get dhcp_inner_only                 -- Display get ip from inner dhcp server only states
+get dhcp_startip                    -- Display dhcp server start ip
+get dhcp_sta_expire                 -- Display dhcp server sta's expire time
+get dhcp_sta_hostname               -- Display dhcp server sta's hostname
+get dhcp_sta_mac                    -- Display dhcp server sta's mac
+get dhcp_sta_ip                     -- Display dhcp server sta's ip
+get dhcp_staticip_mode              -- Display dhcp server static mode states
+get dhcp_staticip_ip                -- Display dhcp server static mode ip
+get dhcp_staticip_mac               -- Display dhcp server static mode mac
+get dhcp_staticip_hostname          -- Display dhcp server static mode hostname
+get dhcp_staticip_pool_state        -- Display dhcp server static mode pool state
+get dhcp_wins                       -- Display dhcp server wins ip
+get dhcp_force_broadcast            -- Display server force broadcast states
+get dhcp_force_unicast              -- Display server force unicast states
+get d-wepkeylen                     -- Display 802.1X dynamic WEP Key Length
+get d-wepkeyupdate                  -- Display 802.1X dynamic WEP Rekey Interval(in Secs)
+get e_partition                     -- Display e_partition
+get ethlink                         -- Display ethernet integration
+get eth-updownlink                  -- Display ethernet uplink/downlink state
+get ethernetcount                   -- Display ethernet count
+get wlancount                       -- Display wlan count
+get gateway                         -- Display Gateway IP Address
+get groupkeyupdate                  -- Display Group Key Update Interval (in Secs)
+get hardware                        -- Display Hardware Revisions
+get igmpsnoop 2.4G                  -- igmpsnoop status of 2.4G
+get igmpsnoop 5G                    -- igmpsnoop status of 5G
+get igmpsnoop 2.4G_table            -- igmpsnoop table of 2.4G
+get igmpsnoop 5G_table              -- igmpsnoop table of 5G
+get intrusion                       -- Display intrusion
+get ipaddr                          -- Display IP Address
+get ipmask                          -- Display IP Subnet Mask
+get nameaddr                        -- Display DNS Address
+get ipmode                          -- Display IP Mode
+get stpsatus                        -- Display stp status
+get ipv6 dnsaddr                    -- Show DNS server IPv6 address
+get ipv6 enable                     -- Enable IPv6 protocol stack
+get ipv6 gateway                    -- Show Gateway IPv6 address
+get ipv6 ipaddr                     -- Show IPv6 address
+get ipv6 mode                       -- Show IPv6 mode
+get ipv6 prefix                     -- Show IPv6 prefix
+get key                             -- Display Encryption Key (index:1--4)
+get keyentrymethod                  -- Display Encryption Key Entry Method [index:1--4]  
+get keylength                       -- Display Encryption Key Length (in Bits)[index:1--4]
+get ladtype                         -- Limited Administration Type
+get ladvid                          -- Vlan ID which can control device
+get ladippool                       -- Start IP of Limited Administration IP pool
+get macaddress                      -- Display Mac address 
+get ssidmac                         -- Display primary/mutli ssid macaddress 
+get macaddrlist                     -- Display MAC Address List
+get macclonetype                    -- Display MAC address clone type
+get maccloneaddr                    -- Display MAC clone address
+get multi-acl                       -- Display ACL of Multi-SSID[index]
+get multi-acctstate                 -- Display Accounting server state of Multi-SSID[index]
+get multi-acctip                    -- Display Accounting server IP address of Multi-SSID[index]
+get multi-acctport                  -- Display Accounting port number of Multi-SSID[index]
+get multi-auth                      -- Display Authentication Type of Multi-SSID[index]
+get multi-backup-acctip             -- Display Backup Accounting server IP address of Multi-SSID[index]
+get multi-backup-acctport           -- Display Backup Accounting port number of Multi-SSID[index]
+get multi-backup-radiusip           -- Display Backup RADIUS server IP address of Multi-SSID[index]
+get multi-backup-radiusport         -- Display Backup RADIUS port number of Multi-SSID[index]
+get multi-cipher                    -- Display Encryption cipher of Multi-SSID[index]
+get multi-d-wepkeylen               -- Display 802.1X dynamic WEP Key Length of Multi-SSID[index]
+get multi-d-wepkeyupdate            -- Display 802.1X dynamic WEP Rekey Interval of Multi-SSID[index]
+get multi-defkeyindex               -- Display Default Key Index of Multi-SSID[index]
+get multi-groupkeyupdate            -- Display Group Key Update Interval (in Secs) of Multi-SSID[index]
+get multi-ind-state                 -- Display Multi-SSID [index] individual state
+get multi-macaddrlist               -- Display MAC Address List of Multi-SSID[index]
+get multi-radiusip                  -- Display RADIUS server IP address of Multi-SSID[index]
+get multi-radiusport                -- Display RADIUS port number of Multi-SSID[index]
+get multi-ssid                      -- Display ESSID of Multi-SSID[index]
+get multi-ssidhidden                -- Display ssid-hidden state of Multi-SSID[index]
+get multi-state                     -- Display Multi-SSID state
+get multi-pvid                      -- Display PVID of Multi-SSID[index]
+get multi-groupvid                  -- Display Group VID of Multi-SSID[index]
+get multi-wmm                       -- Display WMM state of Multi-SSID[index]
+get multi-wepkey                    -- Display Encryption Key (index:1--4) of Multi-SSID[index]
+get multi-pri-state                 -- Display Multi-SSID pripority state
+get multi-priority                  -- Display Priority of Multi-SSID[index]
+get multi-updownlink                -- Display uplink/downlink state of Multi-SSID[index]
+get priority                        -- Display Priority of primary SSID
+get multi-w-partition               -- Display wlan partition state of Multi-SSID[index]
+get multicast_bwctrl                -- Display Multicast Bandwidth Control
+get multicast_max_bw                -- Display  Maximum Multicast Bandwidth 
+get pingctl                         -- Ping Control
+get dhcp_mc2uc                      -- transfer DHCP OFFER to unicast
+get arpspoofing                     -- Display ARP Spoofing
+get qos                             -- Display QOS setting
+get trafficmgr                      -- Display Traffic Manager setting
+get radiuscli_auth_status           -- Display RADIUSClient Auth status
+get radiusclient                    -- Display RADIUS Client status
+get radiuscli_user                  -- Display RADIUS Client User name
+get radiuscli_pass                  -- Display RADIUS Client User password
+get radiuscli_ser_ip                -- Display RADIUSClinet's Server ip
+get radiuscli_ser_pass              -- Display RADIUSClient's Server password
+get radiusip                        -- Display RADIUS server IP address
+get radiusport                      -- Display RADIUS port number
+get rogue_ap                        -- Display Rogue AP List
+get shortgi                         -- Display Shortgi
+get scheduled                       -- Display scheduled
+get ssid                            -- Display Service Set ID
+get ssidhidden                      -- Display SSIDhidden
+get sntpserver                      -- Display SNTP/NTP Server IP Address
+get syslog                          -- Display Syslog Information
+get txpower                         -- Display Txpower
+get tzonelist                       -- Display Time Zone
+get uptime                          -- Display UpTime
+get loginwaittime                   -- Display wait time if AP is attacked
+get vlanstate                       -- Display VLAN state
+get vlanmode                        -- Display VLAN mode
+get autosetpvid                     -- Display auto setting pvid by group VID
+get pvid_primary                    -- Display primary SSID PVID
+get pvid_eth                        -- Display ethernet PVID
+get pvid_sys                        -- Display system PVID
+get groupvid_primary                -- Display wlan port member of group VID
+get groupvid_eth                    -- Display LAN port member of group VID
+get groupvid_sys                    -- Display System port member of group VID
+get updownlink                      -- Display primary ssid uplink/downlink state
+get uplink_bandwidth                -- Display uplink bandwidth
+get downlink_bandwidth              -- Display downuplink bandwidth
+get w_partition                     -- Display w_partition
+get cpuinfo                         -- Display cpu info percentage
+get meminfo                         -- Display mem info percentage
+get wdsinfo                         -- Display wds Info
+get wdsmac                          -- Display WDS MAC Address List
+get wdsscaninfo                     -- Display wds site survey Info
+get wds-pvid                        -- Get PVID of WDS[index]
+get wds-groupvid                    -- Get group VID of WDS[index]
+get wds-updownlink                  -- Get uplink/downlink state of WDS[index]
+get apcscaninfo                     -- Display wireless client site survey Info
+get web                             -- Display WEB Information
+get wireless                        -- Display Wireless
+get wlmode_db                       -- Display Wlmode
+get wmm                             -- Display WMM
+get wlan_utilization                -- Get Wlan utilization
+get location                        -- Get Location string
+get systemname                      -- Get System Name
+get zonedefence                     -- Display Zonedefence
+get zonedefence-ip                  -- Display Zonedefence IP table list
+get inact                           -- Display the value of a specific inact
+get multi-inact                     -- Display the value of a specific inact of Multi-SSID[index] 
+get bootcodeinfo                    -- Display bootcode information 
+get agbyrssiordrstatus              -- Display aging out by rssi/data rate status 
+get agingtime                       -- Display aging out time 
+get agingchecktime                  -- Display aging out check time 
+get aclbywlmode                     -- Display acl by wlan mode status 
+get aclbywlmodeperssid              -- Display acl by wlan mode status per ssid
+get aclbyrssi                       -- Display acl by rssi status 
+get agingbyrssithreshold            -- Display aging out by rssi threshold 
+get aclbyrssithreshold              -- Display acl by rssi threshold 
+get agingbydataratethreshold        -- Display aging out by datarate threshold 
+get multi-agbyrssiordrstatus        -- Display aging out by rssi/data rate status 
+get multi-aclbywlmodeperssid        -- Display acl by wlan mode status per ssid
+get multi-aclbyrssi                 -- Display acl by rssi status 
+get multi-agingbyrssithreshold      -- Display aging out by rssi threshold 
+get multi-aclbyrssithreshold        -- Display acl by rssi threshold 
+get multi-agingbydataratethreshold  -- Display aging out by datarate threshold 
+get atfd status                     -- get atfd <enable|disable>
+get atfd queue                      -- get atfd queue  <0|1>
+get atfd period                     -- get atfd period seconds <value> 
+get atfd airtime                    -- get atfd airtime <value>
+get atfd list                       -- get atfd interface list <all | ath0,ath1...>
+get atfd threshold                  -- get atfd threshold <value>
+get ddpclient                       -- Display ddpclient setting status
+get nmsManaged                      -- Display nms managed information
+WAP-> 
+# --- version ---
+version
+
+ SOFTWARE_VERSION: v2.06
+WAP-> 
+# --- get hardware ---
+get hardware
+rev A1G
+WAP-> 
+# --- get systemname ---
+get systemname
+Studio
+WAP-> 
+# --- get location ---
+get location
+Level1
+WAP-> 
+# --- get uptime ---
+get uptime
+AP Uptime -- Day 62,  1:10:32
+WAP-> 
+# --- get cpuinfo ---
+get cpuinfo
+cpuinfo:9
+WAP-> 
+# --- get meminfo ---
+get mem info
+meminfo:70
+WAP-> 
+# --- config wlan 0 ---
+config wlan 0
+current band is: 0 (0:2.4G, 1:5G)
+WAP-> 
+# --- get ssid ---
+get ssid
+SSID:Miranda
+WAP-> 
+# --- get clientinfo ---
+get clientinfo
+Client1--time:7091
+Client1--ssid: MULTI-SSID index 1
+Client1--mac:C4:4F:33:XX:XX:01
+Client1--auth:WPA2-PSK
+Client1--rssi:100
+Client1--mode:11n
+Client1--psmode:1
+Client1--rx_bytes:1237944
+Client1--tx_bytes:52587
+---------------------------------------------------------------------
+Client2--time:6915
+Client2--ssid: MULTI-SSID index 1
+Client2--mac:48:3F:DA:XX:XX:02
+Client2--auth:WPA2-PSK
+Client2--rssi:100
+Client2--mode:11n
+Client2--psmode:0
+Client2--rx_bytes:57822
+Client2--tx_bytes:74220
+---------------------------------------------------------------------
+Client3--time:6915
+Client3--ssid: MULTI-SSID index 1
+Client3--mac:C8:C9:A3:XX:XX:03
+Client3--auth:WPA2-PSK
+Client3--rssi:94
+Client3--mode:11n
+Client3--psmode:0
+Client3--rx_bytes:60602
+Client3--tx_bytes:74892
+---------------------------------------------------------------------
+Client4--time:6864
+Client4--ssid: MULTI-SSID index 1
+Client4--mac:F8:B3:B7:XX:XX:04
+Client4--auth:WPA2-PSK
+Client4--rssi:96
+Client4--mode:11n
+Client4--psmode:1
+Client4--rx_bytes:101953
+Client4--tx_bytes:89046
+---------------------------------------------------------------------
+Client5--time:6772
+Client5--ssid: MULTI-SSID index 1
+Client5--mac:40:45:DA:XX:XX:05
+Client5--auth:WPA2-PSK
+Client5--rssi:79
+Client5--mode:11n
+Client5--psmode:1
+Client5--rx_bytes:53094
+Client5--tx_bytes:9276
+---------------------------------------------------------------------
+Client6--time:6624
+Client6--ssid: MULTI-SSID index 1
+Client6--mac:48:3F:DA:XX:XX:06
+Client6--auth:WPA2-PSK
+Client6--rssi:84
+Client6--mode:11n
+Client6--psmode:0
+Client6--rx_bytes:115660
+Client6--tx_bytes:66234
+---------------------------------------------------------------------
+Client7--time:6606
+Client7--ssid: MULTI-SSID index 1
+Client7--mac:4C:EB:D6:XX:XX:07
+Client7--auth:WPA2-PSK
+Client7--rssi:95
+Client7--mode:11n
+Client7--psmode:0
+Client7--rx_bytes:2136160
+Client7--tx_bytes:526282
+---------------------------------------------------------------------
+Client8--time:6175
+Client8--ssid: MULTI-SSID index 1
+Client8--mac:CC:50:E3:XX:XX:08
+Client8--auth:WPA2-PSK
+Client8--rssi:100
+Client8--mode:11n
+Client8--psmode:1
+Client8--rx_bytes:1102334
+Client8--tx_bytes:46906
+---------------------------------------------------------------------
+Client9--time:6175
+Client9--ssid: MULTI-SSID index 1
+Client9--mac:98:F4:AB:XX:XX:09
+Client9--auth:WPA2-PSK
+Client9--rssi:100
+Client9--mode:11n
+Client9--psmode:1
+Client9--rx_bytes:1059482
+Client9--tx_bytes:46102
+---------------------------------------------------------------------
+Client10--time:6175
+Client10--ssid: MULTI-SSID index 1
+Client10--mac:C8:2B:96:XX:XX:10
+Client10--auth:WPA2-PSK
+Client10--rssi:100
+Client10--mode:11n
+Client10--psmode:1
+Client10--rx_bytes:1261420
+Client10--tx_bytes:72747
+---------------------------------------------------------------------
+Client11--time:5132
+Client11--ssid: MULTI-SSID index 1
+Client11--mac:70:03:9F:XX:XX:11
+Client11--auth:WPA2-PSK
+Client11--rssi:94
+Client11--mode:11n
+Client11--psmode:1
+Client11--rx_bytes:1021847
+Client11--tx_bytes:62670
+---------------------------------------------------------------------
+Client12--time:5105
+Client12--ssid: MULTI-SSID index 1
+Client12--mac:08:D1:F9:XX:XX:12
+Client12--auth:WPA2-PSK
+Client12--rssi:100
+Client12--mode:11n
+Client12--psmode:1
+Client12--rx_bytes:8991929
+Client12--tx_bytes:3168088
+---------------------------------------------------------------------
+WAP-> 
+# --- config wlan 1 ---
+config wlan 1
+current band is: 1 (0:2.4G, 1:5G)
+WAP-> 
+# --- get ssid ---
+get ssid
+SSID:Miranda
+WAP-> 
+# --- get clientinfo ---
+get clientinfo
+Client1--time:7121
+Client1--ssid: primary SSID
+Client1--mac:5C:AD:BA:XX:XX:13
+Client1--auth:WPA2-EAP
+Client1--rssi:100
+Client1--mode:11ac
+Client1--psmode:0
+Client1--rx_bytes:6608712
+Client1--tx_bytes:56405750
+---------------------------------------------------------------------
+Client2--time:7096
+Client2--ssid: primary SSID
+Client2--mac:76:F4:C1:XX:XX:14
+Client2--auth:WPA2-EAP
+Client2--rssi:95
+Client2--mode:11ac
+Client2--psmode:1
+Client2--rx_bytes:1790715
+Client2--tx_bytes:24297790
+---------------------------------------------------------------------
+Client3--time:5319
+Client3--ssid: primary SSID
+Client3--mac:90:4C:C5:XX:XX:15
+Client3--auth:WPA2-EAP
+Client3--rssi:100
+Client3--mode:11ac
+Client3--psmode:1
+Client3--rx_bytes:684191
+Client3--tx_bytes:4152317
+---------------------------------------------------------------------
+Client4--time:1211
+Client4--ssid: primary SSID
+Client4--mac:E4:B3:18:XX:XX:16
+Client4--auth:WPA2-EAP
+Client4--rssi:91
+Client4--mode:11ac
+Client4--psmode:0
+Client4--rx_bytes:18314151
+Client4--tx_bytes:155099723
+---------------------------------------------------------------------
+Client1--time:6846
+Client1--ssid: MULTI-SSID index 3
+Client1--mac:00:F6:20:XX:XX:17
+Client1--auth:WPA2-PSK
+Client1--rssi:100
+Client1--mode:11ac
+Client1--psmode:0
+Client1--rx_bytes:5781480
+Client1--tx_bytes:8588277
+---------------------------------------------------------------------
+Client2--time:6846
+Client2--ssid: MULTI-SSID index 3
+Client2--mac:D4:F5:47:XX:XX:18
+Client2--auth:WPA2-PSK
+Client2--rssi:94
+Client2--mode:11ac
+Client2--psmode:0
+Client2--rx_bytes:6216180
+Client2--tx_bytes:9133598
+---------------------------------------------------------------------
+Client1--time:7125
+Client1--ssid: MULTI-SSID index 5
+Client1--mac:DC:A4:CA:XX:XX:19
+Client1--auth:WPA2-EAP
+Client1--rssi:100
+Client1--mode:11ac
+Client1--psmode:1
+Client1--rx_bytes:123251
+Client1--tx_bytes:195265
+---------------------------------------------------------------------
+WAP-> 

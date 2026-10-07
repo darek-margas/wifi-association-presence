@@ -72,7 +72,7 @@ Leaving an access point's password empty keeps the current one.
 
 | Type | Models | Method |
 |---|---|---|
-| D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06), DAP-3662. **Likely:** other DAP models with the same CLI | SSH: `config wlan 0/1` + `get clientinfo` |
+| D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI | SSH: `config wlan 0/1` + `get clientinfo` |
 
 ### D-Link DAP setup notes
 
@@ -144,6 +144,12 @@ python3 scripts/collect.py --host <AP IP> --username <user>
 - `--legacy-ssh` allows old SSH algorithms if the connection fails.
 - `--command "<cmd>"` (repeatable) adds the command your AP uses to list clients.
 - `--profile dlink_dap` uses the D-Link command list; `--list-profiles` shows all.
+
+Example: [`docs/ap-reports/dlink-dap-2610-v2.06.txt`](docs/ap-reports/dlink-dap-2610-v2.06.txt)
+is the report the D-Link driver was checked against (DAP-2610, firmware v2.06,
+`--profile dlink_dap --legacy-ssh`). It shows the command list, the client table for each
+radio, and how redaction looks. Reports for supported models are kept in
+[`docs/ap-reports/`](docs/ap-reports) as reference data for driver and parser work.
 
 Currently the collector only supports SSH consoles. If your AP lists clients only in its
 web UI or over SNMP, say so in the issue.

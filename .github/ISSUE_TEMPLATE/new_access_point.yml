@@ -17,6 +17,8 @@ body:
         If the connection fails with an algorithm error, add `--legacy-ssh`.
         Add `--command "<cmd>"` (repeatable) for any command you know lists connected
         clients. **Review the report before attaching it.**
+        For what a good report looks like, see
+        [`docs/ap-reports/dlink-dap-2610-v2.06.txt`](../blob/main/docs/ap-reports/dlink-dap-2610-v2.06.txt).
   - type: input
     id: model
     attributes:
