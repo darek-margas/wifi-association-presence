@@ -6,7 +6,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
-from .const import SUBENTRY_TRACKED_DEVICE
+from .const import DOMAIN, SUBENTRY_TRACKED_DEVICE
 from .coordinator import AssociationCoordinator, WifiAssociationConfigEntry
 from .entity import access_point_device_info, tracked_device_info
 
@@ -24,6 +24,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEnt
     # carrying its MAC and attaches to it on the first start.
     device_registry = dr.async_get(hass)
     for ap in coordinator.access_points:
+        if not ap.driver.OWN_DEVICE:
+            # Left over from versions that gave every AP a device: it only ever
+            # belonged to this subentry, so dropping it loses nothing.
+            if stale := device_registry.async_get_device_by_identifier(
+                (DOMAIN, ap.subentry_id), entry.entry_id
+            ):
+                device_registry.async_remove_device(stale.id)
+            continue
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             config_subentry_id=ap.subentry_id,

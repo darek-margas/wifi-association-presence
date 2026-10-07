@@ -20,7 +20,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
     SubentryFlowResult,
 )
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -54,7 +54,7 @@ from .const import (
     SUBENTRY_ACCESS_POINT,
     SUBENTRY_TRACKED_DEVICE,
 )
-from .coordinator import AssociationCoordinator, user_named
+from .coordinator import AssociationCoordinator, build_driver, user_named
 from .presence import Sighting
 
 
@@ -166,14 +166,17 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             name, data = _split_name(user_input, driver_cls)
-            if self._host_in_use(data.get("host")):
+            if self._in_use(driver_cls, data.get(driver_cls.UNIQUE_FIELD)):
                 return self.async_abort(reason="already_configured")
             # The name is stored explicitly, so "user named it" isn't guessed later.
             data = {CONF_DRIVER: self._driver_type, **data, CONF_NAME: name or ""}
-            errors, reported_name = await _async_test_access_point(driver_cls(data))
+            errors, reported_name = await _async_build_and_test(self.hass, driver_cls, data)
             if not errors:
                 return self.async_create_entry(
-                    title=name or reported_name or data.get("host") or driver_cls.NAME,
+                    title=name
+                    or reported_name
+                    or data.get(driver_cls.UNIQUE_FIELD)
+                    or driver_cls.NAME,
                     data=data,
                 )
         return self.async_show_form(
@@ -196,19 +199,26 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             name, changes = _split_name(user_input, driver_cls)
-            if self._host_in_use(changes.get("host"), except_id=subentry.subentry_id):
+            if self._in_use(
+                driver_cls,
+                changes.get(driver_cls.UNIQUE_FIELD),
+                except_id=subentry.subentry_id,
+            ):
                 return self.async_abort(reason="already_configured")
             data = {
                 **subentry.data,
                 **{k: v for k, v in changes.items() if v not in (None, "")},
                 CONF_NAME: name or "",
             }
-            errors, reported_name = await _async_test_access_point(driver_cls(data))
+            errors, reported_name = await _async_build_and_test(self.hass, driver_cls, data)
             if not errors:
                 return self.async_update_and_abort(
                     self._get_entry(),
                     subentry,
-                    title=name or reported_name or data.get("host") or driver_cls.NAME,
+                    title=name
+                    or reported_name
+                    or data.get(driver_cls.UNIQUE_FIELD)
+                    or driver_cls.NAME,
                     data=data,
                 )
         suggested = {
@@ -225,10 +235,12 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
             description_placeholders={"type": driver_cls.NAME},
         )
 
-    def _host_in_use(self, host: Any, except_id: str | None = None) -> bool:
-        """Whether another access point already uses this host."""
-        return bool(host) and any(
-            sub.data.get("host") == host and sub.subentry_id != except_id
+    def _in_use(
+        self, driver_cls: type[AccessPointDriver], value: Any, except_id: str | None = None
+    ) -> bool:
+        """Whether another access point already uses this host (or AP MAC)."""
+        return bool(value) and any(
+            sub.data.get(driver_cls.UNIQUE_FIELD) == value and sub.subentry_id != except_id
             for sub in self._get_entry().get_subentries_of_type(SUBENTRY_ACCESS_POINT)
         )
 
@@ -278,6 +290,21 @@ def _split_name(
     }
     name = (data.pop(CONF_NAME, None) or "").strip() or None
     return name, data
+
+
+async def _async_build_and_test(
+    hass: HomeAssistant, driver_cls: type[AccessPointDriver], data: dict[str, Any]
+) -> tuple[dict[str, str], str | None]:
+    """Create the driver and read the AP once; return form errors and its reported name.
+
+    A value the driver rejects outright (e.g. a malformed MAC submitted through the
+    API, which the dropdown prevents in the UI) is reported on its field.
+    """
+    try:
+        driver = build_driver(hass, driver_cls, data)
+    except (KeyError, ValueError):
+        return {driver_cls.UNIQUE_FIELD: "invalid_value"}, None
+    return await _async_test_access_point(driver)
 
 
 async def _async_test_access_point(

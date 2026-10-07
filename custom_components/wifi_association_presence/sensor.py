@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -59,12 +59,15 @@ ACCESS_POINT_SENSORS = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda s: sum(s.clients_by_band.values()),
     ),
+    # CPU and memory change on nearly every poll, so each is a recorder row per AP per
+    # minute; opt-in, as most people want the client counts, not AP health.
     AccessPointSensorDescription(
         key="cpu",
         translation_key="cpu",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
         value_fn=lambda s: s.info.cpu_percent if s.info else None,
     ),
     AccessPointSensorDescription(
@@ -73,6 +76,7 @@ ACCESS_POINT_SENSORS = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
         value_fn=lambda s: s.info.memory_percent if s.info else None,
     ),
     AccessPointSensorDescription(
@@ -148,6 +152,8 @@ async def async_setup_entry(
     """Add sensors for each access point and each tracked device."""
     coordinator = entry.runtime_data
     for ap in coordinator.access_points:
+        if not ap.driver.OWN_DEVICE:
+            continue
         async_add_entities(
             [AccessPointSensor(coordinator, ap, d) for d in ACCESS_POINT_SENSORS],
             config_subentry_id=ap.subentry_id,
@@ -239,5 +245,26 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
         def _area_changed(_event: Event) -> None:
             self.async_write_ha_state()
 
-        for event_type in (dr.EVENT_DEVICE_REGISTRY_UPDATED, ar.EVENT_AREA_REGISTRY_UPDATED):
-            self.async_on_remove(self.hass.bus.async_listen(event_type, _area_changed))
+        @callback
+        def _is_access_point_area_change(data: Mapping[str, Any]) -> bool:
+            """Only an area (re)assignment of an access point's device.
+
+            The device registry fires for every device in the house (firmware
+            versions, names...), so without this filter each tracked device would
+            rewrite its state on all of them.
+            """
+            if data.get("action") != "update" or "area_id" not in data.get("changes", {}):
+                return False
+            return data["device_id"] in self.coordinator.access_point_device_ids()
+
+        self.async_on_remove(
+            self.hass.bus.async_listen(
+                dr.EVENT_DEVICE_REGISTRY_UPDATED,
+                _area_changed,
+                event_filter=_is_access_point_area_change,
+            )
+        )
+        # Area renames are rare; no filter needed.
+        self.async_on_remove(
+            self.hass.bus.async_listen(ar.EVENT_AREA_REGISTRY_UPDATED, _area_changed)
+        )

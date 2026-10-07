@@ -85,6 +85,20 @@ class AccessPointDriver(ABC):
     """Settings this driver needs, in the order they are asked for."""
     SIGNAL_UNIT: ClassVar[str]
     """Scale of AssociatedClient.signal: "%" (0-100) or "dBm" (e.g. -67)."""
+    UNIQUE_FIELD: ClassVar[str] = "host"
+    """Setting that identifies the AP; two access points can't share its value."""
+    POLL_TIMEOUT: ClassVar[int] = 45
+    """Seconds allowed for one poll (login plus all commands); must stay well inside
+    the integration's 60 s scan interval."""
+    OWN_DEVICE: ClassVar[bool] = True
+    """Whether the AP gets a Home Assistant device, with client-count and health
+    sensors, of its own. False for drivers that read through another integration which
+    already registers the AP as a device; that device's area is used instead, found by
+    the MAC from device_mac()."""
+
+    def device_mac(self) -> str | None:
+        """The AP's MAC, for finding the device another integration registered for it."""
+        return None
 
     def __init__(self, config: dict[str, Any]) -> None:
         """Store the settings (keys as declared in FIELDS)."""
