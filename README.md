@@ -11,7 +11,7 @@ tablet or laptop you track becomes a device in Home Assistant with:
 - a **presence tracker** (`home` / `not_home`) that holds steady while the phone sleeps,
 - the **access point** it is connected to and its **signal**,
 - the **area** it is in, taken from the area you assigned to that access point,
-- **when it arrived and when it left**.
+- **when it arrived or when it left** (to within a minute), ready for automations.
 
 Each access point becomes a device too, with client counts, firmware, CPU, memory and uptime.
 
@@ -58,23 +58,78 @@ and brief gaps, so `not_home` means *gone*, not *quiet*.
   *notify when the kids' tablets are in the garden*, *which floor is everyone on*.
 - It reacts immediately when you move an AP to another area or rename an area.
 
+### Arrival and departure times
+Every tracker tells you **when** the device arrived or left, not just whether it is home:
+
+| Tracker state | `arrived_at` | `departed_at` |
+|---|---|---|
+| `home` | when it arrived | `null` |
+| `not_home` | `null` | when it left |
+
+- **Accurate times.** The departure is the moment the device was last seen associated,
+  not the moment the grace period ran out, so "left at 08:12" means 08:12 (to within one
+  poll, a minute), even with a 3-minute grace period. Coming back within the grace period continues the same
+  visit, so roaming and short gaps don't produce a fake departure and arrival.
+- **Made for automations.** Exactly one of the two holds a time, matching the state.
+  Trigger on an attribute going from `null` to a time and you get one clean event per
+  arrival or departure, with the exact time in it.
+- **Survives restarts.** Arrival and departure times are stored, so a restart doesn't
+  turn "home since 07:40" into "home since the restart".
+- **Light on the database.** The attributes change only on arrival or departure, so the
+  recorder writes a row per event, not per poll. The tracker's History and Logbook then
+  list every arrival and departure.
+
+Examples (replace `device_tracker.darek_phone` with your tracker):
+
+```yaml
+# Tell me when someone leaves, with the time they actually left.
+triggers:
+  - trigger: state
+    entity_id: device_tracker.darek_phone
+    attribute: departed_at
+conditions:
+  - condition: template
+    value_template: "{{ trigger.to_state.attributes.departed_at is not none }}"
+actions:
+  - action: notify.notify
+    data:
+      message: >-
+        Darek left at
+        {{ as_timestamp(trigger.to_state.attributes.departed_at) | timestamp_custom('%H:%M') }}
+```
+
+```yaml
+# Welcome home: lights on when an arrival is recorded after dark.
+triggers:
+  - trigger: state
+    entity_id: device_tracker.darek_phone
+    attribute: arrived_at
+conditions:
+  - condition: template
+    value_template: "{{ trigger.to_state.attributes.arrived_at is not none }}"
+  - condition: sun
+    after: sunset
+actions:
+  - action: light.turn_on
+    target:
+      area_id: hallway
+```
+
+```jinja
+{# Dashboard text: "home for 2 hours" / "away for 3 days" #}
+{% set t = 'device_tracker.darek_phone' %}
+{% if is_state(t, 'home') %}home for {{ state_attr(t, 'arrived_at') | as_datetime(default=none) | relative_time }}
+{% else %}away for {{ state_attr(t, 'departed_at') | as_datetime(default=none) | relative_time }}{% endif %}
+```
+
+A device that was already home when you installed or upgraded to 0.4 shows that moment
+as its arrival until it next leaves and comes back.
+
 ### Per device insight
 Each tracked device is a Home Assistant device with:
 - **Tracker** with attributes `access_point`, `area`, `ssid` and `band` (kept after the
-  device leaves, as "last seen at"), plus `arrived_at` and `departed_at`:
-
-  | | `arrived_at` | `departed_at` |
-  |---|---|---|
-  | home | when it arrived | `null` |
-  | away | `null` | when it left |
-
-  Exactly one of them is set, matching the state, so an automation can trigger on it
-  going from `null` to a time. The departure is when the device was last seen, not when
-  the grace period ran out. They change only on arrival or departure (no recorder row
-  per poll) and survive restarts. Template example: *home since*
-  `{{ state_attr('device_tracker.darek_phone', 'arrived_at') | as_datetime(default=none) | relative_time }}`.
-  A device that was already home when you installed or upgraded to 0.4 shows that moment
-  as its arrival until it next leaves and comes back.
+  device leaves, as "last seen at"), plus `arrived_at` / `departed_at`
+  ([see above](#arrival-and-departure-times)).
 - **Access point** sensor: the AP's name (yours, or the name the AP reports, e.g. *Studio*).
 - **Signal** sensor: signal quality 0-100 %, comparable across access points and vendors
   (percent as reported by D-Link; dBm from other drivers is converted), with a matching
