@@ -31,6 +31,9 @@ async def async_setup_entry(
 class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntity):
     """A device that is home while associated to one of the access points."""
 
+    # Only selects the icons in icons.json; the name comes from the subentry.
+    _attr_translation_key = "tracker"
+
     def __init__(self, coordinator: AssociationCoordinator, subentry: ConfigSubentry) -> None:
         """Track the MAC configured in the subentry."""
         super().__init__(coordinator)

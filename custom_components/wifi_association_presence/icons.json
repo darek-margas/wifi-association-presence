@@ -1,0 +1,32 @@
+{
+  "entity": {
+    "device_tracker": {
+      "tracker": {
+        "default": "mdi:cellphone-wireless",
+        "state": {
+          "not_home": "mdi:cellphone-off"
+        }
+      }
+    },
+    "sensor": {
+      "clients_2_4ghz": { "default": "mdi:wifi" },
+      "clients_5ghz": { "default": "mdi:wifi" },
+      "clients_total": { "default": "mdi:devices" },
+      "cpu": { "default": "mdi:cpu-64-bit" },
+      "memory": { "default": "mdi:memory" },
+      "last_boot": { "default": "mdi:restart" },
+      "location": { "default": "mdi:map-marker" },
+      "access_point": { "default": "mdi:access-point" },
+      "signal": {
+        "default": "mdi:wifi-strength-4",
+        "range": {
+          "0": "mdi:wifi-strength-outline",
+          "20": "mdi:wifi-strength-1",
+          "45": "mdi:wifi-strength-2",
+          "70": "mdi:wifi-strength-3",
+          "90": "mdi:wifi-strength-4"
+        }
+      }
+    }
+  }
+}
