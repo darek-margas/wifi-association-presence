@@ -164,7 +164,8 @@ Leaving an access point's password empty keeps the current one.
 
 **Access point support**
 - **D-Link DAP only.** No other vendor or model has a driver yet. Support for more depends
-  on owners contributing data (see below); the driver interface is designed for it.
+  on owners contributing data (see [Help add your access point](#help-add-your-access-point)
+  and the [Roadmap](#roadmap)); the driver interface is designed for it.
 - **What the D-Link CLI provides is about all there is.** On the tested firmware it gives
   the client list per radio (MAC, SSID, signal, connected time), SSID names, system
   name, location, firmware, hardware revision, uptime, CPU and memory. It does **not**
@@ -207,7 +208,16 @@ Leaving an access point's password empty keeps the current one.
 
 You don't need to write code to get an access point supported. Run the collector against
 it and attach the report to a
-[New access point model](../../issues/new?template=new_access_point.yml) issue:
+[New access point model](../../issues/new?template=new_access_point.yml) issue.
+
+> **Read the report before you submit it, and redact by hand what is still private.**
+> The collector removes MAC, IP and email addresses, key-like strings, the credentials
+> you typed and settings with secret-looking names, but no automatic redaction recognises
+> everything: a Wi-Fi passphrase, names, locations or serial numbers can look like
+> ordinary text. Replace anything you don't want public with `<redacted>`; the structure
+> is what matters for adding support. Issues are public.
+
+**SSH console**
 
 ```bash
 pip install asyncssh
@@ -219,7 +229,29 @@ python3 scripts/collect.py --host <AP IP> --username <user>
   settings. Review the report before sharing it.
 - `--legacy-ssh` allows old SSH algorithms if the connection fails.
 - `--command "<cmd>"` (repeatable) adds the command your AP uses to list clients.
-- `--profile dlink_dap` uses the D-Link command list; `--list-profiles` shows all.
+- `--profile dlink_dap` uses the D-Link command list, `--profile unifi` the UniFi one
+  (`info`, `mca-dump`; log in with the device SSH credentials set in the UniFi
+  controller); `--list-profiles` shows all.
+
+**SNMP**
+
+```bash
+pip install pysnmp
+python3 scripts/collect.py --host <AP IP> --snmp                    # v2c, asks for the community
+python3 scripts/collect.py --host <AP IP> --snmp --snmp-user <user> # v3 (SHA / AES-128)
+```
+
+There is no standard SNMP table of associated Wi-Fi clients: every vendor keeps it in its
+own private MIB, if it offers one at all. The collector finds the vendor's subtree from
+the AP's `sysObjectID` (its enterprise number, e.g. 171 for D-Link, 14988 for MikroTik),
+walks it together with the standard 802.11 and bridge tables, and lists the tables that
+contain MAC addresses, the likely client tables, at the top of the report. MACs are
+redacted in values and inside OID indexes (where many vendors put the client's MAC), and
+the community or keys you type are removed. Use a read-only community. `--snmp-root <OID>`
+adds a subtree, `--snmp-max` limits each walk (default 20000 values).
+
+Not every AP lists clients over SNMP: the DAP-2610, for example, only reports client
+counts and its MAC filter lists there, which is why its driver uses SSH.
 
 Example: [`docs/ap-reports/dlink-dap-2610-v2.06.txt`](docs/ap-reports/dlink-dap-2610-v2.06.txt)
 is the report the D-Link driver was checked against (DAP-2610, firmware v2.06,
@@ -227,8 +259,24 @@ is the report the D-Link driver was checked against (DAP-2610, firmware v2.06,
 radio, and how redaction looks. Reports for supported models are kept in
 [`docs/ap-reports/`](docs/ap-reports) as reference data for driver and parser work.
 
-Currently the collector only supports SSH consoles. If your AP lists clients only in its
-web UI or over SNMP, say so in the issue.
+If your AP lists clients only in its web UI, say so in the issue.
+
+## Roadmap
+
+The principle: read each access point **directly**, one entry per AP. That keeps the
+AP's position (its area) and doesn't depend on a controller's API, which not every
+vendor offers or keeps stable. Every item below needs an owner of that hardware to send
+a collector report and test a build.
+
+| Next | How | What's needed |
+|---|---|---|
+| **UniFi APs** | SSH to each AP, `mca-dump` (JSON with each radio's station table and dBm signal) | `collect.py --profile unifi` report |
+| **SNMP drivers** | One SNMP base driver plus a small table map per vendor (MikroTik registration table first; Cisco, Aruba, Ruckus as reports arrive) | `collect.py --snmp` report |
+| **OpenWrt** | SSH, `iw dev <radio> station dump` | `collect.py --command "iw dev"` and a station dump |
+| **Controller-only systems** (Omada, Cisco WLC, Aruba Instant) | Only where the APs can't be read directly: one entry that reports several APs, each still its own device with its own area | interest and a test setup |
+
+Also planned: Home Assistant-level tests, and splitting `ap_drivers/` into a standalone
+library once there is more than one vendor.
 
 ## Development
 

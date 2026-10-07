@@ -17,7 +17,11 @@ Supports D-Link DAP access points over SSH (tested: DAP-2610, DAP-3662).
 - The tracked-device list offers every device seen in the last 7 days (kept across
   restarts), most recent first, so sleeping devices like cars can be picked.
 - Entity icons and a brand icon.
-- `scripts/collect.py` to collect redacted data for supporting new access points.
+- `scripts/collect.py` to collect data for supporting new access points: SSH consoles
+  (profiles for D-Link and UniFi) and SNMP (finds the vendor's private MIB from
+  `sysObjectID` and lists likely client tables). Reports are redacted (MAC, IP and email
+  addresses, key-like strings, typed credentials; SNMP settings text shown as length
+  only) and carry a warning to review and redact by hand before sharing.
 
 ### Changes since the 0.2 test builds
 - Tracker attributes no longer include the signal (see the *Signal* sensor, whose

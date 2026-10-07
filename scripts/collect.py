@@ -27,6 +27,8 @@ Options:
     --snmp-user USER   SNMP: use v3 with this user (SHA auth, AES-128 privacy) instead of v2c
     --snmp-root OID    SNMP: extra subtree to walk (repeatable)
     --snmp-max N       SNMP: stop each subtree after N values (default 20000)
+    --snmp-full-values SNMP: show all text values, not only in the client tables
+                       (vendor MIBs can hold keys or passphrases: review first)
     --no-redact        keep MAC/IP addresses (only for your own debugging; don't share)
     --output FILE      report file (default: ap-report-<host>.txt)
 
@@ -43,6 +45,7 @@ import argparse
 import asyncio
 from collections import Counter
 import getpass
+import json
 import os
 import re
 import sys
@@ -65,6 +68,12 @@ PROFILES: dict[str, list[str]] = {
         "show station",
         "get",
         "version",
+    ],
+    # UniFi APs: SSH with the device credentials set in the UniFi controller.
+    # mca-dump prints the AP's state as JSON, including each radio's station table.
+    "unifi": [
+        "info",
+        "mca-dump",
     ],
     "dlink_dap": [
         "help",
@@ -98,6 +107,9 @@ _SECRET_LINE = re.compile(
 _HELP_LINE = re.compile(r"^\s*\S.*?\s{2,}--\s")
 _MAC = re.compile(r"\b([0-9A-Fa-f]{2})([:-])([0-9A-Fa-f]{2})\2([0-9A-Fa-f]{2})(?:\2[0-9A-Fa-f]{2}){3}\b")
 _IPV4 = re.compile(r"\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b")
+_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
+# 16+ hex digits in one run: keys, password hashes, serials. (MACs have separators.)
+_LONG_HEX = re.compile(r"\b[0-9A-Fa-f]{16,}\b")
 _PROMPT = re.compile(r"(\S{0,40}[>#$%:]|->)\s*$")
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
@@ -137,9 +149,11 @@ class Redactor:
         return self.mac(octets).replace(":", sep)
 
     def text(self, line: str) -> str:
-        """Hide MACs, IPv4 addresses and the secrets typed in for this run."""
+        """Hide MACs, IPv4 and email addresses, key-like hex and this run's secrets."""
         for secret in self._secrets:
             line = line.replace(secret, "<redacted>")
+        line = _EMAIL.sub("<email>", line)
+        line = _LONG_HEX.sub("<hex>", line)
         line = _MAC.sub(self._mac_text, line)
         return _IPV4.sub(lambda m: f"{m.group(1)}.x.x.{m.group(4)}", line)
 
@@ -187,6 +201,22 @@ async def read_until_prompt(process, timeout: float) -> str:
     return buffer
 
 
+def _pretty_json(output: str) -> str:
+    """Re-indent a JSON reply (e.g. UniFi mca-dump) one key per line.
+
+    The redaction works line by line and judges a setting by its name, so a JSON
+    document on a single line would hide secret keys from it.
+    """
+    start, end = output.find("{"), output.rfind("}")
+    if start < 0 or end <= start:
+        return output
+    try:
+        document = json.loads(output[start : end + 1])
+    except ValueError:
+        return output
+    return output[:start] + json.dumps(document, indent=1) + output[end + 1 :]
+
+
 async def collect_ssh(args: argparse.Namespace, password: str) -> str:
     """Log in, run the commands, return the raw transcript."""
     import asyncssh
@@ -217,7 +247,7 @@ async def collect_ssh(args: argparse.Namespace, password: str) -> str:
                     continue
                 transcript.append(f"# --- {command} ---")
                 process.stdin.write(command + "\n")
-                transcript.append(await read_until_prompt(process, 20))
+                transcript.append(_pretty_json(await read_until_prompt(process, 20)))
     return "\n".join(transcript)
 
 
@@ -290,7 +320,7 @@ def _format_value(value) -> str:
         if len(octets) == 6 and not (octets.isascii() and octets.decode("ascii").isprintable()):
             return f"MAC: {':'.join(f'{b:02X}' for b in octets)}"
         try:
-            text = octets.decode("utf-8")
+            text = octets.decode("utf-8").rstrip("\r\n\0")
         except UnicodeDecodeError:
             text = None
         if text is not None and text.isprintable():
@@ -455,6 +485,19 @@ async def collect_snmp(args: argparse.Namespace, secrets: dict[str, str]) -> lis
     else:
         report.append("# none found: the client list may not be available over SNMP")
 
+    # Text in a vendor walk can be anything, including a Wi-Fi passphrase that no
+    # pattern recognises. So unless --snmp-full-values is given, text and binary values
+    # are shown in full only inside the likely client tables (SSID names, MACs there are
+    # what a driver needs); elsewhere only their type and length.
+    client_entries = {
+        column.split()[0].rsplit(".", 1)[0] + "." for column in tables
+    }
+    if not args.snmp_full_values:
+        report.append(
+            "# text values outside the client tables are shown as their length only;"
+            " --snmp-full-values shows them (review before sharing)"
+        )
+
     section = None
     for row_section, oid, value in rows:
         if row_section != section:
@@ -463,10 +506,23 @@ async def collect_snmp(args: argparse.Namespace, secrets: dict[str, str]) -> lis
         if value.startswith("# ") or args.no_redact:
             report.append(value if value.startswith("# ") else f"{oid} = {value}")
             continue
+        if not (args.snmp_full_values or oid.startswith(tuple(client_entries))):
+            value = _elide(value)
         # OID-typed values look like IP addresses to the text redaction; keep them.
         shown = value if value.startswith("ObjectIdentifier: ") else redactor.text(value)
         report.append(f"{_redact_oid(oid, redactor, known)} = {shown}")
     return report
+
+
+def _elide(value: str) -> str:
+    """STRING/HEX values reduced to their length; other types unchanged."""
+    if value.startswith("STRING: "):
+        text = value[len("STRING: ") :]
+        length = len(text) - 2  # repr quotes
+        return "STRING: ''" if length <= 0 else f"STRING({length} chars)"
+    if value.startswith("HEX: "):
+        return f"HEX({len(value[len('HEX: '):].split())} bytes)"
+    return value
 
 
 def run_snmp(args: argparse.Namespace) -> str | None:
@@ -510,6 +566,7 @@ def main() -> int:
     parser.add_argument("--snmp-user")
     parser.add_argument("--snmp-root", action="append")
     parser.add_argument("--snmp-max", type=int, default=20000)
+    parser.add_argument("--snmp-full-values", action="store_true")
     parser.add_argument("--no-redact", action="store_true")
     parser.add_argument("--output")
     parser.add_argument("--list-profiles", action="store_true")
@@ -534,9 +591,31 @@ def main() -> int:
 
     output = args.output or f"ap-report-{args.host.replace(':', '_')}.txt"
     with open(output, "w", encoding="utf-8") as fh:
-        fh.write(report + "\n")
-    print(f"Report written to {output}. Review it before attaching it to an issue.")
+        fh.write(REVIEW_WARNING + report + "\n")
+    print(f"Report written to {output}.")
+    print(
+        "READ IT BEFORE SHARING: automatic redaction can't recognise everything (e.g. a\n"
+        "Wi-Fi passphrase, names, locations, serial numbers). Replace anything private\n"
+        "with <redacted> by hand, then attach it to the issue."
+    )
     return 0
+
+
+REVIEW_WARNING = """\
+# ==================================================================================
+# READ THIS REPORT BEFORE SHARING IT, AND REDACT BY HAND WHAT IS STILL PRIVATE.
+#
+# Removed automatically: MAC addresses (vendor prefix kept), IPv4 and email
+# addresses, key-like hex strings, the password/community/keys you typed, and
+# settings whose name looks secret. It can NOT recognise everything: a Wi-Fi
+# passphrase, user or host names, locations, serial numbers or anything else that
+# looks like ordinary text may still be here.
+#
+# Read every line. Replace anything you don't want public with <redacted>; the
+# structure (commands, OIDs, column layout) is what matters for adding support.
+# Delete this report when you no longer need it.
+# ==================================================================================
+"""
 
 
 if __name__ == "__main__":

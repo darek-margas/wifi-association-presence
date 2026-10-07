@@ -16,7 +16,18 @@ body:
         ```
         If the connection fails with an algorithm error, add `--legacy-ssh`.
         Add `--command "<cmd>"` (repeatable) for any command you know lists connected
-        clients. **Review the report before attaching it.**
+        clients. UniFi APs: `--profile unifi`.
+
+        **SNMP instead of SSH:** `pip install pysnmp`, then
+        `python3 scripts/collect.py --host <AP IP> --snmp` (v2c, use a read-only community)
+        or add `--snmp-user <user>` for v3. It finds your vendor's private MIB and lists
+        the tables that look like client tables.
+
+        > ⚠️ **Read the whole report before attaching it, and redact by hand what is still
+        > private.** Automatic redaction removes MAC/IP/email addresses, key-like strings
+        > and the credentials you typed, but it can't recognise everything: a Wi-Fi
+        > passphrase, names, locations or serial numbers can look like ordinary text.
+        > Replace them with `<redacted>`. This issue will be public.
         For what a good report looks like, see
         [`docs/ap-reports/dlink-dap-2610-v2.06.txt`](../blob/main/docs/ap-reports/dlink-dap-2610-v2.06.txt).
   - type: input
@@ -51,10 +62,17 @@ body:
     id: report
     attributes:
       label: collect.py report
-      description: Paste the report, or drag the file here.
+      description: Paste the report, or drag the file here. Read it first and redact by hand anything still private.
       render: text
     validations:
       required: true
+  - type: checkboxes
+    id: reviewed
+    attributes:
+      label: Privacy
+      options:
+        - label: I have read the whole report and replaced anything private (passphrases, names, locations, serial numbers) with `<redacted>`.
+          required: true
   - type: textarea
     id: notes
     attributes:
