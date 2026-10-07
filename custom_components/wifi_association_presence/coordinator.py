@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import area_registry as ar, device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -33,6 +34,7 @@ class Sighting:
     """Where and how a MAC was last seen associated."""
 
     access_point: str
+    access_point_id: str  # the access point's subentry id
     ssid: str | None
     band: str | None
     rssi: int | None
@@ -169,7 +171,9 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             per_band: dict[str, int] = {}
             for client in result.clients:
                 per_band[client.band or "unknown"] = per_band.get(client.band or "unknown", 0) + 1
-                sighting = Sighting(name, client.ssid, client.band, client.rssi, now)
+                sighting = Sighting(
+                    name, ap.subentry_id, client.ssid, client.band, client.rssi, now
+                )
                 current = best.get(client.mac)
                 # Seen on two APs in one poll (roaming): keep the stronger signal.
                 if current is None or (client.rssi or 0) > (current.rssi or 0):
@@ -195,6 +199,13 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         """Name to show for an access point (see ConfiguredAccessPoint.display_name)."""
         state = self.data.access_points.get(ap.subentry_id) if self.data else None
         return ap.display_name(state.info if state else None)
+
+    def access_point_area(self, subentry_id: str) -> ar.AreaEntry | None:
+        """The Home Assistant area the user assigned to an access point's device."""
+        device = dr.async_get(self.hass).async_get_device(identifiers={(DOMAIN, subentry_id)})
+        if device is None or device.area_id is None:
+            return None
+        return ar.async_get(self.hass).async_get_area(device.area_id)
 
     def current_sighting(self, mac: str | None) -> Sighting | None:
         """The MAC's sighting if it is within the grace period, else None."""

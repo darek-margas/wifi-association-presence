@@ -68,8 +68,10 @@ class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntit
         sighting = self.coordinator.data.sightings.get(self.mac_address or "")
         if sighting is None:
             return None
+        area = self.coordinator.access_point_area(sighting.access_point_id)
         return {
             "access_point": sighting.access_point,
+            "area": area.name if area else None,
             "ssid": sighting.ssid,
             "band": sighting.band,
             "rssi": sighting.rssi,

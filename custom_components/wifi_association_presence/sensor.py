@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -14,7 +15,8 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import PERCENTAGE, EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers import area_registry as ar, device_registry as dr
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -89,25 +91,39 @@ ACCESS_POINT_SENSORS = (
 )
 
 
+
+def _area_name(coordinator: AssociationCoordinator, sighting: Sighting) -> str | None:
+    """Name of the area of the access point the device is connected to."""
+    area = coordinator.access_point_area(sighting.access_point_id)
+    return area.name if area else None
+
 @dataclass(frozen=True, kw_only=True)
 class TrackedSensorDescription(SensorEntityDescription):
     """A tracked device sensor read from its current sighting."""
 
-    value_fn: Callable[[Sighting], StateValue]
+    value_fn: Callable[[AssociationCoordinator, Sighting], StateValue]
+    # Re-evaluate when areas or device areas change, not only on polls.
+    follows_areas: bool = False
 
 
 TRACKED_SENSORS = (
     TrackedSensorDescription(
         key="access_point",
         translation_key="access_point",
-        value_fn=lambda s: s.access_point,
+        value_fn=lambda _, s: s.access_point,
     ),
     TrackedSensorDescription(
         key="signal",
         translation_key="signal",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda s: s.rssi,
+        value_fn=lambda _, s: s.rssi,
+    ),
+    TrackedSensorDescription(
+        key="area",
+        translation_key="area",
+        follows_areas=True,
+        value_fn=_area_name,
     ),
 )
 
@@ -190,4 +206,26 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
     def native_value(self) -> StateValue:
         """Value while the device is home (within the grace period), else unknown."""
         sighting = self.coordinator.current_sighting(self._mac)
-        return self.entity_description.value_fn(sighting) if sighting else None
+        return self.entity_description.value_fn(self.coordinator, sighting) if sighting else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """The area id (stable across renames) for the area sensor."""
+        if not self.entity_description.follows_areas:
+            return None
+        sighting = self.coordinator.current_sighting(self._mac)
+        area = self.coordinator.access_point_area(sighting.access_point_id) if sighting else None
+        return {"area_id": area.id if area else None}
+
+    async def async_added_to_hass(self) -> None:
+        """Also follow area changes, for sensors that show an area."""
+        await super().async_added_to_hass()
+        if not self.entity_description.follows_areas:
+            return
+
+        @callback
+        def _area_changed(_event: Event) -> None:
+            self.async_write_ha_state()
+
+        for event_type in (dr.EVENT_DEVICE_REGISTRY_UPDATED, ar.EVENT_AREA_REGISTRY_UPDATED):
+            self.async_on_remove(self.hass.bus.async_listen(event_type, _area_changed))

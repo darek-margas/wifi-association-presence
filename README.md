@@ -20,10 +20,13 @@ associated while it is idle, even when it sends no traffic for minutes.
   its MAC is associated to any AP and `not_home` once it has been missing for the
   **grace period** (default 3 minutes, adjustable), which covers roaming between APs,
   coverage gaps and an AP that is briefly unreachable.
-- **A device per tracked phone/laptop**, holding its `device_tracker` and two sensors:
+- **A device per tracked phone/laptop**, holding its `device_tracker` and three sensors:
   - *Access point*: where it is connected now.
   - *Signal*: signal strength on the AP's scale (percent on D-Link).
-  - Tracker attributes: `access_point`, `ssid`, `band`, `rssi`, `last_seen`.
+  - *Area*: the Home Assistant area of the access point it is connected to (assign an
+    area to each AP device), with `area_id` as an attribute. Useful for room-level
+    automations; empty while away or when the AP has no area.
+  - Tracker attributes: `access_point`, `area`, `ssid`, `band`, `rssi`, `last_seen`.
 - **A device per access point**: firmware, hardware revision, optional model, a link to
   its web UI, and sensors:
   - *Clients 2.4 GHz*, *Clients 5 GHz*, *Clients* (total).

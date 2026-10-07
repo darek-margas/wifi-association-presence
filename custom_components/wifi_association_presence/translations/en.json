@@ -31,7 +31,8 @@
       "last_boot": { "name": "Last boot" },
       "location": { "name": "Location" },
       "access_point": { "name": "Access point" },
-      "signal": { "name": "Signal" }
+      "signal": { "name": "Signal" },
+      "area": { "name": "Area" }
     }
   },
   "config_subentries": {
