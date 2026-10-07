@@ -6,6 +6,9 @@ name: Release
 # with that changelog section as notes. It runs on every push to main, so a failed
 # release is retried by the push that fixes it; once a version is released, later
 # pushes only refresh its notes, and the tag is never moved.
+#
+# Betas: a version with a pre-release suffix (0.5.0b1, 0.5.0rc1) is published as a GitHub
+# pre-release, which HACS offers only to users who enable "Show beta versions".
 
 on:
   push:
@@ -54,10 +57,12 @@ jobs:
         shell: bash
         run: |
           VERSION="$(jq -r .version custom_components/wifi_association_presence/manifest.json)"
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.]+)?$ ]]; then
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+((a|b|rc)[0-9]+|[.-][0-9A-Za-z.]+)?$ ]]; then
             echo "::error::manifest.json version '$VERSION' is not a release version"
             exit 1
           fi
+          # Anything after X.Y.Z (b1, rc2, -beta.1) makes it a pre-release.
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then PRERELEASE=false; else PRERELEASE=true; fi
           # The CHANGELOG section for this version: from "## <version>" up to the next "## ".
           awk -v v="$VERSION" '
             /^## / { if (found) exit; if ($2 == v) { found = 1; next } }
@@ -71,21 +76,25 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "title=v$TITLE" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
           TITLE: ${{ steps.version.outputs.title }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         shell: bash
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG exists; refreshing its notes only."
-            gh release edit "$TAG" --title "$TITLE" --notes-file /tmp/release-notes.md
+            gh release edit "$TAG" --title "$TITLE" --notes-file /tmp/release-notes.md \
+              --prerelease="$PRERELEASE"
           elif git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
             echo "Tag $TAG exists without a release; creating the release on it."
-            gh release create "$TAG" --verify-tag --title "$TITLE" --notes-file /tmp/release-notes.md
+            gh release create "$TAG" --verify-tag --title "$TITLE" \
+              --notes-file /tmp/release-notes.md --prerelease="$PRERELEASE"
           else
             gh release create "$TAG" --target "$GITHUB_SHA" --title "$TITLE" \
-              --notes-file /tmp/release-notes.md
+              --notes-file /tmp/release-notes.md --prerelease="$PRERELEASE"
           fi
