@@ -125,3 +125,39 @@ def test_device_details() -> None:
         62 * 86400 + 41 * 60 + 46
     )
     assert parse_uptime("get uptime\nWAP->\n") is None
+
+
+def test_error_replies_are_not_values() -> None:
+    # Real replies to commands this firmware doesn't support the expected way.
+    assert (
+        parse_cli_value(
+            "get ssidmac\nWrong input parameters. Please specify the correct Primary-SSID ( 0 ) "
+            "or Multi-SSID index (1-7).\nWAP->\n",
+            "get ssidmac",
+        )
+        is None
+    )
+    assert (
+        parse_cli_value(
+            "get macaddress\nUnable to open device (/dev/mtdblock/11) to read !\n\nWAP->\n",
+            "get macaddress",
+        )
+        is None
+    )
+    assert parse_cli_value("get location\n" + "x" * 200 + "\nWAP->\n", "get location") is None
+    assert parse_cli_value("get location\n\x1b\x07\nWAP->\n", "get location") is None
+
+
+def test_garbled_and_truncated_clientinfo() -> None:
+    text = (
+        "get clientinfo\n"
+        "Client1--time:12\nClient1--mac:76:F4:C1:CB:89:12\nClient1--rssi:abc\n"
+        "-----\n"
+        "garbage line \xff\xfe\n"
+        "Client2--mac:not-a-mac\n"
+        "-----\n"
+        "Client3--time:5\nClient3--ssid: primary SSID\n"  # connection dropped before mac
+    )
+    clients = parse_clientinfo(text, "5GHz")
+    assert [c.mac for c in clients] == ["76:F4:C1:CB:89:12"]
+    assert clients[0].rssi is None

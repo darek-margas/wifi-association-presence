@@ -166,7 +166,9 @@ async def collect(args: argparse.Namespace, password: str) -> str:
         args.host, port=args.port, username=args.username, password=password, **options
     ) as conn:
         transcript.append(f"# server version: {conn.get_extra_info('server_version')}")
-        async with conn.create_process(term_type="vt100", term_size=(200, 1000)) as process:
+        async with conn.create_process(
+            term_type="vt100", term_size=(200, 1000), encoding="utf-8", errors="replace"
+        ) as process:
             transcript.append("# --- login banner / prompt ---")
             transcript.append(await read_until_prompt(process, 10))
             for command in commands:
@@ -209,6 +211,9 @@ def main() -> int:
         print(f"Connection failed: {err!r}", file=sys.stderr)
         if "no matching" in str(err).lower() or "algorithm" in str(err).lower():
             print("Try again with --legacy-ssh.", file=sys.stderr)
+        return 1
+    except Exception as err:  # report anything else plainly, never a traceback dump
+        print(f"Unexpected error: {err!r}", file=sys.stderr)
         return 1
 
     report = transcript if args.no_redact else redact(transcript)

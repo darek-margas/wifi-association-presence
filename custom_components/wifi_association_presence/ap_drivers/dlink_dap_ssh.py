@@ -73,6 +73,12 @@ _PROMPT = re.compile(r"[\w.\-]+->\s*$")
 _SSID_LABEL = re.compile(r"^(?:primary ssid|multi-ssid index (\d+))$", re.IGNORECASE)
 _IS_VALUE = re.compile(r"^.*\(index \d+\) is (.*)$", re.IGNORECASE)
 _UPTIME = re.compile(r"Day\s+(\d+),\s*(\d+):(\d+):(\d+)", re.IGNORECASE)
+MAX_VALUE_LENGTH = 64  # SSIDs are at most 32 characters; names/locations similar
+_ERROR_REPLY = re.compile(
+    r"\b(invalid|error|unknown command|wrong input|unable to|can'?t|cannot|not found|"
+    r"failed|not supported|no such|usage:)",
+    re.IGNORECASE,
+)
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 _FIELD = re.compile(r"^Client\d+--(\w+):\s*(.*?)\s*$")
 
@@ -234,7 +240,10 @@ class DlinkDapSsh(AccessPointDriver):
                 **self.SSH_POLICY.connect_options(),
             ) as conn:
                 async with conn.create_process(
-                    term_type="vt100", term_size=(200, 1000)
+                    term_type="vt100",
+                    term_size=(200, 1000),
+                    encoding="utf-8",
+                    errors="replace",  # never fail on odd bytes from the console
                 ) as process:
                     await _read_until_prompt(process)
                     yield process
@@ -271,7 +280,18 @@ def parse_cli_value(output: str, command: str) -> str | None:
         value = last.split(":", 1)[1].strip()
     else:
         value = last
-    if not value or value.lower().startswith(("invalid", "error", "unknown command")):
+    return _clean_value(value)
+
+
+def _clean_value(value: str) -> str | None:
+    """Reject replies that are error messages or nonsense rather than a value.
+
+    Other firmware versions answer unsupported commands with messages such as
+    "Wrong input parameters ..." or "Unable to open device ..."; those must not end
+    up as an SSID name or location.
+    """
+    value = "".join(ch for ch in value if ch.isprintable()).strip()
+    if not value or len(value) > MAX_VALUE_LENGTH or _ERROR_REPLY.search(value):
         return None
     return value
 

@@ -72,7 +72,8 @@
       },
       "error": {
         "cannot_connect": "Could not connect to the access point or read its client list.",
-        "invalid_auth": "The access point rejected the username or password."
+        "invalid_auth": "The access point rejected the username or password.",
+        "unknown": "Unexpected error while reading the access point. See the Home Assistant log for details."
       },
       "abort": {
         "already_configured": "This access point is already configured.",

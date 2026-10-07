@@ -24,6 +24,9 @@ from .const import (
 
 type WifiAssociationConfigEntry = ConfigEntry[AssociationCoordinator]
 
+# Upper bound for reading one AP (login plus all commands), well inside SCAN_INTERVAL.
+AP_POLL_TIMEOUT = 45
+
 
 @dataclass(frozen=True, slots=True)
 class Sighting:
@@ -112,17 +115,33 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             return PresenceData({}, {})
 
         results = await asyncio.gather(
-            *(ap.driver.async_poll() for ap in self.access_points),
+            *(
+                asyncio.wait_for(ap.driver.async_poll(), AP_POLL_TIMEOUT)
+                for ap in self.access_points
+            ),
             return_exceptions=True,
         )
         now = dt_util.utcnow()
         best: dict[str, Sighting] = {}
         failed = 0
         for ap, result in zip(self.access_points, results, strict=True):
-            if isinstance(result, AccessPointError):
+            if isinstance(result, asyncio.CancelledError):
+                raise result
+            if isinstance(result, Exception):
+                # Any failure of one AP, expected or a driver bug, only makes that AP
+                # unreadable; it never stops the others from updating.
                 failed += 1
                 if ap.title not in self._failing:
-                    LOGGER.warning("Cannot read access point %s: %s", ap.title, result)
+                    if isinstance(result, (AccessPointError, TimeoutError)):
+                        LOGGER.warning(
+                            "Cannot read access point %s: %s", ap.title, result or "timeout"
+                        )
+                    else:
+                        LOGGER.error(
+                            "Unexpected error reading access point %s",
+                            ap.title,
+                            exc_info=result,
+                        )
                     self._failing.add(ap.title)
                 previous = self._ap_states.get(ap.subentry_id)
                 self._ap_states[ap.subentry_id] = AccessPointState(

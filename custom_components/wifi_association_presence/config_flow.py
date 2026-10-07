@@ -7,6 +7,7 @@ touching them; with no access point configured the trackers report "unknown".
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import voluptuous as vol
@@ -52,6 +53,9 @@ from .const import (
     SUBENTRY_ACCESS_POINT,
     SUBENTRY_TRACKED_DEVICE,
 )
+
+
+TEST_TIMEOUT = 45
 
 
 class WifiAssociationPresenceConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -260,12 +264,15 @@ def _split_name(user_input: dict[str, Any]) -> tuple[str | None, dict[str, Any]]
 async def _async_test_access_point(driver: AccessPointDriver) -> dict[str, str]:
     """Read the AP once; map failures to form errors."""
     try:
-        await driver.async_get_associated_clients()
+        await asyncio.wait_for(driver.async_get_associated_clients(), TEST_TIMEOUT)
     except AccessPointAuthError:
         return {"base": "invalid_auth"}
-    except AccessPointError as err:
+    except (AccessPointError, TimeoutError) as err:
         LOGGER.debug("Access point test failed: %s", err)
         return {"base": "cannot_connect"}
+    except Exception:
+        LOGGER.exception("Unexpected error testing the access point")
+        return {"base": "unknown"}
     return {}
 
 
