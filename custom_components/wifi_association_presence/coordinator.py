@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -12,7 +12,15 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .ap_drivers import DRIVERS, AccessPointDriver, AccessPointError
-from .const import CONF_DRIVER, DOMAIN, LOGGER, SCAN_INTERVAL, SUBENTRY_ACCESS_POINT
+from .const import (
+    CONF_CONSIDER_HOME,
+    CONF_DRIVER,
+    DEFAULT_CONSIDER_HOME,
+    DOMAIN,
+    LOGGER,
+    SCAN_INTERVAL,
+    SUBENTRY_ACCESS_POINT,
+)
 
 type WifiAssociationConfigEntry = ConfigEntry[AssociationCoordinator]
 
@@ -57,6 +65,14 @@ class AssociationCoordinator(DataUpdateCoordinator[dict[str, Sighting]]):
             self._access_points.append((subentry.title, driver_cls(dict(subentry.data))))
         self._sightings: dict[str, Sighting] = {}
         self._failing: set[str] = set()
+        self.consider_home = timedelta(
+            seconds=entry.options.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)
+        )
+
+    @property
+    def has_access_points(self) -> bool:
+        """Whether any access point is configured (else presence is unknown)."""
+        return bool(self._access_points)
 
     async def _async_update_data(self) -> dict[str, Sighting]:
         """Read every AP in parallel; keep previous sightings for APs that fail."""

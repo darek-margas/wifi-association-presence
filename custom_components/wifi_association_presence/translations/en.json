@@ -9,6 +9,18 @@
       "single_instance_allowed": "Already configured. Add access points and devices from the integration page."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "consider_home": "Grace period"
+        },
+        "data_description": {
+          "consider_home": "How long a device stays home after it was last seen associated to any access point. Covers roaming between access points, coverage gaps and a failing access point."
+        }
+      }
+    }
+  },
   "config_subentries": {
     "access_point": {
       "entry_type": "Access point",
@@ -25,6 +37,17 @@
         "details": {
           "description": "Settings for {type}. They are tested by reading the access point's client list once.",
           "data": {
+            "name": "Name (optional)",
+            "host": "Host or IP address",
+            "port": "Port",
+            "username": "Username",
+            "password": "Password"
+          }
+        },
+        "reconfigure": {
+          "description": "Settings for {type}. Leave the password empty to keep the current one.",
+          "data": {
+            "name": "Name (optional)",
             "host": "Host or IP address",
             "port": "Port",
             "username": "Username",
@@ -37,7 +60,9 @@
         "invalid_auth": "The access point rejected the username or password."
       },
       "abort": {
-        "already_configured": "This access point is already configured."
+        "already_configured": "This access point is already configured.",
+        "reconfigure_successful": "Access point updated.",
+        "unknown_driver": "This access point uses a type that is no longer available. Remove it and add it again."
       }
     },
     "tracked_device": {
@@ -52,13 +77,20 @@
             "mac": "MAC address",
             "name": "Name"
           }
+        },
+        "reconfigure": {
+          "description": "Rename the device with MAC address {mac}.",
+          "data": {
+            "name": "Name"
+          }
         }
       },
       "error": {
         "invalid_mac": "Not a valid MAC address."
       },
       "abort": {
-        "already_configured": "This device is already tracked."
+        "already_configured": "This device is already tracked.",
+        "reconfigure_successful": "Device updated."
       }
     }
   }

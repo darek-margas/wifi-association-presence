@@ -11,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_MAC, CONSIDER_HOME, SUBENTRY_TRACKED_DEVICE
+from .const import CONF_MAC, SUBENTRY_TRACKED_DEVICE
 from .coordinator import AssociationCoordinator, WifiAssociationConfigEntry
 
 
@@ -49,10 +49,19 @@ class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntit
         return True
 
     @property
-    def is_connected(self) -> bool:
-        """Associated now, or within CONSIDER_HOME of the last sighting."""
+    def is_connected(self) -> bool | None:
+        """Associated now, or within the grace period of the last sighting.
+
+        Unknown (None) while no access point is configured: no data source is not
+        evidence of having left.
+        """
+        if not self.coordinator.has_access_points:
+            return None
         sighting = self.coordinator.data.get(self.mac_address or "")
-        return sighting is not None and dt_util.utcnow() - sighting.last_seen < CONSIDER_HOME
+        return (
+            sighting is not None
+            and dt_util.utcnow() - sighting.last_seen < self.coordinator.consider_home
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
