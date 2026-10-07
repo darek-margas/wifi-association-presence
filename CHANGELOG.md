@@ -29,4 +29,5 @@ Supports D-Link DAP access points over SSH (tested: DAP-2610, DAP-3662).
 - Whether an access point was named by the user is stored explicitly (existing entries
   keep working).
 - Spaces around host, username and other settings are stripped during setup.
+- D-Link: an error reply such as "Invalid parameter: 9" is no longer taken as a value.
 - Presence rules are tested on every push (pytest, ruff, hassfest, HACS validation).

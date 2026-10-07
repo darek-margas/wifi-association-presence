@@ -3,16 +3,13 @@ name: Release
 # Releasing is a push: bump "version" in custom_components/.../manifest.json and add a
 # "## <version>" section to CHANGELOG.md, then push to main. This workflow runs the
 # tests and hassfest and, if they pass, creates tag v<version> and a GitHub release
-# with that changelog section as notes. Pushing again with the same version only
-# refreshes the notes; the tag is never moved.
+# with that changelog section as notes. It runs on every push to main, so a failed
+# release is retried by the push that fixes it; once a version is released, later
+# pushes only refresh its notes, and the tag is never moved.
 
 on:
   push:
     branches: [main]
-    paths:
-      - custom_components/wifi_association_presence/manifest.json
-      - CHANGELOG.md
-      - .github/workflows/release.yml
   workflow_dispatch:
 
 permissions:
