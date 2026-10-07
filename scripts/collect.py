@@ -80,6 +80,7 @@ _REFUSED = re.compile(
 _SECRET_LINE = re.compile(
     r"(pass(word|phrase)?|secret|psk|key|community|token|credential)", re.IGNORECASE
 )
+_HELP_LINE = re.compile(r"^\s*\S.*?\s{2,}--\s")
 _MAC = re.compile(r"\b([0-9A-Fa-f]{2})([:-])([0-9A-Fa-f]{2})\2([0-9A-Fa-f]{2})(?:\2[0-9A-Fa-f]{2}){3}\b")
 _IPV4 = re.compile(r"\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b")
 _PROMPT = re.compile(r"(\S{0,40}[>#$%:]|->)\s*$")
@@ -123,8 +124,10 @@ def redact(text: str) -> str:
     lines = []
     for line in text.splitlines():
         # Judge by the setting's name (before ":"/"="), so "auth:WPA2-PSK" stays readable.
+        # Help listings ("get key  -- Display Encryption Key (index:1--4)") describe
+        # commands rather than show values, so they are left intact.
         name, sep, _value = _split_setting(line)
-        if sep and _SECRET_LINE.search(name):
+        if sep and not _HELP_LINE.match(line) and _SECRET_LINE.search(name):
             line = f"{name}{sep} <redacted>"
         line = _MAC.sub(mac_sub, line)
         line = _IPV4.sub(lambda m: f"{m.group(1)}.x.x.{m.group(4)}", line)
