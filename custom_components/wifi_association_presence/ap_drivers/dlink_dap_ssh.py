@@ -69,6 +69,7 @@ SSID_NAMES_TTL = 3600  # re-read SSID names hourly
 
 _PROMPT = re.compile(r"[\w.\-]+->\s*$")
 _SSID_LABEL = re.compile(r"^(?:primary ssid|multi-ssid index (\d+))$", re.IGNORECASE)
+_IS_VALUE = re.compile(r"^.*\(index \d+\) is (.*)$", re.IGNORECASE)
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 _FIELD = re.compile(r"^Client\d+--(\w+):\s*(.*?)\s*$")
 
@@ -199,7 +200,11 @@ def ssid_name_command(label: str) -> str | None:
 
 
 def parse_cli_value(output: str, command: str) -> str | None:
-    """Value printed by a "get" command (e.g. "SSID : Kids" -> "Kids")."""
+    """Value printed by a "get" command.
+
+    Seen on DAP-2610/DAP-3662: "get ssid" -> "SSID:Power" and
+    "get multi-ssid 3" -> "SSID of Multi-SSID (index 3) is Internal".
+    """
     lines = [
         line.strip()
         for line in output.splitlines()
@@ -207,7 +212,13 @@ def parse_cli_value(output: str, command: str) -> str | None:
     ]
     if not lines:
         return None
-    value = lines[-1].split(":", 1)[1].strip() if ":" in lines[-1] else lines[-1]
+    last = lines[-1]
+    if match := _IS_VALUE.match(last):
+        value = match.group(1).strip()
+    elif ":" in last:
+        value = last.split(":", 1)[1].strip()
+    else:
+        value = last
     if not value or value.lower().startswith(("invalid", "error", "unknown command")):
         return None
     return value

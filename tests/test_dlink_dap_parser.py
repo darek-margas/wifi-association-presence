@@ -96,9 +96,16 @@ def test_ssid_name_command() -> None:
 
 
 def test_parse_cli_value() -> None:
-    # Exact DAP output format not documented; these cover the likely shapes.
+    # Real DAP-3662 replies.
+    assert parse_cli_value("get ssid\nSSID:Power\nWAP->\n", "get ssid") == "Power"
+    assert (
+        parse_cli_value(
+            "get multi-ssid 3\nSSID of Multi-SSID (index 3) is Internal\nWAP->\n",
+            "get multi-ssid 3",
+        )
+        == "Internal"
+    )
     assert parse_cli_value("get ssid\nSSID : Primary\nWAP-> ", "get ssid") == "Primary"
-    assert parse_cli_value("get multi-ssid 5\nKids\nWAP-> ", "get multi-ssid 5") == "Kids"
     assert (
         parse_cli_value("get multi-ssid 9\nInvalid parameter: 9\nWAP-> ", "get multi-ssid 9")
         is None
