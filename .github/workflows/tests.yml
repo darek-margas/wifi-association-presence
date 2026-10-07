@@ -36,7 +36,12 @@ jobs:
         run: pip install pytest-homeassistant-custom-component "asyncssh>=2.14.2"
       - name: Install aiounifi as pinned by that Home Assistant's UniFi integration
         # The UniFi driver uses it at runtime, where it comes with the UniFi integration.
+        # Read the pin from the manifest file: importing the UniFi integration itself
+        # would need aiounifi already.
         run: |
-          pip install "$(python -c 'import json, pathlib, homeassistant.components.unifi as u; print(json.loads((pathlib.Path(u.__file__).parent / "manifest.json").read_text())["requirements"][0])')"
+          set -euo pipefail
+          REQ="$(python -c 'import importlib.util, json, pathlib; p = pathlib.Path(importlib.util.find_spec("homeassistant").origin).parent / "components" / "unifi" / "manifest.json"; print(json.loads(p.read_text())["requirements"][0])')"
+          echo "UniFi integration requires: $REQ"
+          pip install "$REQ"
       - name: Run Home Assistant-level tests
         run: python -m pytest -v tests_ha
