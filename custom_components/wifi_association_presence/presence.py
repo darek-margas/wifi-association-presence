@@ -7,7 +7,7 @@ their own; the coordinator does the I/O, logging and storage around them.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -47,6 +47,10 @@ class Sighting:
     signal_unit: str
     quality: int | None  # 0-100, comparable across drivers
     last_seen: datetime
+    # The current (or, once away, the last) visit: when it started, and when the visit
+    # before it ended. Set by carry_visits; None until then.
+    arrived: datetime | None = None
+    departed: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,6 +136,31 @@ def merge_reads(reads: Iterable[AccessPointRead], now: datetime) -> MergeResult:
     return merged
 
 
+def carry_visits(
+    seen: Mapping[str, Sighting],
+    previous: Mapping[str, Sighting],
+    now: datetime,
+    visit_gap: timedelta,
+) -> dict[str, Sighting]:
+    """Attach arrival and previous departure times to this poll's sightings.
+
+    A device seen again within `visit_gap` of its last sighting continues the same
+    visit. Otherwise a new visit starts now, and the previous one ended when the device
+    was last seen (not when the grace period ran out).
+    """
+    carried: dict[str, Sighting] = {}
+    for mac, sighting in seen.items():
+        before = previous.get(mac)
+        if before is not None and before.arrived is not None and (
+            now - before.last_seen <= visit_gap
+        ):
+            arrived, departed = before.arrived, before.departed
+        else:
+            arrived, departed = now, before.last_seen if before else None
+        carried[mac] = replace(sighting, arrived=arrived, departed=departed)
+    return carried
+
+
 def is_present(sighting: Sighting | None, now: datetime, consider_home: timedelta) -> bool:
     """Seen within the grace period."""
     return sighting is not None and now - sighting.last_seen < consider_home
@@ -145,14 +174,30 @@ def prune(
     return {mac: s for mac, s in sightings.items() if s.last_seen > cutoff}
 
 
+_TIME_FIELDS = ("last_seen", "arrived", "departed")
+
+
 def sightings_to_storage(sightings: Mapping[str, Sighting]) -> dict[str, Any]:
     """JSON-friendly form of the sightings."""
     return {
         "sightings": {
-            mac: {**asdict(s), "last_seen": s.last_seen.isoformat()}
+            mac: {
+                key: value.isoformat() if isinstance(value, datetime) else value
+                for key, value in asdict(s).items()
+            }
             for mac, s in sightings.items()
         }
     }
+
+
+def _parse_time(value: Any) -> datetime | None:
+    """An aware datetime from ISO text; None for None; ValueError for anything else."""
+    if value is None:
+        return None
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        raise ValueError("naive datetime")
+    return parsed
 
 
 def sightings_from_storage(
@@ -160,7 +205,8 @@ def sightings_from_storage(
 ) -> dict[str, Sighting]:
     """Read stored sightings, skipping malformed and expired entries.
 
-    Entries written by 0.2.x (with "rssi", always percent) are converted.
+    Entries written by 0.2.x (with "rssi", always percent) are converted; entries
+    written before visits were tracked start their visit at their last sighting.
     """
     sightings: dict[str, Sighting] = {}
     items = (stored or {}).get("sightings")
@@ -171,13 +217,15 @@ def sightings_from_storage(
             item = dict(item)
             if "rssi" in item:
                 item["signal"] = item.pop("rssi")
-                item.setdefault("signal_unit", SIGNAL_PERCENT)
             item.setdefault("signal_unit", SIGNAL_PERCENT)
             item.setdefault("quality", signal_quality(item.get("signal"), item["signal_unit"]))
-            last_seen = datetime.fromisoformat(item.pop("last_seen"))
-            if last_seen.tzinfo is None:
+            for key in _TIME_FIELDS:
+                item[key] = _parse_time(item.get(key))
+            if item["last_seen"] is None:
                 continue
-            sighting = Sighting(**item, last_seen=last_seen)
+            if item["arrived"] is None:
+                item["arrived"] = item["last_seen"]
+            sighting = Sighting(**item)
         except (TypeError, KeyError, ValueError):
             continue
         sightings[mac] = sighting

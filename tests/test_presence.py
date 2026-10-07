@@ -22,6 +22,7 @@ from presence import (  # noqa: E402
     SIGNAL_PERCENT,
     AccessPointRead,
     Sighting,
+    carry_visits,
     is_present,
     merge_reads,
     prune,
@@ -53,8 +54,16 @@ def client(mac: str, signal: int | None, band: str = "5GHz") -> AssociatedClient
     return AssociatedClient(mac=mac, ssid="Home", band=band, signal=signal)
 
 
-def sighting(last_seen: datetime, signal: int | None = 80) -> Sighting:
-    return Sighting("Studio", "studio", "Home", "5GHz", signal, SIGNAL_PERCENT, signal, last_seen)
+def sighting(
+    last_seen: datetime,
+    signal: int | None = 80,
+    arrived: datetime | None = None,
+    departed: datetime | None = None,
+) -> Sighting:
+    return Sighting(
+        "Studio", "studio", "Home", "5GHz", signal, SIGNAL_PERCENT, signal, last_seen,
+        arrived, departed,
+    )
 
 
 # --- signal scale ---------------------------------------------------------------
@@ -205,8 +214,12 @@ def test_prune_drops_old_sightings() -> None:
 
 def test_storage_round_trip() -> None:
     original = {
-        PHONE: sighting(NOW - timedelta(hours=1)),
-        CAR: Sighting("Garden", "garden", None, None, -67, SIGNAL_DBM, 66, NOW),
+        PHONE: sighting(
+            NOW - timedelta(hours=1),
+            arrived=NOW - timedelta(hours=3),
+            departed=NOW - timedelta(hours=5),
+        ),
+        CAR: Sighting("Garden", "garden", None, None, -67, SIGNAL_DBM, 66, NOW, NOW, None),
     }
     assert sightings_from_storage(sightings_to_storage(original), NOW, timedelta(days=7)) == original
 
@@ -226,10 +239,12 @@ def test_storage_converts_0_2_entries() -> None:
     }
     restored = sightings_from_storage(stored, NOW, timedelta(days=7))[PHONE]
     assert (restored.signal, restored.signal_unit, restored.quality) == (98, SIGNAL_PERCENT, 98)
+    # No visit was recorded then: it starts at the last sighting.
+    assert (restored.arrived, restored.departed) == (NOW, None)
 
 
 def test_storage_skips_bad_and_expired_entries() -> None:
-    good = sightings_to_storage({PHONE: sighting(NOW)})["sightings"][PHONE]
+    good = sightings_to_storage({PHONE: sighting(NOW, arrived=NOW)})["sightings"][PHONE]
     stored = {
         "sightings": {
             PHONE: good,
@@ -239,6 +254,8 @@ def test_storage_skips_bad_and_expired_entries() -> None:
             "AA:00:00:00:00:04": {**good, "unexpected": 1},
             "AA:00:00:00:00:05": "garbage",
             "AA:00:00:00:00:06": {**good, "last_seen": (NOW - timedelta(days=8)).isoformat()},
+            "AA:00:00:00:00:07": {**good, "arrived": "yesterday"},
+            "AA:00:00:00:00:08": {**good, "departed": "2026-10-07T10:00:00"},  # no tz
         }
     }
     assert set(sightings_from_storage(stored, NOW, timedelta(days=7))) == {PHONE}
@@ -247,3 +264,42 @@ def test_storage_skips_bad_and_expired_entries() -> None:
 @pytest.mark.parametrize("stored", [None, {}, {"sightings": None}, {"sightings": []}])
 def test_storage_empty_or_broken_file(stored: object) -> None:
     assert sightings_from_storage(stored, NOW, timedelta(days=7)) == {}  # type: ignore[arg-type]
+
+
+# --- visits (arrived / departed) ------------------------------------------------
+
+GAP = timedelta(minutes=3)
+
+
+def test_first_sighting_starts_a_visit() -> None:
+    seen = carry_visits({PHONE: sighting(NOW)}, {}, NOW, GAP)
+    assert (seen[PHONE].arrived, seen[PHONE].departed) == (NOW, None)
+
+
+def test_seen_again_within_the_gap_continues_the_visit() -> None:
+    arrived = NOW - timedelta(hours=2)
+    departed = NOW - timedelta(hours=9)
+    before = {PHONE: sighting(NOW - timedelta(minutes=1), arrived=arrived, departed=departed)}
+    seen = carry_visits({PHONE: sighting(NOW)}, before, NOW, GAP)
+    assert (seen[PHONE].arrived, seen[PHONE].departed) == (arrived, departed)
+    assert seen[PHONE].last_seen == NOW
+
+
+def test_gap_at_the_limit_still_continues() -> None:
+    before = {PHONE: sighting(NOW - GAP, arrived=NOW - timedelta(hours=1))}
+    seen = carry_visits({PHONE: sighting(NOW)}, before, NOW, GAP)
+    assert seen[PHONE].arrived == NOW - timedelta(hours=1)
+
+
+def test_return_after_the_gap_starts_a_new_visit() -> None:
+    left = NOW - timedelta(hours=4)
+    before = {PHONE: sighting(left, arrived=NOW - timedelta(hours=8))}
+    seen = carry_visits({PHONE: sighting(NOW)}, before, NOW, GAP)
+    # Departure is when it was really last seen, not when the grace period ran out.
+    assert (seen[PHONE].arrived, seen[PHONE].departed) == (NOW, left)
+
+
+def test_devices_not_seen_this_poll_are_untouched() -> None:
+    before = {CAR: sighting(NOW - timedelta(hours=1), arrived=NOW - timedelta(hours=2))}
+    seen = carry_visits({PHONE: sighting(NOW)}, before, NOW, GAP)
+    assert set(seen) == {PHONE}

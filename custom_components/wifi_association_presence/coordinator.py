@@ -29,6 +29,7 @@ from .presence import (
     AccessPointRead,
     AccessPointState,
     Sighting,
+    carry_visits,
     is_present,
     merge_reads,
     prune,
@@ -48,6 +49,12 @@ AP_POLL_TIMEOUT = 45
 SIGHTING_RETENTION = timedelta(days=7)
 STORAGE_VERSION = 1
 STORAGE_SAVE_DELAY = 60
+# A device read in the latest poll must count as present, so a shorter grace period
+# acts as this one: away after one missed poll.
+MIN_CONSIDER_HOME = timedelta(seconds=30)
+# Sightings this close together belong to the same visit even with a short grace
+# period (consecutive polls are SCAN_INTERVAL apart, give or take a slow AP).
+MIN_VISIT_GAP = SCAN_INTERVAL + timedelta(seconds=30)
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,9 +133,11 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.sightings"
         )
-        self.consider_home = timedelta(
-            seconds=entry.options.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)
+        self.consider_home = max(
+            timedelta(seconds=entry.options.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)),
+            MIN_CONSIDER_HOME,
         )
+        self._visit_gap = max(self.consider_home, MIN_VISIT_GAP)
 
     @property
     def has_access_points(self) -> bool:
@@ -183,9 +192,8 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         if len(merged.failed) == len(self.access_points):
             raise UpdateFailed("None of the access points could be read")
 
-        self._sightings = prune(
-            {**self._sightings, **merged.sightings}, now, SIGHTING_RETENTION
-        )
+        seen = carry_visits(merged.sightings, self._sightings, now, self._visit_gap)
+        self._sightings = prune({**self._sightings, **seen}, now, SIGHTING_RETENTION)
         self._store.async_delay_save(
             lambda: sightings_to_storage(self._sightings), STORAGE_SAVE_DELAY
         )

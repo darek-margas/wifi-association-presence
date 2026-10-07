@@ -46,7 +46,8 @@ and brief gaps, so `not_home` means *gone*, not *quiet*.
   any of them, `not_home` once missing for longer than the grace period.
 - **Roaming aware**: a device seen on two APs in the same poll is placed on the one with
   the stronger signal.
-- **Adjustable grace period** (0–3600 s) for phones that drop Wi-Fi in deep sleep.
+- **Adjustable grace period** (0–3600 s; below 30 s it acts as 30 s, i.e. away after one
+  missed poll) for phones that drop Wi-Fi in deep sleep.
 
 ### Room-level location with areas
 - Assign each access point device to a Home Assistant **area** (Living room, Studio,
@@ -58,8 +59,18 @@ and brief gaps, so `not_home` means *gone*, not *quiet*.
 
 ### Per device insight
 Each tracked device is a Home Assistant device with:
-- **Tracker** with attributes `access_point`, `area`, `ssid`, `band` (kept after the device
-  leaves, as "last seen at"), and `last_seen` while it is away.
+- **Tracker** with attributes `access_point`, `area`, `ssid` and `band` (kept after the
+  device leaves, as "last seen at"), plus `arrived_at` and `departed_at`:
+
+  | | `arrived_at` | `departed_at` |
+  |---|---|---|
+  | home | when this visit started | when the previous visit ended |
+  | away | when the last visit started | when it left |
+
+  The departure is when the device was last seen, not when the grace period ran out.
+  Both times change only on arrival or departure (no recorder row per poll) and survive
+  restarts. Template example: *home since*
+  `{{ state_attr('device_tracker.darek_phone', 'arrived_at') | as_datetime | relative_time }}`.
 - **Access point** sensor: the AP's name (yours, or the name the AP reports, e.g. *Studio*).
 - **Signal** sensor: signal quality 0-100 %, comparable across access points and vendors
   (percent as reported by D-Link; dBm from other drivers is converted), with a matching

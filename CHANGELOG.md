@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.0 — arrival and departure times
+
+### Features
+- Trackers have `arrived_at` and `departed_at` attributes. While home: when the visit
+  started and when the previous one ended; while away: when the last visit started and
+  when the device left (the time it was last seen). They change only on arrival or
+  departure and are kept across restarts.
+- `scripts/collect.py` collects data for new access points over SNMP too (`--snmp`): it
+  finds the vendor's private MIB from `sysObjectID` and lists likely client tables. There
+  is also a UniFi profile (`--profile unifi`). Reports are redacted (MAC, IP and email
+  addresses, key-like strings, typed credentials; SNMP settings text is shown as its
+  length only) and start with a warning to review and redact by hand before sharing.
+- README roadmap: UniFi (per AP over SSH), SNMP drivers, OpenWrt.
+
+### Changes
+- The tracker attribute `last_seen` is replaced by `departed_at`.
+- A grace period below 30 s acts as 30 s. With 0, a device read in the latest poll was
+  already reported away.
+
 ## 0.3.0 — first public release
 
 Presence detection for Home Assistant from Wi-Fi access point association tables.
@@ -17,11 +36,7 @@ Supports D-Link DAP access points over SSH (tested: DAP-2610, DAP-3662).
 - The tracked-device list offers every device seen in the last 7 days (kept across
   restarts), most recent first, so sleeping devices like cars can be picked.
 - Entity icons and a brand icon.
-- `scripts/collect.py` to collect data for supporting new access points: SSH consoles
-  (profiles for D-Link and UniFi) and SNMP (finds the vendor's private MIB from
-  `sysObjectID` and lists likely client tables). Reports are redacted (MAC, IP and email
-  addresses, key-like strings, typed credentials; SNMP settings text shown as length
-  only) and carry a warning to review and redact by hand before sharing.
+- `scripts/collect.py` to collect redacted data for supporting new access points.
 
 ### Changes since the 0.2 test builds
 - Tracker attributes no longer include the signal (see the *Signal* sensor, whose
