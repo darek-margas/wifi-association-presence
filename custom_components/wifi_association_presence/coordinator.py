@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import area_registry as ar, device_registry as dr
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -27,6 +29,12 @@ type WifiAssociationConfigEntry = ConfigEntry[AssociationCoordinator]
 
 # Upper bound for reading one AP (login plus all commands), well inside SCAN_INTERVAL.
 AP_POLL_TIMEOUT = 45
+
+# Sightings are kept (and stored across reloads and restarts) this long, so devices that
+# sleep with Wi-Fi off (cars, tablets) can still be picked when adding a tracked device.
+SIGHTING_RETENTION = timedelta(days=7)
+STORAGE_VERSION = 1
+STORAGE_SAVE_DELAY = 60
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +121,9 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         self._sightings: dict[str, Sighting] = {}
         self._ap_states: dict[str, AccessPointState] = {}
         self._failing: set[str] = set()
+        self._store: Store[dict[str, Any]] = Store(
+            hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.sightings"
+        )
         self.consider_home = timedelta(
             seconds=entry.options.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)
         )
@@ -122,10 +133,39 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         """Whether any access point is configured (else presence is unknown)."""
         return bool(self.access_points)
 
+    async def async_restore_sightings(self) -> None:
+        """Load the sightings saved before the last reload or restart.
+
+        Unreadable entries are skipped; a broken file only means starting empty.
+        """
+        stored = await self._store.async_load() or {}
+        cutoff = dt_util.utcnow() - SIGHTING_RETENTION
+        for mac, item in stored.get("sightings", {}).items():
+            try:
+                sighting = Sighting(
+                    **{**item, "last_seen": dt_util.parse_datetime(item["last_seen"])}
+                )
+            except (TypeError, KeyError, ValueError):
+                continue
+            if sighting.last_seen is not None and sighting.last_seen > cutoff:
+                self._sightings[mac] = sighting
+
+    async def async_save_sightings(self) -> None:
+        """Save now (on unload, so the next setup starts from current data)."""
+        await self._store.async_save(self._sightings_for_storage())
+
+    def _sightings_for_storage(self) -> dict[str, Any]:
+        return {
+            "sightings": {
+                mac: {**asdict(s), "last_seen": s.last_seen.isoformat()}
+                for mac, s in self._sightings.items()
+            }
+        }
+
     async def _async_update_data(self) -> PresenceData:
         """Read every AP in parallel; keep previous sightings for APs that fail."""
         if not self.access_points:
-            return PresenceData({}, {})
+            return PresenceData(dict(self._sightings), {})
 
         results = await asyncio.gather(
             *(
@@ -193,6 +233,11 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             raise UpdateFailed("None of the access points could be read")
 
         self._sightings.update(best)
+        cutoff = now - SIGHTING_RETENTION
+        self._sightings = {
+            mac: s for mac, s in self._sightings.items() if s.last_seen > cutoff
+        }
+        self._store.async_delay_save(self._sightings_for_storage, STORAGE_SAVE_DELAY)
         return PresenceData(dict(self._sightings), dict(self._ap_states))
 
     def access_point_name(self, ap: ConfiguredAccessPoint) -> str:
