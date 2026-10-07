@@ -85,7 +85,8 @@ link to its web UI, and sensors:
 
 ## Screenshots
 
-The integration page: one hub, with access points and tracked devices as entries.
+The integration page: one hub, with access points and tracked devices as entries. The
+access point shows as *Studio*, the name it reports about itself.
 
 ![Integration page](docs/images/integration-page.png)
 
@@ -93,7 +94,8 @@ An access point device: firmware, hardware, client counts per band, CPU, memory,
 
 ![Access point device](docs/images/access-point-device.png)
 
-A tracked device: its tracker, the access point it is connected to, and the signal.
+A tracked device: its tracker, the access point it is connected to, the area of that
+access point, and the signal.
 
 ![Tracked device](docs/images/tracked-device.png)
 
