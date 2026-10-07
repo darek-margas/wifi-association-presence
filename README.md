@@ -2,41 +2,86 @@
 
 # Wi-Fi Association Presence
 
-Home Assistant presence detection from Wi-Fi access point **association tables**.
+**Who is home, and near which access point, straight from your Wi-Fi access points.**
 
-A device is *home* while it is **associated** (authenticated and joined) to one of your
-access points, as reported by the AP itself. That is different from, and for phones more
-reliable than, a MAC seen in an ARP table or a switch's MAC table: a phone stays
-associated while it is idle, even when it sends no traffic for minutes.
+A Home Assistant integration that reads the **association tables** of your access points:
+the list of devices that are authenticated and joined to each radio right now. Each phone,
+tablet or laptop you track becomes a device in Home Assistant with:
 
-> **Status:** early development (0.2.x). Only **D-Link DAP** access points are supported
-> so far, because those are what the author has. Tested on Home Assistant 2026.9 with a
-> DAP-2610 and a DAP-3662. See [Limitations](#limitations) and
-> [Help add your access point](#help-add-your-access-point).
+- a **presence tracker** (`home` / `not_home`) that holds steady while the phone sleeps,
+- the **access point** it is connected to and its **signal**,
+- the **area** it is in, taken from the area you assigned to that access point.
+
+Each access point becomes a device too, with client counts, firmware, CPU, memory and uptime.
+
+> **Status:** early development (0.2.x). Supports **D-Link DAP** access points (tested
+> with DAP-2610 and DAP-3662) on Home Assistant 2026.9+. More vendors can be added through
+> pluggable drivers; see [Help add your access point](#help-add-your-access-point).
+
+## Why association, not ARP or MAC tables
+
+Most network-based presence trackers look at a router's **ARP table**, a switch's
+**MAC address table**, or ping the device. All of these only notice a phone while it is
+*sending traffic*, and phones go quiet for minutes at a time to save battery. The result
+is the familiar flapping: home, away, home, while the phone sat on the table.
+
+An access point knows something more fundamental: whether the device is **associated**,
+i.e. still joined to the Wi-Fi network. A sleeping phone stays associated. It only
+disassociates when it really leaves (or Wi-Fi is turned off).
+
+| | ARP table | Switch MAC table | Ping | **AP association** |
+|---|---|---|---|---|
+| Sees an idle, sleeping phone | ✗ entries age out | ✗ entries age out | ✗ often no reply | **✓ stays associated** |
+| Knows *where* in the house | ✗ | ✗ | ✗ | **✓ which AP, so which area** |
+| Signal strength | ✗ | ✗ | ✗ | **✓** |
+| Wired devices | ✓ | ✓ | ✓ | ✗ Wi-Fi only |
+
+On top of that, a short **grace period** (default 3 minutes) bridges roaming between APs
+and brief gaps, so `not_home` means *gone*, not *quiet*.
 
 ## Features
 
-- **Presence per device**, across all your access points. A tracked device is `home` while
-  its MAC is associated to any AP and `not_home` once it has been missing for the
-  **grace period** (default 3 minutes, adjustable), which covers roaming between APs,
-  coverage gaps and an AP that is briefly unreachable.
-- **A device per tracked phone/laptop**, holding its `device_tracker` and three sensors:
-  - *Access point*: where it is connected now.
-  - *Signal*: signal strength on the AP's scale (percent on D-Link).
-  - *Area*: the Home Assistant area of the access point it is connected to (assign an
-    area to each AP device), with `area_id` as an attribute. Useful for room-level
-    automations; empty while away or when the AP has no area.
-  - Tracker attributes: `access_point`, `area`, `ssid`, `band`, `rssi`, `last_seen`.
-- **A device per access point**: firmware, hardware revision, optional model, a link to
-  its web UI, and sensors:
-  - *Clients 2.4 GHz*, *Clients 5 GHz*, *Clients* (total).
-  - Diagnostic: *CPU*, *Memory*, *Last boot*, *Location*.
-- **SSID names** resolved from the AP, not just "SSID index 3".
-- **Set up entirely in the UI**: access points and tracked devices are added, edited and
-  removed as entries of the integration.
-- **Fault tolerant**: an access point that is unreachable, slow, or answers with something
-  unexpected only affects itself. Its sensors become unavailable and its clients age out
-  after the grace period; the other APs keep updating.
+### Presence that doesn't flap
+- One tracker per device, **across all your access points**: `home` while associated to
+  any of them, `not_home` once missing for longer than the grace period.
+- **Roaming aware**: a device seen on two APs in the same poll is placed on the one with
+  the stronger signal.
+- **Adjustable grace period** (0–3600 s) for phones that drop Wi-Fi in deep sleep.
+
+### Room-level location with areas
+- Assign each access point device to a Home Assistant **area** (Living room, Studio,
+  Garden...). Every tracked device then gets an **Area** sensor showing the area of the
+  access point it is connected to, with a stable `area_id` attribute.
+- Use it in automations: *lights on in the studio when my phone joins the studio AP*,
+  *notify when the kids' tablets are in the garden*, *which floor is everyone on*.
+- It reacts immediately when you move an AP to another area or rename an area.
+
+### Per device insight
+Each tracked device is a Home Assistant device with:
+- **Tracker** with attributes `access_point`, `area`, `ssid`, `band`, `rssi`, `last_seen`.
+- **Access point** sensor: the AP's name (yours, or the name the AP reports, e.g. *Studio*).
+- **Signal** sensor: strength on the AP's scale (percent on D-Link), with a matching
+  Wi-Fi strength icon.
+- **Area** sensor, as above.
+
+### Access point monitoring
+Each access point is a Home Assistant device with firmware, hardware revision, model, a
+link to its web UI, and sensors:
+- **Clients 2.4 GHz**, **Clients 5 GHz** and **Clients** (total).
+- Diagnostics: **CPU**, **Memory**, **Last boot**, **Location**.
+- SSID names resolved from the AP (not just "SSID index 3").
+
+### Easy and robust
+- **Set up entirely in the UI.** Access points and tracked devices are entries of the
+  integration: add, edit and remove them from its page. Pick devices to track from a list
+  of what is associated right now.
+- **Fault tolerant.** An unreachable, slow or misbehaving access point only affects itself:
+  its sensors go unavailable and its clients age out after the grace period, while the
+  other APs keep updating. Unexpected replies are discarded, not shown as values.
+- **Independent trackers.** Trackers are keyed by MAC address only, so you can remove,
+  replace or change the type of an access point without losing them.
+- **Pluggable drivers.** Each AP model is a small driver with its own connection policy;
+  new vendors can be added without touching the rest.
 
 ## Screenshots
 
@@ -71,9 +116,13 @@ type of an access point doesn't touch them.
 
 ## Installation
 
-Not in HACS yet while the repository is private. Copy
-`custom_components/wifi_association_presence` to `/config/custom_components/` and restart
-Home Assistant. Requires Home Assistant **2026.9** or newer.
+Requires Home Assistant **2026.9** or newer.
+
+**HACS:** HACS → ⋮ → **Custom repositories** → add this repository's URL with type
+**Integration**, install **Wi-Fi Association Presence**, and restart Home Assistant.
+
+**Manual:** copy `custom_components/wifi_association_presence` to
+`/config/custom_components/` and restart Home Assistant.
 
 ## Setup
 
@@ -81,9 +130,11 @@ Home Assistant. Requires Home Assistant **2026.9** or newer.
 2. On the integration page, **Add access point**: choose the type, then its settings.
    The settings are tested by reading the AP once. Leave the name empty to use the name
    the AP reports about itself (D-Link: its system name, e.g. "Studio").
-3. **Add tracked device**: pick one of the currently associated devices (labelled with AP,
+3. Open each access point's device and set its **Area** (✏️ → Area). This is what the
+   trackers' *Area* sensor reports.
+4. **Add tracked device**: pick one of the currently associated devices (labelled with AP,
    band, SSID and signal) or type a MAC address, and give it a name.
-4. Optional: **Configure** on the hub sets the grace period.
+5. Optional: **Configure** on the hub sets the grace period.
 
 Access points and tracked devices can be edited from their **⋮** menu (**Reconfigure**).
 Leaving an access point's password empty keeps the current one.
@@ -144,7 +195,7 @@ Leaving an access point's password empty keeps the current one.
 
 **Project state**
 - Early development: limited testing (two AP models, one installation), English only, not
-  in HACS while private.
+  in the default HACS list (add it as a custom repository).
 - Parser tests exist but no CI yet.
 
 ## Help add your access point
