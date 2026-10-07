@@ -14,7 +14,11 @@ sys.path.insert(
 )
 
 from ap_drivers import normalize_mac  # noqa: E402
-from ap_drivers.dlink_dap_ssh import parse_clientinfo  # noqa: E402
+from ap_drivers.dlink_dap_ssh import (  # noqa: E402
+    parse_cli_value,
+    parse_clientinfo,
+    ssid_name_command,
+)
 
 FIVE_GHZ = """\
 config wlan 1
@@ -83,3 +87,19 @@ def test_record_without_separator_is_split() -> None:
 def test_normalize_mac() -> None:
     assert normalize_mac("aabb.ccdd.eeff") == "AA:BB:CC:DD:EE:FF"
     assert normalize_mac("AA-BB-CC-DD-EE-FF") == "AA:BB:CC:DD:EE:FF"
+
+
+def test_ssid_name_command() -> None:
+    assert ssid_name_command("primary SSID") == "get ssid"
+    assert ssid_name_command("MULTI-SSID index 3") == "get multi-ssid 3"
+    assert ssid_name_command("Kids") is None
+
+
+def test_parse_cli_value() -> None:
+    # Exact DAP output format not documented; these cover the likely shapes.
+    assert parse_cli_value("get ssid\nSSID : Primary\nWAP-> ", "get ssid") == "Primary"
+    assert parse_cli_value("get multi-ssid 5\nKids\nWAP-> ", "get multi-ssid 5") == "Kids"
+    assert (
+        parse_cli_value("get multi-ssid 9\nInvalid parameter: 9\nWAP-> ", "get multi-ssid 9")
+        is None
+    )

@@ -22,8 +22,12 @@ These units only offer password logins and old SSH algorithms.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import replace
 import re
 import time
+from typing import Any
 
 import asyncssh
 
@@ -61,8 +65,10 @@ DAP_SSH_POLICY = SshPolicy(
 )
 
 COMMAND_TIMEOUT = 15
+SSID_NAMES_TTL = 3600  # re-read SSID names hourly
 
 _PROMPT = re.compile(r"[\w.\-]+->\s*$")
+_SSID_LABEL = re.compile(r"^(?:primary ssid|multi-ssid index (\d+))$", re.IGNORECASE)
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 _FIELD = re.compile(r"^Client\d+--(\w+):\s*(.*?)\s*$")
 
@@ -125,8 +131,47 @@ class DlinkDapSsh(AccessPointDriver):
         DriverField("password", secret=True),
     )
 
+    def __init__(self, config: dict[str, Any]) -> None:
+        """Set up the SSID name cache."""
+        super().__init__(config)
+        self._ssid_names: dict[tuple[str, str], str] = {}
+        self._ssid_names_read_at = 0.0
+
     async def async_get_associated_clients(self) -> list[AssociatedClient]:
         """Log in, read both radios' association tables and log out."""
+        if time.monotonic() - self._ssid_names_read_at > SSID_NAMES_TTL:
+            self._ssid_names.clear()
+            self._ssid_names_read_at = time.monotonic()
+        async with self._console() as process:
+            clients: list[AssociatedClient] = []
+            for radio, band in RADIOS:
+                await _run(process, f"config wlan {radio}")
+                radio_clients = parse_clientinfo(await _run(process, "get clientinfo"), band)
+                for label in {c.ssid for c in radio_clients if c.ssid}:
+                    if (band, label) in self._ssid_names:
+                        continue
+                    command = ssid_name_command(label)
+                    name = (
+                        parse_cli_value(await _run(process, command), command)
+                        if command
+                        else None
+                    )
+                    # Unresolvable labels are cached as-is until the next refresh.
+                    self._ssid_names[(band, label)] = name or label
+                clients += [
+                    replace(c, ssid=self._ssid_names.get((band, c.ssid or ""), c.ssid))
+                    for c in radio_clients
+                ]
+            return clients
+
+    async def async_run_commands(self, commands: list[str]) -> list[str]:
+        """Run read-only console commands and return their raw output (for diagnostics)."""
+        async with self._console() as process:
+            return [await _run(process, command) for command in commands]
+
+    @asynccontextmanager
+    async def _console(self) -> AsyncIterator[asyncssh.SSHClientProcess]:
+        """Logged-in console session, with errors mapped to AccessPointError."""
         try:
             async with asyncssh.connect(
                 self.config["host"],
@@ -139,17 +184,33 @@ class DlinkDapSsh(AccessPointDriver):
                     term_type="vt100", term_size=(200, 1000)
                 ) as process:
                     await _read_until_prompt(process)
-                    clients: list[AssociatedClient] = []
-                    for radio, band in RADIOS:
-                        await _run(process, f"config wlan {radio}")
-                        clients += parse_clientinfo(
-                            await _run(process, "get clientinfo"), band
-                        )
-                    return clients
+                    yield process
         except asyncssh.PermissionDenied as err:
             raise AccessPointAuthError(f"{self.config['host']}: login rejected") from err
         except (OSError, asyncio.TimeoutError, asyncssh.Error) as err:
             raise AccessPointError(f"{self.config['host']}: {err!r}") from err
+
+
+def ssid_name_command(label: str) -> str | None:
+    """CLI command that prints the name for a clientinfo SSID label."""
+    if match := _SSID_LABEL.match(label.strip()):
+        return f"get multi-ssid {match.group(1)}" if match.group(1) else "get ssid"
+    return None
+
+
+def parse_cli_value(output: str, command: str) -> str | None:
+    """Value printed by a "get" command (e.g. "SSID : Kids" -> "Kids")."""
+    lines = [
+        line.strip()
+        for line in output.splitlines()
+        if line.strip() and command not in line and not _PROMPT.search(line.strip())
+    ]
+    if not lines:
+        return None
+    value = lines[-1].split(":", 1)[1].strip() if ":" in lines[-1] else lines[-1]
+    if not value or value.lower().startswith(("invalid", "error", "unknown command")):
+        return None
+    return value
 
 
 async def _run(process: asyncssh.SSHClientProcess, command: str) -> str:
