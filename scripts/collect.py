@@ -285,7 +285,9 @@ def _format_value(value) -> str:
     kind = value.__class__.__name__
     octets = _octets(value)
     if octets is not None and kind == "OctetString":
-        if len(octets) == 6 and not octets.decode("latin-1").isprintable():
+        # Any 6 bytes are a MAC unless they are plain printable ASCII (a 6-letter name):
+        # MAC bytes are often printable in Latin-1, and a MAC must never leak as hex.
+        if len(octets) == 6 and not (octets.isascii() and octets.decode("ascii").isprintable()):
             return f"MAC: {':'.join(f'{b:02X}' for b in octets)}"
         try:
             text = octets.decode("utf-8")
