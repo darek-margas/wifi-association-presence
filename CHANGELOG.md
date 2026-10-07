@@ -10,6 +10,9 @@
   one is remembered for the same 20 s so a down controller gets one attempt per poll.
   The AP gets no device or sensors of its own: the area of its UniFi device is what the
   tracked devices report, and UniFi already has its client count, uptime, CPU and memory.
+- Driver hook `SOURCE` for drivers that read through another Home Assistant integration:
+  the data source and the list to pick the access point from come from a registry
+  (`sources.py`), so the coordinator and setup forms don't name any driver.
 
 ### Changes
 - A poll in which no access point at all can be read no longer makes every entity

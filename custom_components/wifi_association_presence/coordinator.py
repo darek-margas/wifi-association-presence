@@ -15,7 +15,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .ap_drivers import DRIVERS, AccessPointDriver, AccessPointError, AccessPointInfo
-from .ap_drivers.unifi_network import UnifiNetworkDriver
 from .const import (
     CONF_CONSIDER_HOME,
     CONF_DRIVER,
@@ -26,7 +25,6 @@ from .const import (
     SCAN_INTERVAL,
     SUBENTRY_ACCESS_POINT,
 )
-from .unifi_source import HassUnifiSource
 from .presence import (
     AccessPointRead,
     AccessPointState,
@@ -39,6 +37,7 @@ from .presence import (
     sightings_from_storage,
     sightings_to_storage,
 )
+from .sources import build_driver
 
 __all__ = ["AccessPointState", "Sighting"]
 
@@ -84,15 +83,6 @@ class ConfiguredAccessPoint:
         if self.named or info is None or not info.name:
             return self.title
         return info.name
-
-
-def build_driver(
-    hass: HomeAssistant, driver_cls: type[AccessPointDriver], data: dict[str, Any]
-) -> AccessPointDriver:
-    """Create a driver, handing it the Home Assistant data source it reads from, if any."""
-    if issubclass(driver_cls, UnifiNetworkDriver):
-        return driver_cls(data, HassUnifiSource(hass))
-    return driver_cls(data)
 
 
 def user_named(subentry: ConfigSubentry) -> bool:

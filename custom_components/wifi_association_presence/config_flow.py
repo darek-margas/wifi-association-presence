@@ -54,10 +54,9 @@ from .const import (
     SUBENTRY_ACCESS_POINT,
     SUBENTRY_TRACKED_DEVICE,
 )
-from .ap_drivers.unifi_network import UnifiNetworkDriver
-from .coordinator import AssociationCoordinator, build_driver, user_named
+from .coordinator import AssociationCoordinator, user_named
 from .presence import Sighting
-from .unifi_source import access_point_options
+from .sources import build_driver, field_choices
 
 
 TEST_TIMEOUT = 45
@@ -181,9 +180,11 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
                     or driver_cls.NAME,
                     data=data,
                 )
-        choices = self._field_choices(driver_cls)
-        if choices is not None and not any(choices.values()):
-            return self.async_abort(reason="no_unifi_access_points")
+        picked = self._field_choices(driver_cls)
+        choices = picked[0] if picked else None
+        if picked and not any(choices.values()):
+            # e.g. no UniFi access point left to add
+            return self.async_abort(reason=picked[1])
         return self.async_show_form(
             step_id="details",
             data_schema=self.add_suggested_values_to_schema(
@@ -227,6 +228,7 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
                     or driver_cls.NAME,
                     data=data,
                 )
+        picked = self._field_choices(driver_cls, subentry.subentry_id)
         suggested = {
             CONF_NAME: subentry.title if user_named(subentry) else None,
             CONF_MODEL: subentry.data.get(CONF_MODEL),
@@ -238,7 +240,7 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
                 _access_point_schema(
                     driver_cls,
                     editing=True,
-                    choices=self._field_choices(driver_cls, except_id=subentry.subentry_id),
+                    choices=picked[0] if picked else None,
                 ),
                 user_input or suggested,
             ),
@@ -257,20 +259,20 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
 
     def _field_choices(
         self, driver_cls: type[AccessPointDriver], except_id: str | None = None
-    ) -> dict[str, list[SelectOptionDict]] | None:
-        """Settings picked from a list rather than typed (None if the driver has none).
+    ) -> tuple[dict[str, list[SelectOptionDict]], str] | None:
+        """Settings picked from a list rather than typed, and the abort reason when
+        nothing is left to pick (None if the driver's settings are all typed in).
 
-        UniFi access points are picked from those the UniFi Network integration
-        knows, leaving out the ones already added.
+        Values used by other access points are left out of the lists, e.g. UniFi
+        access points already added.
         """
-        if not issubclass(driver_cls, UnifiNetworkDriver):
-            return None
         taken = {
-            sub.data.get(driver_cls.UNIQUE_FIELD)
+            value
             for sub in self._get_entry().get_subentries_of_type(SUBENTRY_ACCESS_POINT)
             if sub.subentry_id != except_id
+            and (value := sub.data.get(driver_cls.UNIQUE_FIELD)) is not None
         }
-        return {driver_cls.UNIQUE_FIELD: access_point_options(self.hass, exclude=taken)}
+        return field_choices(self.hass, driver_cls, taken)
 
 
 def _access_point_schema(

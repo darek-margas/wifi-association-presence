@@ -421,6 +421,13 @@ it with `@register`, and set:
   `POLL_TIMEOUT` (seconds allowed for one poll, default 45) and, for an AP that another
   integration already registers as a device, `OWN_DEVICE = False` with `device_mac()`
   returning its MAC: that device's area is used and no device or sensors are created;
+- for a driver that reads through another Home Assistant integration instead of
+  talking to the AP (like UniFi), `SOURCE = "<name>"`: the integration passes that data
+  source as the constructor's second argument, and the access point setting
+  (`UNIQUE_FIELD`) becomes a list of what the source knows. Register the source once in
+  [`sources.py`](custom_components/wifi_association_presence/sources.py) (how to create
+  it, the options, the "nothing left to add" message); the driver module itself stays free
+  of Home Assistant imports;
 - for SSH consoles, an `SshPolicy` (algorithms and login method) for that model.
 
 Treat every reply as untrusted: return `None` for anything you can't parse rather than

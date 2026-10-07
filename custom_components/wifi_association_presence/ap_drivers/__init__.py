@@ -96,6 +96,12 @@ class AccessPointDriver(ABC):
     already registers the AP as a device; that device's area is used instead, found by
     the MAC from device_mac()."""
 
+    SOURCE: ClassVar[str | None] = None
+    """Name of the Home Assistant data source the driver reads through instead of
+    talking to the AP itself (e.g. "unifi": the UniFi Network integration). The
+    integration then passes that source as the constructor's second argument and may
+    offer UNIQUE_FIELD as a list of what the source knows. None for direct drivers."""
+
     def device_mac(self) -> str | None:
         """The AP's MAC, for finding the device another integration registered for it."""
         return None

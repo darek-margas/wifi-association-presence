@@ -131,6 +131,9 @@ class UnifiNetworkDriver(AccessPointDriver):
     FIELDS = (DriverField(CONF_AP_MAC),)
     SIGNAL_UNIT = "dBm"
     UNIQUE_FIELD = CONF_AP_MAC
+    # Reads through Home Assistant's UniFi Network integration (see the integration's
+    # sources.py), which also lists the access points to pick from.
+    SOURCE = "unifi"
     # One HTTPS request to a local controller, not an SSH console session.
     POLL_TIMEOUT = 20
     # The UniFi integration already registers the AP as a device, with client count,
