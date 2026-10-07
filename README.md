@@ -10,11 +10,12 @@ tablet or laptop you track becomes a device in Home Assistant with:
 
 - a **presence tracker** (`home` / `not_home`) that holds steady while the phone sleeps,
 - the **access point** it is connected to and its **signal**,
-- the **area** it is in, taken from the area you assigned to that access point.
+- the **area** it is in, taken from the area you assigned to that access point,
+- **when it arrived and when it left**.
 
 Each access point becomes a device too, with client counts, firmware, CPU, memory and uptime.
 
-> **Status:** early development (0.3.x). Supports **D-Link DAP** access points (tested
+> **Status:** early development (0.4.x). Supports **D-Link DAP** access points (tested
 > with DAP-2610 and DAP-3662) on Home Assistant 2026.9+. More vendors can be added through
 > pluggable drivers; see [Help add your access point](#help-add-your-access-point).
 
@@ -87,7 +88,7 @@ link to its web UI, and sensors:
 ### Easy and robust
 - **Set up entirely in the UI.** Access points and tracked devices are entries of the
   integration: add, edit and remove them from its page. Pick devices to track from a list
-  of what is associated right now.
+  of everything seen in the last 7 days, so a sleeping car or tablet can be picked too.
 - **Fault tolerant.** An unreachable, slow or misbehaving access point only affects itself:
   its sensors go unavailable and its clients age out after the grace period, while the
   other APs keep updating. Unexpected replies are discarded, not shown as values.
@@ -125,6 +126,11 @@ the stronger signal.
 | Not seen for longer than the grace period | `not_home` |
 | No access point configured | `unknown` |
 | No access point could be read at all | unavailable |
+
+Each stay is a **visit**: it starts when the device is first seen (`arrived_at`) and ends
+when it was last seen before going away (`departed_at`). Coming back within the grace
+period continues the same visit, so roaming and short gaps don't reset "home since".
+Sightings and visits are kept for 7 days and survive restarts.
 
 Tracked devices are independent of access points. Removing, replacing or changing the
 type of an access point doesn't touch them.
@@ -236,8 +242,9 @@ python3 scripts/collect.py --host <AP IP> --username <user>
 ```
 
 - It runs **read-only commands only** (anything that could change settings is refused)
-  and **redacts** MAC addresses (vendor prefix kept), IP addresses and secret-looking
-  settings. Review the report before sharing it.
+  and **redacts** MAC addresses (vendor prefix kept), IP and email addresses, key-like
+  strings and secret-looking settings. JSON replies are split one key per line so secret
+  keys are caught too.
 - `--legacy-ssh` allows old SSH algorithms if the connection fails.
 - `--command "<cmd>"` (repeatable) adds the command your AP uses to list clients.
 - `--profile dlink_dap` uses the D-Link command list, `--profile unifi` the UniFi one
@@ -258,8 +265,15 @@ the AP's `sysObjectID` (its enterprise number, e.g. 171 for D-Link, 14988 for Mi
 walks it together with the standard 802.11 and bridge tables, and lists the tables that
 contain MAC addresses, the likely client tables, at the top of the report. MACs are
 redacted in values and inside OID indexes (where many vendors put the client's MAC), and
-the community or keys you type are removed. Use a read-only community. `--snmp-root <OID>`
-adds a subtree, `--snmp-max` limits each walk (default 20000 values).
+the community or keys you type are removed. Use a read-only community.
+
+A vendor walk contains the AP's whole configuration, which can include e-mail settings,
+password hashes or even a Wi-Fi passphrase. So text and binary values are shown only as
+their length (`STRING(9 chars)`), except in the likely client tables; numbers, MACs and
+the table layout are kept, which is what a driver needs. `--snmp-full-values` shows all
+values (still with the redaction above): use it only if asked, and read the result
+carefully. `--snmp-root <OID>` adds a subtree, `--snmp-max` limits each walk (default
+20000 values).
 
 Not every AP lists clients over SNMP: the DAP-2610, for example, only reports client
 counts and its MAC filter lists there, which is why its driver uses SSH.
@@ -297,7 +311,7 @@ Assistant imports, so it can later become a standalone library.
 
 - Test an AP from the command line: `python3 scripts/probe.py --host <ip> --username admin`
 - Tests: `python3 -m pytest tests` (needs `pytest` and `asyncssh`). The presence rules
-  (merging AP reads, roaming, grace period, retention, storage) live in
+  (merging AP reads, roaming, grace period, visits, retention, storage) live in
   [`presence.py`](custom_components/wifi_association_presence/presence.py) without Home
   Assistant imports and are tested directly; CI runs the tests, ruff, hassfest and the
   HACS validation on every push.

@@ -16,7 +16,7 @@
           "consider_home": "Grace period"
         },
         "data_description": {
-          "consider_home": "How long a device stays home after it was last seen associated to any access point. Covers roaming between access points, coverage gaps and a failing access point."
+          "consider_home": "How long a device stays home after it was last seen associated to any access point. Covers roaming between access points, coverage gaps and a failing access point. Values under 30 s act as 30 s (away after one missed poll)."
         }
       }
     }
