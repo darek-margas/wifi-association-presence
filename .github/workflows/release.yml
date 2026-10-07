@@ -1,0 +1,94 @@
+name: Release
+
+# Releasing is a push: bump "version" in custom_components/.../manifest.json and add a
+# "## <version>" section to CHANGELOG.md, then push to main. This workflow runs the
+# tests and hassfest and, if they pass, creates tag v<version> and a GitHub release
+# with that changelog section as notes. Pushing again with the same version only
+# refreshes the notes; the tag is never moved.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - custom_components/wifi_association_presence/manifest.json
+      - CHANGELOG.md
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test dependencies
+        run: pip install pytest ruff "asyncssh>=2.14.2"
+      - name: Lint (errors only)
+        run: ruff check --select E9,F custom_components scripts tests
+      - name: Run tests
+        run: python -m pytest -v tests
+
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  release:
+    needs: [test, hassfest]
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version and release notes
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(jq -r .version custom_components/wifi_association_presence/manifest.json)"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::manifest.json version '$VERSION' is not a release version"
+            exit 1
+          fi
+          # The CHANGELOG section for this version: from "## <version>" up to the next "## ".
+          awk -v v="$VERSION" '
+            /^## / { if (found) exit; if ($2 == v) { found = 1; next } }
+            found { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > /tmp/release-notes.md || {
+            echo "::error::CHANGELOG.md has no '## $VERSION' section"
+            exit 1
+          }
+          TITLE="$(grep -m1 "^## $VERSION" CHANGELOG.md | sed -E 's/^## +//')"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "title=v$TITLE" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          TITLE: ${{ steps.version.outputs.title }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists; refreshing its notes only."
+            gh release edit "$TAG" --title "$TITLE" --notes-file /tmp/release-notes.md
+          elif git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG exists without a release; creating the release on it."
+            gh release create "$TAG" --verify-tag --title "$TITLE" --notes-file /tmp/release-notes.md
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$TITLE" \
+              --notes-file /tmp/release-notes.md
+          fi

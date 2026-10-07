@@ -246,6 +246,13 @@ Assistant imports, so it can later become a standalone library.
   `custom_components/wifi_association_presence/brand/` (256 and 512 px) are rendered from
   it. Home Assistant 2026.3+ uses them in place of the brands repository.
 
+### Releasing
+
+Bump `version` in `manifest.json`, add a `## <version>` section at the top of
+`CHANGELOG.md`, and push to `main`. The [release workflow](.github/workflows/release.yml)
+runs the tests and hassfest and, if they pass, creates the tag `v<version>` and a GitHub
+release with that changelog section as its notes. HACS offers the new tag as an update.
+
 ### Adding a driver
 
 Create a module in `ap_drivers/` with a class deriving from `AccessPointDriver`, decorate
