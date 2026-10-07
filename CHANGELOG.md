@@ -4,10 +4,10 @@
 
 ### Changes
 - A poll in which no access point at all can be read no longer makes every entity
-  unavailable at once: up to three such polls in a row are ridden out on the previous
-  sightings, so the grace period covers a controller restart or integration reload the
-  same way it covers a single failing AP. The first refresh still fails, so setup is
-  retried.
+  unavailable at once: within the grace period after the last successful poll it is
+  ridden out on the previous sightings, so a controller restart or integration reload is
+  covered the same way as a single failing AP. Past the grace period the trackers become
+  unavailable (not away), and the first refresh still fails, so setup is retried.
 - The access point CPU and memory sensors are disabled by default: they change on every
   poll, which is a recorder row per access point per minute.
 - The tracked devices' Area sensors only react to area changes of the access points'

@@ -22,3 +22,17 @@ jobs:
         run: ruff check --select E9,F custom_components scripts tests
       - name: Run tests
         run: python -m pytest -v tests
+
+  tests-ha:
+    # The integration set up in a test Home Assistant (pytest-homeassistant-custom-component),
+    # on the Python version current Home Assistant needs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Install Home Assistant test harness
+        run: pip install pytest-homeassistant-custom-component "asyncssh>=2.14.2"
+      - name: Run Home Assistant-level tests
+        run: python -m pytest -v tests_ha

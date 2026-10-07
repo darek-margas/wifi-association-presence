@@ -26,6 +26,7 @@ from presence import (  # noqa: E402
     is_present,
     merge_reads,
     prune,
+    ride_out_total_failure,
     signal_quality,
     sightings_from_storage,
     sightings_to_storage,
@@ -304,3 +305,19 @@ def test_storage_drops_the_0_4_0_departed_field() -> None:
     assert sightings_from_storage(stored, NOW, timedelta(days=7)) == {
         PHONE: sighting(NOW, arrived=NOW)
     }
+
+
+# --- total failure --------------------------------------------------------------
+
+
+def test_total_failure_is_ridden_out_only_within_grace() -> None:
+    grace = timedelta(minutes=3)
+    assert ride_out_total_failure(NOW - timedelta(seconds=61), NOW, grace)
+    assert ride_out_total_failure(NOW - grace + timedelta(seconds=1), NOW, grace)
+    assert not ride_out_total_failure(NOW - grace, NOW, grace)
+    # Short grace: the very next poll is already past it, so no false "away".
+    assert not ride_out_total_failure(NOW - timedelta(seconds=61), NOW, timedelta(seconds=30))
+
+
+def test_total_failure_before_any_success_is_not_ridden_out() -> None:
+    assert not ride_out_total_failure(None, NOW, timedelta(minutes=3))

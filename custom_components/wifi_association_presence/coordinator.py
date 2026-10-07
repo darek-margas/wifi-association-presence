@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -33,6 +33,7 @@ from .presence import (
     is_present,
     merge_reads,
     prune,
+    ride_out_total_failure,
     sightings_from_storage,
     sightings_to_storage,
 )
@@ -41,19 +42,15 @@ __all__ = ["AccessPointState", "Sighting"]
 
 type WifiAssociationConfigEntry = ConfigEntry[AssociationCoordinator]
 
-# Polls in which no access point at all could be read are tolerated this many times in
-# a row before the entities go unavailable: the grace period still covers the tracked
-# devices meanwhile, exactly as it does when a single AP fails. Matters most for
-# controller-based drivers (UniFi), where one controller hiccup fails every AP at once.
-MAX_FAILED_ROUNDS = 3
-
 # Sightings are kept (and stored across reloads and restarts) this long, so devices that
 # sleep with Wi-Fi off (cars, tablets) can still be picked when adding a tracked device.
 SIGHTING_RETENTION = timedelta(days=7)
 STORAGE_VERSION = 1
-# The store only serves the "add tracked device" list and is also written on unload, so
-# a few minutes of staleness after a crash is fine; a write per poll is not (SD cards).
-STORAGE_SAVE_DELAY = 600
+# Sightings and visits are written at most this often (and on unload): a few minutes of
+# staleness after a crash is fine, a write per poll is not (SD cards). Not done with
+# Store.async_delay_save's delay, which restarts on every call: called each poll with a
+# delay longer than the poll interval, it would never write until shutdown.
+STORAGE_SAVE_INTERVAL = timedelta(minutes=10)
 # A device read in the latest poll must count as present, so a shorter grace period
 # acts as this one: away after one missed poll.
 MIN_CONSIDER_HOME = timedelta(seconds=30)
@@ -149,7 +146,10 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         self._sightings: dict[str, Sighting] = {}
         self._ap_states: dict[str, AccessPointState] = {}
         self._failing: set[str] = set()
-        self._failed_rounds = 0
+        # Last poll in which at least one access point was read; a poll in which none
+        # could be is ridden out only within the grace period after it.
+        self._last_success: datetime | None = None
+        self._next_save: datetime | None = None
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.sightings"
         )
@@ -210,24 +210,20 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
                 available=False, info=previous.info if previous else None
             )
         if len(merged.failed) == len(self.access_points):
-            self._failed_rounds += 1
-            # The first refresh must fail so setup is retried; afterwards a short total
-            # outage is ridden out on the previous sightings, like a single failing AP.
-            if self.data is None or self._failed_rounds >= MAX_FAILED_ROUNDS:
+            # A short total outage (e.g. a controller restart) is ridden out on the
+            # previous sightings, like a single failing AP; the first refresh still
+            # fails, so setup is retried.
+            if not ride_out_total_failure(self._last_success, now, self.consider_home):
                 raise UpdateFailed("None of the access points could be read")
-            LOGGER.debug(
-                "No access point could be read (%d of %d tolerated)",
-                self._failed_rounds,
-                MAX_FAILED_ROUNDS,
-            )
+            LOGGER.debug("No access point could be read; within the grace period")
             return PresenceData(dict(self._sightings), dict(self._ap_states))
-        self._failed_rounds = 0
+        self._last_success = now
 
         seen = carry_visits(merged.sightings, self._sightings, now, self._visit_gap)
         self._sightings = prune({**self._sightings, **seen}, now, SIGHTING_RETENTION)
-        self._store.async_delay_save(
-            lambda: sightings_to_storage(self._sightings), STORAGE_SAVE_DELAY
-        )
+        if self._next_save is None or now >= self._next_save:
+            self._store.async_delay_save(lambda: sightings_to_storage(self._sightings))
+            self._next_save = now + STORAGE_SAVE_INTERVAL
         return PresenceData(dict(self._sightings), dict(self._ap_states))
 
     def _log_read(self, ap: ConfiguredAccessPoint, result: object) -> None:

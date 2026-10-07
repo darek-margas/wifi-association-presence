@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
 
+from freezegun.api import FrozenDateTimeFactory
 import pytest
 from homeassistant.config_entries import ConfigEntryState, ConfigSubentryData
 from homeassistant.core import HomeAssistant
@@ -81,8 +83,12 @@ PHONE_SUB = ConfigSubentryData(
 )
 
 
-async def setup_entry(hass: HomeAssistant, *subentries: ConfigSubentryData) -> MockConfigEntry:
-    entry = MockConfigEntry(domain=DOMAIN, title="Wi-Fi", data={}, subentries_data=list(subentries))
+async def setup_entry(
+    hass: HomeAssistant, *subentries: ConfigSubentryData, options: dict[str, Any] | None = None
+) -> MockConfigEntry:
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Wi-Fi", data={}, options=options or {}, subentries_data=list(subentries)
+    )
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
@@ -103,25 +109,46 @@ async def test_setup_tracker_and_ap_sensors(hass: HomeAssistant) -> None:
         assert hass.states.get(f"sensor.hallway_ap_{key}") is None
 
 
-async def test_total_failure_tolerated_within_grace(hass: HomeAssistant) -> None:
+async def refresh_after(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, coordinator: Any, seconds: int
+) -> None:
+    freezer.tick(timedelta(seconds=seconds))
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+
+async def test_total_failure_tolerated_within_grace(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    # Default grace period: 180 s after the last successful poll.
     entry = await setup_entry(hass, ap("ap1"), PHONE_SUB)
     coordinator = entry.runtime_data
     FakeDriver.results["ap1"] = AccessPointError("down")
-    for n in (1, 2):
-        await coordinator.async_refresh()
-        await hass.async_block_till_done()
+    for n in (1, 2):  # 61 s and 122 s after the last good poll: still within grace
+        await refresh_after(hass, freezer, coordinator, 61)
         assert coordinator.last_update_success, n
         assert hass.states.get("device_tracker.phone").state == "home", n
         assert hass.states.get("sensor.hallway_ap_clients").state == "unavailable", n
-    await coordinator.async_refresh()  # third in a row: give up
-    await hass.async_block_till_done()
+    await refresh_after(hass, freezer, coordinator, 61)  # 183 s: past the grace period
     assert not coordinator.last_update_success
     assert hass.states.get("device_tracker.phone").state == "unavailable"
     FakeDriver.results["ap1"] = GOOD
-    await coordinator.async_refresh()
-    await hass.async_block_till_done()
+    await refresh_after(hass, freezer, coordinator, 61)
     assert hass.states.get("device_tracker.phone").state == "home"
     assert hass.states.get("sensor.hallway_ap_clients").state == "1"
+
+
+async def test_total_failure_past_short_grace_is_unavailable_not_away(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    # With a 30 s grace period the next poll is already past it: the outage must make the
+    # trackers unavailable, not report everyone as having left.
+    entry = await setup_entry(hass, ap("ap1"), PHONE_SUB, options={"consider_home": 30})
+    coordinator = entry.runtime_data
+    FakeDriver.results["ap1"] = AccessPointError("down")
+    await refresh_after(hass, freezer, coordinator, 61)
+    assert not coordinator.last_update_success
+    assert hass.states.get("device_tracker.phone").state == "unavailable"
 
 
 async def test_first_refresh_failure_retries_setup(hass: HomeAssistant) -> None:

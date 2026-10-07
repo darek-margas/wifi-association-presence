@@ -164,6 +164,19 @@ def is_present(sighting: Sighting | None, now: datetime, consider_home: timedelt
     return sighting is not None and now - sighting.last_seen < consider_home
 
 
+def ride_out_total_failure(
+    last_success: datetime | None, now: datetime, consider_home: timedelta
+) -> bool:
+    """Whether a poll in which no access point could be read may keep the old sightings.
+
+    Only while the last successful poll is within the grace period: until then every
+    device seen in it still counts as home, as with a single failing AP. Past it, the
+    devices would turn away for no reason other than the outage, so presence must
+    become unavailable instead. Never before the first successful poll.
+    """
+    return last_success is not None and now - last_success < consider_home
+
+
 def prune(
     sightings: Mapping[str, Sighting], now: datetime, retention: timedelta
 ) -> dict[str, Sighting]:
