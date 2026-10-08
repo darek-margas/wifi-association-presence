@@ -33,10 +33,12 @@ from .presence import (
     is_present,
     merge_reads,
     prune,
+    restart_visit_gap,
     ride_out_total_failure,
     sightings_from_storage,
     sightings_to_storage,
     stored_at,
+    stored_cleanly,
 )
 from .sources import build_driver
 
@@ -144,8 +146,12 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         # could be is ridden out only within the grace period after it.
         self._last_success: datetime | None = None
         self._next_save: datetime | None = None
-        # When the restored sightings file was written; None once the first poll used it.
+        # When the restored sightings file was written, and whether at stop/unload
+        # (clean) or periodically; None once the first poll used it.
         self._restored_at: datetime | None = None
+        self._restored_clean = False
+        # Set by the save at stop/unload; no periodic write may replace it afterwards.
+        self._final_save_done = False
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.sightings"
         )
@@ -165,10 +171,14 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         stored = await self._store.async_load()
         self._sightings = sightings_from_storage(stored, dt_util.utcnow(), SIGHTING_RETENTION)
         self._restored_at = stored_at(stored)
+        self._restored_clean = stored_cleanly(stored)
 
     async def async_save_sightings(self) -> None:
         """Save now (on unload and on stop, so the next setup starts from current data)."""
-        await self._store.async_save(sightings_to_storage(self._sightings, dt_util.utcnow()))
+        self._final_save_done = True
+        await self._store.async_save(
+            sightings_to_storage(self._sightings, dt_util.utcnow(), clean=True)
+        )
 
     async def _async_update_data(self) -> PresenceData:
         """Read every AP in parallel; keep previous sightings for APs that fail."""
@@ -217,14 +227,14 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
 
         visit_gap = self._visit_gap
         if self._restored_at is not None:
-            # First poll after a restart: Home Assistant being down between the save and
-            # now is no evidence of anyone leaving, so a device that was still within the
-            # grace period when the file was written continues its visit.
-            visit_gap += max(now - self._restored_at, timedelta(0))
+            # First poll after a restart or reload (see restart_visit_gap).
+            visit_gap = restart_visit_gap(
+                visit_gap, self._restored_at, self._restored_clean, now
+            )
             self._restored_at = None
         seen = carry_visits(merged.sightings, self._sightings, now, visit_gap)
         self._sightings = prune({**self._sightings, **seen}, now, SIGHTING_RETENTION)
-        if self._next_save is None or now >= self._next_save:
+        if not self._final_save_done and (self._next_save is None or now >= self._next_save):
             self._store.async_delay_save(
                 lambda: sightings_to_storage(self._sightings, dt_util.utcnow())
             )

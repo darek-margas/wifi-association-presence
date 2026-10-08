@@ -26,11 +26,13 @@ from presence import (  # noqa: E402
     is_present,
     merge_reads,
     prune,
+    restart_visit_gap,
     ride_out_total_failure,
     signal_quality,
     sightings_from_storage,
     sightings_to_storage,
     stored_at,
+    stored_cleanly,
     stronger,
 )
 
@@ -232,6 +234,65 @@ def test_storage_records_when_it_was_written() -> None:
     assert stored_at(None) is None
     assert stored_at({"saved_at": "not a date"}) is None
     assert stored_at({"saved_at": 12345}) is None
+
+
+def test_storage_records_whether_the_write_was_clean() -> None:
+    sightings = {PHONE: sighting(NOW, arrived=NOW)}
+    assert stored_cleanly(sightings_to_storage(sightings, saved_at=NOW, clean=True))
+    assert not stored_cleanly(sightings_to_storage(sightings, saved_at=NOW))  # periodic
+    # Files from 0.5.0 / 0.5.1 have no flag: their last write was the one at stop.
+    assert stored_cleanly({"saved_at": NOW.isoformat(), "sightings": {}})
+    assert stored_cleanly(None)
+
+
+# After a restore: the downtime is added to the gap only after a clean save. Then
+# "seen within gap + downtime" equals "within the gap when saved": how long Home
+# Assistant was down doesn't matter. The gap is max(consider_home, MIN_VISIT_GAP):
+# 180 s by default; 90 s (one missed 60 s poll plus margin) with a short grace period.
+GAP = timedelta(seconds=180)
+SAVED = NOW - timedelta(days=2)  # stopped two days ago
+
+
+def returns_after_restart(last_seen: datetime, gap: timedelta, clean: bool) -> datetime:
+    """Arrival time of a device seen again on the first poll after the restart."""
+    arrived = last_seen - timedelta(hours=3)
+    previous = {PHONE: sighting(last_seen, arrived=arrived)}
+    seen = {PHONE: sighting(NOW)}
+    return carry_visits(seen, previous, NOW, restart_visit_gap(gap, SAVED, clean, NOW))[
+        PHONE
+    ].arrived
+
+
+def test_long_clean_shutdown_keeps_only_visits_that_were_home_at_the_save() -> None:
+    # Seen 60 s before the save: home then, so the visit continues across two days.
+    last_seen = SAVED - timedelta(seconds=60)
+    assert returns_after_restart(last_seen, GAP, clean=True) == last_seen - timedelta(hours=3)
+    # Gone 200 s before the save: already away, so coming back is a new visit.
+    assert returns_after_restart(SAVED - timedelta(seconds=200), GAP, clean=True) == NOW
+
+
+def test_short_grace_period_restart_matches_running_without_one() -> None:
+    # consider_home 30 s gives a 90 s gap: a device missed for 80 s (one poll) keeps its
+    # visit. A restart in between must decide exactly as uninterrupted polling would.
+    gap = timedelta(seconds=90)
+    last_seen = SAVED - timedelta(seconds=80)
+    with_restart = returns_after_restart(last_seen, gap, clean=True)
+    previous = {PHONE: sighting(last_seen, arrived=last_seen - timedelta(hours=3))}
+    running = carry_visits({PHONE: sighting(SAVED)}, previous, SAVED, gap)[PHONE].arrived
+    assert with_restart == running == last_seen - timedelta(hours=3)
+    # ...and missed for longer than the gap: a new visit either way.
+    assert returns_after_restart(SAVED - timedelta(seconds=100), gap, clean=True) == NOW
+
+
+def test_unclean_shutdown_does_not_join_visits_across_the_outage() -> None:
+    # Last periodic write at SAVED with the phone home; then a crash or power cut.
+    # The phone may have left after that write, so it starts a new visit when it is
+    # seen again, rather than hiding the departure.
+    assert returns_after_restart(SAVED, GAP, clean=False) == NOW
+    assert restart_visit_gap(GAP, SAVED, False, NOW) == GAP
+    assert restart_visit_gap(GAP, None, True, NOW) == GAP  # no timestamp: files before 0.5.0
+    # A clean save in the future (clock moved back) never shortens the gap.
+    assert restart_visit_gap(GAP, NOW + timedelta(hours=1), True, NOW) == GAP
 
 
 def test_storage_converts_0_2_entries() -> None:

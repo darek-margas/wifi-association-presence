@@ -189,9 +189,16 @@ _TIME_FIELDS = ("last_seen", "arrived")
 
 
 def sightings_to_storage(
-    sightings: Mapping[str, Sighting], saved_at: datetime | None = None
+    sightings: Mapping[str, Sighting],
+    saved_at: datetime | None = None,
+    clean: bool = False,
 ) -> dict[str, Any]:
-    """JSON-friendly form of the sightings, stamped with when they were written."""
+    """JSON-friendly form of the sightings, stamped with when they were written.
+
+    `clean` marks the write made as Home Assistant stops (or the entry unloads): the
+    sightings are current up to `saved_at`. A periodic write is not clean: devices may
+    have come and gone after it, before an unclean shutdown (crash, power cut).
+    """
     data: dict[str, Any] = {
         "sightings": {
             mac: {
@@ -203,6 +210,7 @@ def sightings_to_storage(
     }
     if saved_at is not None:
         data["saved_at"] = saved_at.isoformat()
+        data["clean"] = clean
     return data
 
 
@@ -212,6 +220,37 @@ def stored_at(stored: Mapping[str, Any] | None) -> datetime | None:
         return _parse_time((stored or {}).get("saved_at"))
     except (TypeError, ValueError):
         return None
+
+
+def stored_cleanly(stored: Mapping[str, Any] | None) -> bool:
+    """Whether the sightings were written at stop or unload, so current until then.
+
+    Files from 0.5.0 and 0.5.1 have no flag; their last write was the one at stop
+    (or unload) in practice, so they count as clean, which keeps visits across the
+    upgrade restart.
+    """
+    return (stored or {}).get("clean", True) is True
+
+
+def restart_visit_gap(
+    visit_gap: timedelta,
+    saved_at: datetime | None,
+    clean: bool,
+    now: datetime,
+) -> timedelta:
+    """The visit gap for the first poll after the sightings were restored.
+
+    After a clean save, Home Assistant being down between the save and now is no
+    evidence of anyone leaving: the downtime is added to the gap, so a device keeps its
+    visit exactly when it was within the gap at the save (the downtime cancels out).
+    After an unclean shutdown the sightings may be up to a save interval old, and a
+    device may have left after that write; extending the gap could then join visits
+    across the outage and hide a departure, so the normal gap applies and a device seen
+    again starts a new visit.
+    """
+    if saved_at is None or not clean:
+        return visit_gap
+    return visit_gap + max(now - saved_at, timedelta(0))
 
 
 def _parse_time(value: Any) -> datetime | None:

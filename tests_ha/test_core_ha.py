@@ -182,6 +182,27 @@ async def test_stop_saves_and_restart_keeps_visit(
     assert tracker.attributes["arrived_at"] == dt_util.utcnow().isoformat()
 
 
+async def test_unclean_shutdown_starts_new_visits(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, hass_storage: dict[str, Any]
+) -> None:
+    entry = await setup_entry(hass, ap("ap1"), PHONE_SUB)
+    arrived_at = hass.states.get("device_tracker.phone").attributes["arrived_at"]
+    key = f"{DOMAIN}.{entry.entry_id}.sightings"
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    stored = hass_storage[key]["data"]
+    assert stored["clean"] is True  # the write at unload / stop
+    # Turn it into what a crash or power cut leaves behind: the last periodic write.
+    stored["clean"] = False
+    freezer.tick(timedelta(days=2))
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    tracker = hass.states.get("device_tracker.phone")
+    # The phone may have left after that write: a new visit, not one spanning the outage.
+    assert tracker.state == "home"
+    assert tracker.attributes["arrived_at"] != arrived_at
+    assert tracker.attributes["arrived_at"] == dt_util.utcnow().isoformat()
+
+
 async def refresh_after(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory, coordinator: Any, seconds: int
 ) -> None:

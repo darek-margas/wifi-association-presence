@@ -184,12 +184,25 @@ the stronger signal.
 | Not seen for less than the grace period | still `home` |
 | Not seen for longer than the grace period | `not_home` |
 | No access point configured | `unknown` |
-| No access point could be read at all | unavailable |
+| No access point could be read at all | unavailable (after the grace period) |
+
+The last two rows differ on purpose. When only some APs fail, a device last seen on a
+failing one ages out to `not_home`: it may have moved to an AP that still works, which
+would show it. When none can be read there is no evidence about anyone, so after the
+grace period the trackers become unavailable rather than claiming everyone left. A short
+total outage, such as a controller restart, is ridden out on the last sightings.
 
 Each stay is a **visit**: it starts when the device is first seen (`arrived_at`) and ends
 when it was last seen before going away (`departed_at`). Coming back within the grace
 period continues the same visit, so roaming and short gaps don't reset "home since".
 Sightings and visits are kept for 7 days and survive restarts.
+
+**Restarts.** The sightings are written every 10 minutes and again as Home Assistant
+stops. After a normal restart, however long, a device that was home at the stop and is
+seen again continues its visit: Home Assistant being down is no evidence that anyone
+left. After a crash or power cut the last write may be up to 10 minutes old, and a device
+could have left after it without being noticed, so a device seen again then starts a new
+visit (a fresh `arrived_at`) rather than one that might hide a departure.
 
 Tracked devices are independent of access points. Removing, replacing or changing the
 type of an access point doesn't touch them.

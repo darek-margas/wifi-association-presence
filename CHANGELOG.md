@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.5.2 — no joined visits after a crash
+
+### Fixes
+- **A crash or power cut no longer joins visits across the outage.** After a restart, a
+  device that was home when the sightings were last written continues its visit, so
+  Home Assistant being down doesn't fake a departure and an arrival. That is right after
+  a normal stop, when the file is written at the moment Home Assistant stops. After a
+  crash or power cut the last write can be up to 10 minutes old, and a device that left
+  after it and came back during the outage kept its old `arrived_at`, hiding the
+  departure. The file now records whether it was written at stop (or unload); only then
+  is the downtime bridged. After an unclean shutdown a device seen again starts a new
+  visit. Upgrading keeps visits as before: files from 0.5.0 / 0.5.1 count as written at
+  stop.
+- No periodic write can replace the one made at stop.
+
+### Changes
+- Tests pin down the restart rules: a long normal shutdown keeps only the visits of
+  devices that were home at the stop, and with a short grace period a restart decides
+  exactly as uninterrupted polling would. (Thanks to a review pointing at this code.)
+- README: how restarts and crashes are handled, and why a failing AP lets its devices go
+  `not_home` while all APs failing makes the trackers unavailable.
+
 ## 0.5.1 — UniFi confirmed
 
 ### Changes
