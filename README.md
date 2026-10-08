@@ -224,7 +224,7 @@ Leaving an access point's password empty keeps the current one.
 |---|---|---|
 | D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI | SSH: `config wlan 0/1` + `get clientinfo` |
 | UniFi (via the UniFi Network integration) | Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
-| OpenWrt (SSH, ubus) — **experimental** | Any AP running OpenWrt with its standard hostapd (`wpad-*`). Written from OpenWrt's source; not yet confirmed on a real device | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
+| OpenWrt (SSH, ubus) — **experimental** | Any AP running OpenWrt with its standard hostapd (`wpad-*`). Written from OpenWrt's source; **verified on OpenWrt 25.12.5** in a VM with simulated radios; not yet on a physical router | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
 
 ### Two ways to read an access point
 

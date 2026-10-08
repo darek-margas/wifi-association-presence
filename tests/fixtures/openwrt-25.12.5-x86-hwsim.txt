@@ -1,0 +1,141 @@
+@@wap@@ board
+{
+	"kernel": "6.12.94",
+	"hostname": "OpenWrt",
+	"system": "Intel(R) Xeon(R) E-2224 CPU @ 3.40GHz",
+	"model": "VMware, Inc. VMware Virtual Platform",
+	"board_name": "vmware-inc-vmware-virtual-platform",
+	"rootfs_type": "ext4",
+	"release": {
+		"distribution": "OpenWrt",
+		"version": "25.12.5",
+		"firmware_url": "https://downloads.openwrt.org/",
+		"revision": "r33051-f5dae5ece4",
+		"target": "x86/64",
+		"description": "OpenWrt 25.12.5 r33051-f5dae5ece4",
+		"builddate": "1782737960"
+	}
+}
+@@wap@@ info
+{
+	"localtime": 1791459368,
+	"uptime": 155,
+	"load": [
+		5792,
+		3776,
+		1216
+	],
+	"memory": {
+		"total": 374206464,
+		"free": 311914496,
+		"shared": 339968,
+		"buffered": 1396736,
+		"available": 297480192,
+		"cached": 18534400
+	},
+	"root": {
+		"total": 100692,
+		"free": 73772,
+		"used": 26920,
+		"avail": 71644
+	},
+	"tmp": {
+		"total": 182716,
+		"free": 182384,
+		"used": 332,
+		"avail": 182384
+	},
+	"swap": {
+		"total": 0,
+		"free": 0
+	}
+}
+@@wap@@ status hostapd.phy0-ap0
+{
+	"driver": "nl80211",
+	"status": "ENABLED",
+	"bssid": "02:00:00:00:00:00",
+	"ssid": "TestAP",
+	"freq": 2437,
+	"channel": 6,
+	"op_class": 81,
+	"beacon_interval": 100,
+	"bss_color": -1,
+	"phy": "phy0",
+	"rrm": {
+		"neighbor_report_tx": 0
+	},
+	"wnm": {
+		"bss_transition_query_rx": 0,
+		"bss_transition_request_tx": 0,
+		"bss_transition_response_rx": 0
+	},
+	"airtime": {
+		"time": 0,
+		"time_busy": 0,
+		"utilization": 0
+	},
+	"dfs": {
+		"cac_seconds": 0,
+		"cac_active": false,
+		"cac_seconds_left": 0
+	}
+}
+@@wap@@ clients hostapd.phy0-ap0
+{
+	"freq": 2437,
+	"clients": {
+		"02:00:00:00:01:00": {
+			"auth": true,
+			"assoc": true,
+			"authorized": true,
+			"preauth": false,
+			"wds": false,
+			"wmm": true,
+			"ht": true,
+			"vht": false,
+			"he": false,
+			"wps": false,
+			"mfp": false,
+			"mbo": false,
+			"rrm": [
+				0,
+				0,
+				0,
+				0,
+				0
+			],
+			"extended_capabilities": [
+				4,
+				0,
+				74,
+				2,
+				0,
+				64,
+				0,
+				64
+			],
+			"aid": 1,
+			"bytes": {
+				"rx": 1471,
+				"tx": 513
+			},
+			"airtime": {
+				"rx": 0,
+				"tx": 0
+			},
+			"packets": {
+				"rx": 13,
+				"tx": 5
+			},
+			"rate": {
+				"rx": 1440000,
+				"tx": 100000
+			},
+			"signal": -14,
+			"capabilities": {
+				
+			}
+		}
+	}
+}
