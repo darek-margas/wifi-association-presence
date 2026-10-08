@@ -4,14 +4,40 @@ No Wi-Fi hardware is needed: OpenWrt's `mac80211_hwsim` module creates simulated
 One radio runs an access point, a second one connects to it as a client, and hostapd
 then lists that client on ubus exactly as on a real AP.
 
-Tested setup to aim for: OpenWrt **24.10** x86-64 (the newest format). Repeat with
-**22.03** for the older `hostapd.wlan0` naming if you like.
+Tested setup to aim for: OpenWrt **24.10.8** x86-64 (current 24.10 release; uses
+`opkg`). **25.12** works the same way with `apk` instead of `opkg`. Repeat with **22.03**
+for the older `hostapd.wlan0` naming if you like.
 
 ## 1. The VM
 
-1. Download the x86-64 image from <https://downloads.openwrt.org/releases/24.10.0/targets/x86/64/>:
-   `openwrt-24.10.0-x86-64-generic-ext4-combined.img.gz`, and unpack it.
-2. Convert it for your hypervisor if needed:
+1. Download the x86-64 image from <https://downloads.openwrt.org/releases/24.10.8/targets/x86/64/>:
+   `openwrt-24.10.8-x86-64-generic-ext4-combined.img.gz` (about 13 MB; the BIOS image,
+   simpler than `-efi`), and unpack it (7-Zip, or `gunzip`; a "trailing garbage" warning
+   is normal).
+2. Use it in your hypervisor:
+   - **VMware Workstation / Player**: there is no official VMware image, but VMware can
+     use the raw image as a "flat" disk. Next to the `.img`, create `openwrt.vmdk` with:
+     ```text
+     # Disk DescriptorFile
+     version=1
+     CID=fffffffe
+     parentCID=ffffffff
+     createType="monolithicFlat"
+
+     RW <SECTORS> FLAT "openwrt-24.10.8-x86-64-generic-ext4-combined.img" 0
+
+     ddb.adapterType = "ide"
+     ddb.geometry.heads = "16"
+     ddb.geometry.sectors = "63"
+     ddb.geometry.cylinders = "<CYLINDERS>"
+     ddb.virtualHWVersion = "4"
+     ```
+     where `<SECTORS>` is the `.img` file size in bytes divided by 512, and
+     `<CYLINDERS>` is `<SECTORS>` / 1008, rounded up. Then **New Virtual Machine →
+     Custom → I will install the operating system later → Linux, Other Linux 5.x kernel
+     64-bit**, 256 MB RAM, network **Bridged**, and at the disk step **Use an existing
+     virtual disk** → `openwrt.vmdk` (keep the existing format if asked). For ESXi, convert
+     with `vmkfstools -i openwrt.vmdk openwrt-esxi.vmdk` on the host instead.
    - VirtualBox: `VBoxManage convertfromraw openwrt-…-combined.img openwrt.vdi --format VDI`
    - Hyper-V: `qemu-img convert -O vhdx openwrt-…-combined.img openwrt.vhdx`
      (Generation 1 VM, Secure Boot off)
