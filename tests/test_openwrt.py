@@ -81,9 +81,10 @@ FULL = output(
 )
 
 
-def test_registered_and_experimental() -> None:
+def test_registered() -> None:
     assert DRIVERS["openwrt_ssh"] is OpenWrtSsh
-    assert OpenWrtSsh.EXPERIMENTAL
+    # Verified on OpenWrt 25.12.5 in Home Assistant (VM, simulated radios).
+    assert not OpenWrtSsh.EXPERIMENTAL
     assert OpenWrtSsh.SIGNAL_UNIT == "dBm"
 
 

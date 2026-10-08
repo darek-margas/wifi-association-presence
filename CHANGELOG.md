@@ -1,12 +1,20 @@
 # Changelog
 
-## Unreleased
+## 0.5.0b4 — OpenWrt verified, tidier access point sensors (beta)
+
+Beta: in HACS, enable "Show beta versions" for this integration to install it.
 
 ### Changes
+- **OpenWrt is no longer experimental.** Verified on OpenWrt 25.12.5 end to end in Home
+  Assistant: the access point device and its sensors, tracked clients with SSID, band
+  and signal, areas, and departure / arrival times. Tested in a VM with simulated radios
+  (the guide is in `docs/openwrt-vm-test.md`); reports from physical routers are welcome.
 - Access point sensors are only created for details the driver can report: OpenWrt APs no
   longer get a Location sensor (OpenWrt has no such setting) or a CPU sensor (it reports
   load averages, not a percentage). Such sensors left by earlier versions are removed.
   Drivers declare this in `REPORTS`; D-Link is unchanged.
+- The OpenWrt test guide covers VMware, ESXi, QNAP and others, and the traps found on
+  25.12: protect your LAN first, reboot after installing Wi-Fi, set a country code.
 
 ## 0.5.0b3 — OpenWrt access points (beta)
 

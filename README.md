@@ -224,7 +224,7 @@ Leaving an access point's password empty keeps the current one.
 |---|---|---|
 | D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI | SSH: `config wlan 0/1` + `get clientinfo` |
 | UniFi (via the UniFi Network integration) | Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
-| OpenWrt (SSH, ubus) — **experimental** | Any AP running OpenWrt with its standard hostapd (`wpad-*`). Written from OpenWrt's source; **verified on OpenWrt 25.12.5** in a VM with simulated radios; not yet on a physical router | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
+| OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant, in a VM with simulated radios; reports from physical routers welcome | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
 
 ### Two ways to read an access point
 
@@ -260,7 +260,7 @@ each AP keeps its own device and area, so room-level presence works the same.
 - The UniFi integration's own device trackers can stay enabled or be disabled; they are
   independent of this integration's trackers.
 
-### OpenWrt setup notes (experimental)
+### OpenWrt setup notes
 
 - Works with OpenWrt's standard hostapd (`wpad-basic-*`, `wpad-*`), which exposes every
   radio on ubus. Log in as `root` (or a user allowed to run `ubus`) with a password.
@@ -276,8 +276,12 @@ each AP keeps its own device and area, so room-level presence works the same.
   doesn't), as in Home Assistant's own ubus tracker.
 - Both interface namings are found automatically (`hostapd.wlan0` up to 22.03,
   `hostapd.phy0-ap0` from 23.05).
-- Device details: host name, model, firmware, hardware, uptime and memory.
-- Please report how it works on your device (see
+- Device details: host name, model, firmware, hardware, uptime and memory (OpenWrt has no
+  location setting and no CPU percentage, so those sensors are not created).
+- Verified on OpenWrt 25.12.5: clients with SSID, band and signal, device details,
+  areas, and departure / arrival in Home Assistant. Tested in a VM with simulated radios
+  ([how](docs/openwrt-vm-test.md)); the radios are the only simulated part.
+- Please report how it works on your router, especially older releases (see
   [Help add your access point](#help-add-your-access-point); `collect.py --profile openwrt`).
 
 ### D-Link DAP setup notes
@@ -292,9 +296,10 @@ each AP keeps its own device and area, so room-level presence works the same.
 ## Limitations
 
 **Access point support**
-- **D-Link DAP only.** No other vendor or model has a driver yet. Support for more depends
-  on owners contributing data (see [Help add your access point](#help-add-your-access-point)
-  and the [Roadmap](#roadmap)); the driver interface is designed for it.
+- **Three kinds of access point so far:** D-Link DAP, UniFi (through Home Assistant's UniFi
+  Network integration) and OpenWrt. Support for more depends on owners contributing data
+  (see [Help add your access point](#help-add-your-access-point) and the
+  [Roadmap](#roadmap)); the driver interface is designed for it.
 - **What the D-Link CLI provides is about all there is.** On the tested firmware it gives
   the client list per radio (MAC, SSID, signal, connected time), SSID names, system
   name, location, firmware, hardware revision, uptime, CPU and memory. It does **not**
@@ -330,8 +335,8 @@ each AP keeps its own device and area, so room-level presence works the same.
 - Each poll is a console login; the AP may log every login (syslog noise).
 
 **Project state**
-- Early development: limited testing (two AP models, one installation), English only, not
-  in the default HACS list (add it as a custom repository).
+- Early development: limited testing (a few installations; OpenWrt so far in a VM), English
+  only, not yet in the default HACS list (add it as a custom repository).
 
 ## Help add your access point
 
@@ -415,7 +420,7 @@ below needs an owner of that hardware to send data and test a build.
 |---|---|---|
 | **UniFi APs without a controller in HA** | SSH to each AP, `mca-dump` (JSON with each radio's station table and dBm signal) | `collect.py --profile unifi` report |
 | **SNMP drivers** | One SNMP base driver plus a small table map per vendor (MikroTik registration table first; Cisco, Aruba, Ruckus as reports arrive) | `collect.py --snmp` report |
-| **OpenWrt** (experimental driver ready) | SSH + ubus; later also HTTP JSON-RPC (`/ubus`, needs an rpcd ACL) | testers: a `collect.py --profile openwrt` report and a try of the driver |
+| **OpenWrt over HTTP** | The same ubus calls through `/ubus` (JSON-RPC, as LuCI uses), for routers without SSH access; needs a small read-only rpcd ACL | interest |
 | **TP-Link Omada (controller)** | Like UniFi: through Home Assistant's [TP-Link Omada](https://www.home-assistant.io/integrations/tplink_omada/) integration, no extra login | that integration's **Download diagnostics** file (it lists the connected clients with the AP they are on, already anonymised) |
 | **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `collect.py` report (SSH or `--snmp`) |
 | **Other controllers** (Cisco WLC, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API | interest and a test setup |
@@ -471,6 +476,8 @@ it with `@register`, and set:
   [`sources.py`](custom_components/wifi_association_presence/sources.py) (how to create
   it, the options, the "nothing left to add" message); the driver module itself stays free
   of Home Assistant imports;
+- `EXPERIMENTAL = True` until the driver is confirmed on real hardware or a real system
+  (shown as experimental in the type list; other drivers are unaffected);
 - `REPORTS`: the `AccessPointInfo` fields the driver can fill (default all); sensors for
   the others are not created, so an AP doesn't show sensors that are always unknown;
 - for SSH consoles, an `SshPolicy` (algorithms and login method) for that model.

@@ -5,8 +5,8 @@ One radio runs an access point, a second one connects to it as a client, and hos
 then lists that client on ubus exactly as on a real AP.
 
 Tested setup: OpenWrt **25.12.5** x86-64, the current stable release, in VMware (2026-10-08):
-the driver read the simulated client with SSID, band and signal, and the leave / return
-test worked. Its output is kept as a test fixture
+the driver read the simulated client with SSID, band and signal, and in Home Assistant the
+AP device, the tracker, its area and the departure / arrival times all worked. Its output is kept as a test fixture
 (`tests/fixtures/openwrt-25.12.5-x86-hwsim.txt`). The previous series, **24.10**,
 works the same way with `opkg` instead of `apk`. Repeat with **22.03** for the older
 `hostapd.wlan0` naming if you like.
