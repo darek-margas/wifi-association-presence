@@ -1,0 +1,77 @@
+name: Problem report
+description: Something doesn't work as described in the README, with an access point that is already supported.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! If your access point is **not supported yet**, please use
+        [New access point model](../issues/new?template=new_access_point.yml) instead.
+
+        Please check [Limitations](../blob/main/README.md#limitations) first: rotating
+        private MAC addresses, phones that drop Wi-Fi to save power and the detection delay
+        are explained there.
+
+        > ⚠️ This issue is public. Replace MAC addresses, IP addresses, host names and
+        > people's names in logs with `<redacted>` (keep the last 2 characters of a MAC if
+        > it helps tell devices apart).
+  - type: input
+    id: version
+    attributes:
+      label: Integration version
+      description: Settings → Devices & services → Wi-Fi Association Presence, or HACS.
+      placeholder: e.g. 0.5.2
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: e.g. 2026.10.0
+    validations:
+      required: true
+  - type: dropdown
+    id: ap_type
+    attributes:
+      label: Access point type
+      options:
+        - D-Link DAP
+        - OpenWrt
+        - UniFi (through the UniFi Network integration)
+        - Other / several (describe below)
+    validations:
+      required: true
+  - type: input
+    id: ap_model
+    attributes:
+      label: Access point model and firmware
+      placeholder: e.g. D-Link DAP-2610, firmware 2.06
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens, and what you expected
+      description: Which device or entity, and when (e.g. shows away while the phone is at home, wrong room, AP unavailable).
+    validations:
+      required: true
+  - type: textarea
+    id: device
+    attributes:
+      label: The device being tracked
+      description: Phone / laptop model and OS, and whether it uses a private (randomized) Wi-Fi address on your network.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: |
+        With debug logging on, from before the problem until after it. Add to `configuration.yaml` and restart:
+        ```yaml
+        logger:
+          logs:
+            custom_components.wifi_association_presence: debug
+        ```
+        Addresses and names replaced with `<redacted>`.
+      render: text
+    validations:
+      required: true
