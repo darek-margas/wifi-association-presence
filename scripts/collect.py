@@ -75,6 +75,16 @@ PROFILES: dict[str, list[str]] = {
         "info",
         "mca-dump",
     ],
+    # Cisco wireless LAN controllers (Catalyst 9800, IOS-XE). Lightweight APs (9120,
+    # 3802, 1815...) don't list clients themselves; the controller does.
+    "cisco_wlc": [
+        "terminal length 0",
+        "show version | include Cisco IOS|uptime|Model",
+        "show ap summary",
+        "show wlan summary",
+        "show wireless client summary",
+        "show wireless client summary detail",
+    ],
     "dlink_dap": [
         "help",
         "get",
@@ -106,6 +116,9 @@ _SECRET_LINE = re.compile(
 )
 _HELP_LINE = re.compile(r"^\s*\S.*?\s{2,}--\s")
 _MAC = re.compile(r"\b([0-9A-Fa-f]{2})([:-])([0-9A-Fa-f]{2})\2([0-9A-Fa-f]{2})(?:\2[0-9A-Fa-f]{2}){3}\b")
+# Cisco style (aabb.ccdd.eeff) and bare (aabbccddeeff) MACs.
+_MAC_DOTTED = re.compile(r"\b[0-9A-Fa-f]{4}\.[0-9A-Fa-f]{4}\.[0-9A-Fa-f]{4}\b")
+_MAC_BARE = re.compile(r"\b[0-9A-Fa-f]{12}\b")
 _IPV4 = re.compile(r"\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b")
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
 # 16+ hex digits in one run: keys, password hashes, serials. (MACs have separators.)
@@ -148,6 +161,15 @@ class Redactor:
         octets = [int(part, 16) for part in re.split(r"[:-]", match.group(0))]
         return self.mac(octets).replace(":", sep)
 
+    def _mac_compact(self, match: re.Match[str], dotted: bool) -> str:
+        """aabb.ccdd.eeff / aabbccddeeff -> aabb.ccxx.xx01 / aabbccxxxx01 (prefix kept)."""
+        digits = match.group(0).replace(".", "")
+        octets = [int(digits[i : i + 2], 16) for i in range(0, 12, 2)]
+        placeholder = self.mac(octets).replace(":", "").lower()
+        if dotted:
+            return f"{placeholder[0:4]}.{placeholder[4:8]}.{placeholder[8:12]}"
+        return placeholder
+
     def text(self, line: str) -> str:
         """Hide MACs, IPv4 and email addresses, key-like hex and this run's secrets."""
         for secret in self._secrets:
@@ -155,6 +177,8 @@ class Redactor:
         line = _EMAIL.sub("<email>", line)
         line = _LONG_HEX.sub("<hex>", line)
         line = _MAC.sub(self._mac_text, line)
+        line = _MAC_DOTTED.sub(lambda m: self._mac_compact(m, dotted=True), line)
+        line = _MAC_BARE.sub(lambda m: self._mac_compact(m, dotted=False), line)
         return _IPV4.sub(lambda m: f"{m.group(1)}.x.x.{m.group(4)}", line)
 
 
@@ -287,6 +311,15 @@ STANDARD_ROOTS = {
     "IF-MIB interface names (ifDescr)": "1.3.6.1.2.1.2.2.1.2",
 }
 ENTERPRISE_PREFIX = "1.3.6.1.4.1."
+# Client and AP tables some vendors keep outside their own enterprise subtree, walked
+# in addition to it (e.g. Cisco 9800 controllers serve the Airespace wireless MIB).
+VENDOR_EXTRA_ROOTS = {
+    9: {
+        "Airespace client table (bsnMobileStationTable)": "1.3.6.1.4.1.14179.2.1.4",
+        "Airespace AP table (bsnAPTable)": "1.3.6.1.4.1.14179.2.2.1",
+        "CISCO-LWAPP-DOT11-CLIENT-MIB (cldcClientTable)": "1.3.6.1.4.1.9.9.599.1.3.1",
+    },
+}
 # Only for the report header; the enterprise number itself is what matters.
 KNOWN_ENTERPRISES = {
     9: "Cisco",
@@ -434,6 +467,7 @@ async def collect_snmp(args: argparse.Namespace, secrets: dict[str, str]) -> lis
         number = int(object_id[len(ENTERPRISE_PREFIX) :].split(".")[0])
         vendor = KNOWN_ENTERPRISES.get(number, "unknown vendor")
         report.append(f"# enterprise number: {number} ({vendor})")
+        roots |= VENDOR_EXTRA_ROOTS.get(number, {})
         roots[f"vendor subtree ({vendor})"] = f"{ENTERPRISE_PREFIX}{number}"
     else:
         report.append("# sysObjectID has no enterprise number; walking standard MIBs only")

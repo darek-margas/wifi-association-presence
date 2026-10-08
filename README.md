@@ -340,7 +340,9 @@ python3 scripts/collect.py --host <AP IP> --username <user>
 - `--command "<cmd>"` (repeatable) adds the command your AP uses to list clients.
 - `--profile dlink_dap` uses the D-Link command list, `--profile unifi` the UniFi one
   (`info`, `mca-dump`; log in with the device SSH credentials set in the UniFi
-  controller); `--list-profiles` shows all.
+  controller), `--profile cisco_wlc` the Cisco wireless controller one (Catalyst 9800:
+  AP, WLAN and client summaries); `--list-profiles` shows all. MAC addresses are redacted
+  in any notation (`aa:bb:..`, `aa-bb-..`, Cisco `aabb.ccdd.eeff`, bare `aabbccddeeff`).
 
 **SNMP**
 
