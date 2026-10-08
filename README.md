@@ -342,7 +342,8 @@ python3 scripts/collect.py --host <AP IP> --username <user>
   (`info`, `mca-dump`; log in with the device SSH credentials set in the UniFi
   controller), `--profile cisco_wlc` the Cisco wireless controller one (Catalyst 9800:
   AP, WLAN and client summaries); `--list-profiles` shows all. MAC addresses are redacted
-  in any notation (`aa:bb:..`, `aa-bb-..`, Cisco `aabb.ccdd.eeff`, bare `aabbccddeeff`).
+  in any notation (`aa:bb:..`, `aa-bb-..`, Cisco `aabb.ccdd.eeff`, bare `aabbccddeeff`),
+  as are IPv6 addresses and Cisco serial numbers.
 
 **SNMP**
 
@@ -350,6 +351,7 @@ python3 scripts/collect.py --host <AP IP> --username <user>
 pip install pysnmp
 python3 scripts/collect.py --host <AP IP> --snmp                    # v2c, asks for the community
 python3 scripts/collect.py --host <AP IP> --snmp --snmp-user <user> # v3 (SHA / AES-128)
+python3 scripts/collect.py --host <AP IP> --snmp --snmp-user <user> --snmp-auth sha256 --snmp-priv aes
 ```
 
 There is no standard SNMP table of associated Wi-Fi clients: every vendor keeps it in its
@@ -358,7 +360,9 @@ the AP's `sysObjectID` (its enterprise number, e.g. 171 for D-Link, 14988 for Mi
 walks it together with the standard 802.11 and bridge tables, and lists the tables that
 contain MAC addresses, the likely client tables, at the top of the report. MACs are
 redacted in values and inside OID indexes (where many vendors put the client's MAC), and
-the community or keys you type are removed. Use a read-only community.
+the community or keys you type are removed. Use a read-only community. SNMPv3 takes
+`--snmp-auth` (md5, sha, sha224, sha256, sha384, sha512) and `--snmp-priv` (des, 3des,
+aes, aes192, aes256, and aes192c / aes256c for Cisco's key extension).
 
 A vendor walk contains the AP's whole configuration, which can include e-mail settings,
 password hashes or even a Wi-Fi passphrase. So text and binary values are shown only as

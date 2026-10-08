@@ -24,7 +24,11 @@ Options:
     --command CMD      SSH: extra command to run (repeatable)
     --legacy-ssh       SSH: allow old algorithms (diffie-hellman-group1/14-sha1, ssh-rsa, CBC)
     --snmp             use SNMP instead of SSH
-    --snmp-user USER   SNMP: use v3 with this user (SHA auth, AES-128 privacy) instead of v2c
+    --snmp-user USER   SNMP: use v3 with this user instead of v2c
+    --snmp-auth ALG    SNMPv3 authentication: md5, sha (SHA-1, default), sha224, sha256,
+                       sha384, sha512
+    --snmp-priv ALG    SNMPv3 privacy: des, 3des, aes (AES-128, default), aes192, aes256,
+                       aes192c / aes256c (Cisco's key extension)
     --snmp-root OID    SNMP: extra subtree to walk (repeatable)
     --snmp-max N       SNMP: stop each subtree after N values (default 20000)
     --snmp-full-values SNMP: show all text values, not only in the client tables
@@ -112,7 +116,7 @@ _REFUSED = re.compile(
 )
 # Lines that may carry secrets: keys, passphrases, RADIUS secrets, community strings.
 _SECRET_LINE = re.compile(
-    r"(pass(word|phrase)?|secret|psk|key|community|token|credential)", re.IGNORECASE
+    r"(pass(word|phrase)?|secret|psk|key|community|token|credential|serial)", re.IGNORECASE
 )
 _HELP_LINE = re.compile(r"^\s*\S.*?\s{2,}--\s")
 _MAC = re.compile(r"\b([0-9A-Fa-f]{2})([:-])([0-9A-Fa-f]{2})\2([0-9A-Fa-f]{2})(?:\2[0-9A-Fa-f]{2}){3}\b")
@@ -123,6 +127,16 @@ _IPV4 = re.compile(r"\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b")
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
 # 16+ hex digits in one run: keys, password hashes, serials. (MACs have separators.)
 _LONG_HEX = re.compile(r"\b[0-9A-Fa-f]{16,}\b")
+# IPv6, full (8 groups) or compressed ("::"), optionally with a zone (%eth0). Link-local
+# addresses can embed the client's MAC (EUI-64). Times like 14:01:02 don't match.
+_IPV6 = re.compile(
+    r"(?<![0-9A-Fa-f:])(?:"
+    r"(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}"
+    r"|(?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?::(?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?"
+    r")(?:%[\w.]+)?(?![0-9A-Fa-f:])"
+)
+# Cisco serial numbers (e.g. FGL2412AB12: 3 letters, 4 digits, 4 letters/digits).
+_SERIAL_CISCO = re.compile(r"\b[A-Z]{3}\d{4}[A-Z0-9]{4}\b")
 _PROMPT = re.compile(r"(\S{0,40}[>#$%:]|->)\s*$")
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
@@ -179,7 +193,18 @@ class Redactor:
         line = _MAC.sub(self._mac_text, line)
         line = _MAC_DOTTED.sub(lambda m: self._mac_compact(m, dotted=True), line)
         line = _MAC_BARE.sub(lambda m: self._mac_compact(m, dotted=False), line)
+        line = _IPV6.sub(_ipv6_placeholder, line)
+        line = _SERIAL_CISCO.sub("<serial>", line)
         return _IPV4.sub(lambda m: f"{m.group(1)}.x.x.{m.group(4)}", line)
+
+
+def _ipv6_placeholder(match: re.Match[str]) -> str:
+    """fe80::1c2b:3cff:fe4d:5e6f -> fe80::<v6> (first group kept; a bare "::" stays)."""
+    text = match.group(0)
+    if text == "::":
+        return text
+    first = text.split(":", 1)[0]
+    return f"{first}::<v6>" if first else "::<v6>"
 
 
 def _split_setting(line: str) -> tuple[str, str, str]:
@@ -198,8 +223,11 @@ def redact(text: str, redactor: Redactor | None = None) -> str:
         # Judge by the setting's name (before ":"/"="), so "auth:WPA2-PSK" stays readable.
         # Help listings ("get key  -- Display Encryption Key (index:1--4)") describe
         # commands rather than show values, so they are left intact.
+        # Table rows ("aabb.ccdd.eeff  AP01  1  Run  WPA2 PSK  14:01:02 ...") are not
+        # settings: their "name" part has column gaps, and judging it would blank the row.
         name, sep, _value = _split_setting(line)
-        if sep and not _HELP_LINE.match(line) and _SECRET_LINE.search(name):
+        is_setting = len(name.strip()) <= 48 and "  " not in name.strip() and "\t" not in name
+        if sep and is_setting and not _HELP_LINE.match(line) and _SECRET_LINE.search(name):
             line = f"{name}{sep} <redacted>"
         lines.append(redactor.text(line))
     return "\n".join(lines)
@@ -413,15 +441,35 @@ def _redact_oid(oid: str, redactor: Redactor, known: set[tuple[int, ...]]) -> st
     return oid
 
 
+# SNMPv3 protocols (--snmp-auth / --snmp-priv) -> pysnmp names.
+SNMP_AUTH = {
+    "md5": "usmHMACMD5AuthProtocol",
+    "sha": "usmHMACSHAAuthProtocol",
+    "sha224": "usmHMAC128SHA224AuthProtocol",
+    "sha256": "usmHMAC192SHA256AuthProtocol",
+    "sha384": "usmHMAC256SHA384AuthProtocol",
+    "sha512": "usmHMAC384SHA512AuthProtocol",
+}
+SNMP_PRIV = {
+    "des": "usmDESPrivProtocol",
+    "3des": "usm3DESEDEPrivProtocol",
+    "aes": "usmAesCfb128Protocol",
+    "aes192": "usmAesCfb192Protocol",
+    "aes256": "usmAesCfb256Protocol",
+    # Cisco's AES-192/256 key extension
+    "aes192c": "usmAesBlumenthalCfb192Protocol",
+    "aes256c": "usmAesBlumenthalCfb256Protocol",
+}
+
+
 async def _snmp_session(args: argparse.Namespace, secrets: dict[str, str]):
+    import pysnmp.hlapi.v3arch.asyncio as hlapi
     from pysnmp.hlapi.v3arch.asyncio import (
         CommunityData,
         ContextData,
         SnmpEngine,
         UdpTransportTarget,
         UsmUserData,
-        usmAesCfb128Protocol,
-        usmHMACSHAAuthProtocol,
     )
 
     if args.snmp_user:
@@ -429,8 +477,8 @@ async def _snmp_session(args: argparse.Namespace, secrets: dict[str, str]):
             args.snmp_user,
             authKey=secrets["auth"],
             privKey=secrets["priv"],
-            authProtocol=usmHMACSHAAuthProtocol,
-            privProtocol=usmAesCfb128Protocol,
+            authProtocol=getattr(hlapi, SNMP_AUTH[args.snmp_auth]),
+            privProtocol=getattr(hlapi, SNMP_PRIV[args.snmp_priv]),
         )
     else:
         auth = CommunityData(secrets["community"], mpModel=1)
@@ -598,6 +646,8 @@ def main() -> int:
     parser.add_argument("--legacy-ssh", action="store_true")
     parser.add_argument("--snmp", action="store_true")
     parser.add_argument("--snmp-user")
+    parser.add_argument("--snmp-auth", default="sha", choices=sorted(SNMP_AUTH))
+    parser.add_argument("--snmp-priv", default="aes", choices=sorted(SNMP_PRIV))
     parser.add_argument("--snmp-root", action="append")
     parser.add_argument("--snmp-max", type=int, default=20000)
     parser.add_argument("--snmp-full-values", action="store_true")
