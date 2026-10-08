@@ -21,6 +21,11 @@
   exactly as uninterrupted polling would. (Thanks to a review pointing at this code.)
 - README: how restarts and crashes are handled, and why a failing AP lets its devices go
   `not_home` while all APs failing makes the trackers unavailable.
+- README brought up to date with three AP types instead of reading as D-Link only: a
+  table of what each type reports (name, model, firmware, location, CPU, memory, signal
+  unit, login), security notes for all SSH types (no host-key check for OpenWrt either),
+  D-Link specifics moved to its setup notes, and the plan to move the AP drivers into a
+  standalone library.
 
 ## 0.5.1 — UniFi confirmed
 

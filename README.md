@@ -7,7 +7,8 @@
 - **Home / away** for each phone, tablet or laptop, steady while the phone sleeps.
 - **Which room**: the area of the access point it is connected to, and its signal.
 - **When it arrived or left**, to the minute, for automations.
-- **Access points as devices**: connected clients, firmware, CPU, memory, uptime.
+- **Access points as devices**: connected clients per band, firmware, uptime and whatever
+  else the AP reports about itself.
 - **Nothing to install on the phones.** It reads the list of devices joined to each
   access point, from the access point itself or from its controller.
 
@@ -122,8 +123,8 @@ actions:
 {% else %}away for {{ state_attr(t, 'departed_at') | as_datetime(default=none) | relative_time }}{% endif %}
 ```
 
-A device that was already home when you installed or upgraded to 0.4 shows that moment
-as its arrival until it next leaves and comes back.
+A device that is already home when you add it shows that moment as its arrival until it
+next leaves and comes back.
 
 ### Per device insight
 Each tracked device is a Home Assistant device with:
@@ -132,17 +133,22 @@ Each tracked device is a Home Assistant device with:
   ([see above](#arrival-and-departure-times)).
 - **Access point** sensor: the AP's name (yours, or the name the AP reports, e.g. *Studio*).
 - **Signal** sensor: signal quality 0-100 %, comparable across access points and vendors
-  (percent as reported by D-Link; dBm from other drivers is converted), with a matching
-  Wi-Fi strength icon. Its attributes hold the raw value and unit (`signal`, `signal_unit`).
+  (APs that report dBm, like OpenWrt and UniFi, are converted; D-Link reports a
+  percentage), with a matching Wi-Fi strength icon. Its attributes hold the raw value and
+  unit (`signal`, `signal_unit`).
 - **Area** sensor, as above.
 
 ### Access point monitoring
-Each access point is a Home Assistant device with firmware, hardware revision, model, a
-link to its web UI, and sensors:
+An access point read directly (D-Link, OpenWrt) is a Home Assistant device with a link to
+its web UI, the details it reports about itself (model, firmware, hardware) and sensors:
 - **Clients 2.4 GHz**, **Clients 5 GHz** and **Clients** (total).
-- Diagnostics: **Last boot**, **Location**, and **CPU** and **Memory** (disabled by
-  default: they change every poll, so each would be a recorder row per minute).
-- SSID names resolved from the AP (not just "SSID index 3").
+- Diagnostics: **Last boot**, **Location**, **CPU** and **Memory**, each only if the AP
+  reports it (see [what each type reports](#supported-access-points)). CPU and Memory are
+  disabled by default: they change every poll, so each would be a recorder row per minute.
+- Real SSID names, also where the AP itself only shows an index (D-Link's "SSID index 3").
+
+An access point read through a controller (UniFi) gets no device of its own: it uses the
+AP's existing device from that controller's integration, which already has these details.
 
 ### Easy and robust
 - **Set up entirely in the UI.** Access points and tracked devices are entries of the
@@ -153,8 +159,8 @@ link to its web UI, and sensors:
   other APs keep updating. Unexpected replies are discarded, not shown as values.
 - **Independent trackers.** Trackers are keyed by MAC address only, so you can remove,
   replace or change the type of an access point without losing them.
-- **Pluggable drivers.** Each AP model is a small driver with its own connection policy;
-  new vendors can be added without touching the rest.
+- **Pluggable drivers.** Each kind of AP is a small driver (three so far: D-Link, OpenWrt,
+  UniFi); new ones can be added without touching the rest.
 
 ## Screenshots
 
@@ -174,7 +180,8 @@ access point, and the signal.
 
 ## How presence is decided
 
-Every 60 seconds all access points are read in parallel (one SSH login per AP per poll).
+Every 60 seconds all access points are read in parallel: one SSH login per directly read
+AP, one request per controller for all its APs.
 A device seen on two APs in the same poll (while roaming) is attributed to the one with
 the stronger signal.
 
@@ -230,7 +237,8 @@ hand: HACS → ⋮ → **Custom repositories** → add this repository's URL wit
    (after installing and restarting).
 2. On the integration page, **Add access point**: choose the type, then its settings.
    The settings are tested by reading the AP once. Leave the name empty to use the name
-   the AP reports about itself (D-Link: its system name, e.g. "Studio").
+   the AP reports about itself (D-Link's system name, OpenWrt's host name; a UniFi AP uses
+   its name in UniFi).
 3. Open each access point's device and set its **Area** (✏️ → Area). This is what the
    trackers' *Area* sensor reports.
 4. **Add tracked device**: pick a device from the list or type its MAC address, and give it
@@ -250,14 +258,33 @@ Leaving an access point's password empty keeps the current one.
 | UniFi (via the UniFi Network integration) | **Confirmed** on a UniFi Network controller by a user. Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
 | OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
 
+### What each type reports
+
+| | D-Link DAP | OpenWrt | UniFi |
+|---|---|---|---|
+| Clients, band, SSID name | ✓ | ✓ | ✓ |
+| Signal | % | dBm | dBm |
+| AP device and sensors created here | ✓ | ✓ | — (uses the UniFi device) |
+| Name | system name | host name | UniFi name |
+| Model | — (enter it in the AP's settings) | ✓ | in UniFi |
+| Firmware, hardware | ✓ | ✓ | in UniFi |
+| Last boot (uptime) | ✓ | ✓ | in UniFi |
+| Location | ✓ | — (no such setting) | — |
+| CPU % | ✓ | — (only load averages) | in UniFi |
+| Memory % | ✓ | ✓ | in UniFi |
+| Login | SSH, password | SSH, password | none (the UniFi integration's session) |
+
+Sensors for details a type can't report are not created. No type gives clients' IP
+addresses or host names to this integration, so trackers have no `ip` / `host_name`.
+
 ### Two ways to read an access point
 
 Each type of access point is a driver, and there are two kinds:
 
-- **Directly from the AP** (D-Link today; SSH or SNMP to the AP itself). Works without any
-  controller, and with only the APs you are allowed to log in to.
-- **Through a controller** (UniFi today, via Home Assistant's UniFi Network integration).
-  No login per AP and one request for all of them, but you need access to the controller.
+- **Directly from the AP** (D-Link and OpenWrt, over SSH). Works without any controller,
+  and with only the APs you are allowed to log in to.
+- **Through a controller** (UniFi, via Home Assistant's UniFi Network integration). No
+  login per AP and one request for all of them, but you need access to the controller.
 
 Both can exist for the same vendor and can be mixed in one installation, because every
 access point is its own entry and trackers don't care which driver saw a device. That
@@ -280,7 +307,7 @@ each AP keeps its own device and area, so room-level presence works the same.
 - Each poll requests the controller's active client list once, shared by all its APs; a
   client is associated to an AP while the controller lists it there. Signal is in dBm.
 - An AP the controller reports as offline (or not adopted) counts as unreadable, and
-  tracked devices on it fall back to the grace period, as with a failing D-Link AP.
+  tracked devices on it fall back to the grace period, as with any failing AP.
 - The UniFi integration's own device trackers can stay enabled or be disabled; they are
   independent of this integration's trackers.
 
@@ -300,8 +327,7 @@ each AP keeps its own device and area, so room-level presence works the same.
   doesn't), as in Home Assistant's own ubus tracker.
 - Both interface namings are found automatically (`hostapd.wlan0` up to 22.03,
   `hostapd.phy0-ap0` from 23.05).
-- Device details: host name, model, firmware, hardware, uptime and memory (OpenWrt has no
-  location setting and no CPU percentage, so those sensors are not created).
+- Device details: host name, model, firmware, hardware (board name), uptime and memory.
 - Verified on OpenWrt 25.12.5 (clients with SSID, band and signal, device details, areas,
   departure / arrival in Home Assistant) and 22.03.7 (same driver results with the older
   `hostapd.wlan0` naming and Dropbear 2022.82). Tested in VMs with simulated radios
@@ -317,22 +343,21 @@ each AP keeps its own device and area, so room-level presence works the same.
 - `get clientinfo` lists the radio selected with `config wlan 0` (2.4 GHz) or
   `config wlan 1` (5 GHz); `set band` does not change it. The `config wlan` command is
   missing from the AP's own `help` output but documented in D-Link's CLI manuals.
+- The AP's MAC address isn't available (`get macaddress` fails on the tested firmware).
+- These units only offer old SSH algorithms (`diffie-hellman-group14-sha1`,
+  `diffie-hellman-group1-sha1`, `ssh-rsa`, CBC ciphers). The driver allows them for D-Link
+  only; other types use current algorithms.
 
 ## Limitations
 
 **Access point support**
-- **Three kinds of access point so far:** D-Link DAP, UniFi (through Home Assistant's UniFi
-  Network integration) and OpenWrt. Support for more depends on owners contributing data
-  (see [Help add your access point](#help-add-your-access-point) and the
+- **Three kinds of access point so far:** D-Link DAP, OpenWrt and UniFi (through Home
+  Assistant's UniFi Network integration). Support for more depends on owners contributing
+  data (see [Help add your access point](#help-add-your-access-point) and the
   [Roadmap](#roadmap)); the driver interface is designed for it.
-- **What the D-Link CLI provides is about all there is.** On the tested firmware it gives
-  the client list per radio (MAC, SSID, signal, connected time), SSID names, system
-  name, location, firmware, hardware revision, uptime, CPU and memory. It does **not**
-  report:
-  - the model (enter it in the access point's settings if you want it on the device);
-  - the AP's MAC address (`get macaddress` fails on this firmware);
-  - clients' IP addresses or host names, so trackers have no `ip`/`host_name`, and Home
-    Assistant features that rely on a tracker's IP aren't available.
+- **Each type gives what its AP offers**, no more (see
+  [What each type reports](#what-each-type-reports)). No type gives clients' IP addresses
+  or host names, so Home Assistant features that rely on a tracker's IP aren't available.
 - Signal quality is an approximation: D-Link reports a percentage, and dBm values are
   mapped linearly (-100 dBm = 0 %, -50 dBm = 100 %).
 
@@ -350,14 +375,13 @@ each AP keeps its own device and area, so room-level presence works the same.
   disassociate and will show as away unless the grace period covers the gap.
 
 **Security**
-- The D-Link units only offer password login and old SSH algorithms
-  (`diffie-hellman-group14-sha1`, `diffie-hellman-group1-sha1`, `ssh-rsa`, CBC ciphers).
-  The driver enables those for these units only, and does **not verify the host key**
-  (it changes on factory reset). Keep management access restricted to the Home Assistant
-  host and preferably on a trusted network segment.
+- **SSH types (D-Link, OpenWrt) log in with a password and do not verify the AP's host
+  key** (it changes on a factory reset or reinstall). Keep the APs' management access
+  restricted to the Home Assistant host, preferably on a trusted network segment. D-Link
+  also needs old SSH algorithms ([D-Link notes](#d-link-dap-setup-notes)).
 - The AP password is stored in Home Assistant's configuration storage, like other
-  integrations' credentials.
-- Each poll is a console login; the AP may log every login (syslog noise).
+  integrations' credentials. UniFi needs none here: it uses the UniFi integration's login.
+- Each poll of an SSH type is a login; the AP may log every one (syslog noise).
 
 **Project state**
 - Early development: limited testing (a few installations; OpenWrt so far in a VM), English
@@ -389,7 +413,8 @@ python3 scripts/collect.py --host <AP IP> --username <user>
   keys are caught too.
 - `--legacy-ssh` allows old SSH algorithms if the connection fails.
 - `--command "<cmd>"` (repeatable) adds the command your AP uses to list clients.
-- `--profile dlink_dap` uses the D-Link command list, `--profile unifi` the UniFi one
+- `--profile dlink_dap` uses the D-Link command list, `--profile openwrt` the OpenWrt one
+  (ubus hostapd and system calls), `--profile unifi` the UniFi one
   (`info`, `mca-dump`; log in with the device SSH credentials set in the UniFi
   controller), `--profile cisco_wlc` the Cisco wireless controller one (Catalyst 9800:
   AP, WLAN and client summaries); `--list-profiles` shows all. MAC addresses are redacted
@@ -450,14 +475,16 @@ below needs an owner of that hardware to send data and test a build.
 | **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `collect.py` report (SSH or `--snmp`) |
 | **Other controllers** (Cisco WLC, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API | interest and a test setup |
 
-Also planned: Home Assistant-level tests, and splitting `ap_drivers/` into a standalone
-library once there is more than one vendor.
+Also planned: moving `ap_drivers/` into a standalone Python library on PyPI. It already
+has no Home Assistant imports and now covers three vendors; as a library it can be tested
+and released on its own, used by other tools, and it is what Home Assistant expects of an
+integration that talks to devices.
 
 ## Development
 
 The access point code lives in
 [`ap_drivers/`](custom_components/wifi_association_presence/ap_drivers) and has no Home
-Assistant imports, so it can later become a standalone library.
+Assistant imports, ready to become a standalone library (see [Roadmap](#roadmap)).
 
 - Test an AP from the command line: `python3 scripts/probe.py --host <ip> --username admin`
   (`--type openwrt_ssh --username root` for OpenWrt; `--list-types` shows all)
@@ -465,8 +492,9 @@ Assistant imports, so it can later become a standalone library.
 - Tests: `python3 -m pytest tests` (needs `pytest` and `asyncssh`). The presence rules
   (merging AP reads, roaming, grace period, visits, retention, storage) live in
   [`presence.py`](custom_components/wifi_association_presence/presence.py) without Home
-  Assistant imports and are tested directly; CI runs the tests, ruff, hassfest and the
-  HACS validation on every push.
+  Assistant imports and are tested directly. `tests_ha/` runs the integration inside Home
+  Assistant (setup, restarts, outages, UniFi through the real UniFi integration); CI runs
+  both, ruff, hassfest and the HACS validation on every push.
 - The icon's source is [`docs/images/icon.svg`](docs/images/icon.svg); the PNGs in
   `custom_components/wifi_association_presence/brand/` (256 and 512 px) are rendered from
   it. Home Assistant 2026.3+ uses them in place of the brands repository.
