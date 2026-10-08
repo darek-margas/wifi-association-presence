@@ -11,6 +11,9 @@
 - **Nothing to install on the phones.** It reads the list of devices joined to each
   access point, from the access point itself or from its controller.
 
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=darek-margas&repository=wifi-association-presence&category=integration)
+[![Open your Home Assistant instance and start setting up Wi-Fi Association Presence.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=wifi_association_presence)
+
 [Supported access points](#supported-access-points) ·
 [Install](#installation) ·
 [Help add yours](#help-add-your-access-point) ·
@@ -195,15 +198,23 @@ type of an access point doesn't touch them.
 
 Requires Home Assistant **2026.9** or newer.
 
-**HACS:** HACS → ⋮ → **Custom repositories** → add this repository's URL with type
-**Integration**, install **Wi-Fi Association Presence**, and restart Home Assistant.
+**HACS:** click
+
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=darek-margas&repository=wifi-association-presence&category=integration)
+
+(HACS offers to add the repository), then **Download**, and restart Home Assistant. By
+hand: HACS → ⋮ → **Custom repositories** → add this repository's URL with type
+**Integration**, install **Wi-Fi Association Presence**, and restart.
 
 **Manual:** copy `custom_components/wifi_association_presence` to
 `/config/custom_components/` and restart Home Assistant.
 
 ## Setup
 
-1. **Settings → Devices & services → Add integration → Wi-Fi Association Presence.**
+1. **Settings → Devices & services → Add integration → Wi-Fi Association Presence**, or
+   click
+   [![Open your Home Assistant instance and start setting up Wi-Fi Association Presence.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=wifi_association_presence)
+   (after installing and restarting).
 2. On the integration page, **Add access point**: choose the type, then its settings.
    The settings are tested by reading the AP once. Leave the name empty to use the name
    the AP reports about itself (D-Link: its system name, e.g. "Studio").
