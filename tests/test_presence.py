@@ -30,6 +30,7 @@ from presence import (  # noqa: E402
     signal_quality,
     sightings_from_storage,
     sightings_to_storage,
+    stored_at,
     stronger,
 )
 
@@ -220,6 +221,17 @@ def test_storage_round_trip() -> None:
         CAR: Sighting("Garden", "garden", None, None, -67, SIGNAL_DBM, 66, NOW, NOW),
     }
     assert sightings_from_storage(sightings_to_storage(original), NOW, timedelta(days=7)) == original
+
+
+def test_storage_records_when_it_was_written() -> None:
+    stored = sightings_to_storage({PHONE: sighting(NOW, arrived=NOW)}, saved_at=NOW)
+    assert stored_at(stored) == NOW
+    assert sightings_from_storage(stored, NOW, timedelta(days=7))[PHONE].arrived == NOW
+    # Files from before 0.5.0 carry no timestamp; a broken one counts as unknown.
+    assert stored_at(sightings_to_storage({})) is None
+    assert stored_at(None) is None
+    assert stored_at({"saved_at": "not a date"}) is None
+    assert stored_at({"saved_at": 12345}) is None
 
 
 def test_storage_converts_0_2_entries() -> None:

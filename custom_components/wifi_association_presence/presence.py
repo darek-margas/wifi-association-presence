@@ -188,9 +188,11 @@ def prune(
 _TIME_FIELDS = ("last_seen", "arrived")
 
 
-def sightings_to_storage(sightings: Mapping[str, Sighting]) -> dict[str, Any]:
-    """JSON-friendly form of the sightings."""
-    return {
+def sightings_to_storage(
+    sightings: Mapping[str, Sighting], saved_at: datetime | None = None
+) -> dict[str, Any]:
+    """JSON-friendly form of the sightings, stamped with when they were written."""
+    data: dict[str, Any] = {
         "sightings": {
             mac: {
                 key: value.isoformat() if isinstance(value, datetime) else value
@@ -199,6 +201,17 @@ def sightings_to_storage(sightings: Mapping[str, Sighting]) -> dict[str, Any]:
             for mac, s in sightings.items()
         }
     }
+    if saved_at is not None:
+        data["saved_at"] = saved_at.isoformat()
+    return data
+
+
+def stored_at(stored: Mapping[str, Any] | None) -> datetime | None:
+    """When stored sightings were written; None if unknown (files before 0.5.0)."""
+    try:
+        return _parse_time((stored or {}).get("saved_at"))
+    except (TypeError, ValueError):
+        return None
 
 
 def _parse_time(value: Any) -> datetime | None:

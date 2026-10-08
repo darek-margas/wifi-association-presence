@@ -10,6 +10,7 @@ from freezegun.api import FrozenDateTimeFactory
 import pytest
 from homeassistant.config_entries import ConfigEntryState, ConfigSubentryData
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
@@ -107,6 +108,48 @@ async def test_setup_tracker_and_ap_sensors(hass: HomeAssistant) -> None:
         entity = registry.async_get(f"sensor.hallway_ap_{key}")
         assert entity is not None and entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION
         assert hass.states.get(f"sensor.hallway_ap_{key}") is None
+
+
+async def test_stop_saves_and_restart_keeps_visit(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, hass_storage: dict[str, Any]
+) -> None:
+    entry = await setup_entry(hass, ap("ap1"), PHONE_SUB)
+    arrived_at = hass.states.get("device_tracker.phone").attributes["arrived_at"]
+    key = f"{DOMAIN}.{entry.entry_id}.sightings"
+    # Polls go on for a while (well past the first periodic write, 10 min apart)...
+    for _ in range(5):
+        await refresh_after(hass, freezer, entry.runtime_data, 60)
+    # ...then Home Assistant stops. It does not unload entries then: the integration
+    # must save itself, or the visit started 5 min ago would be lost.
+    hass.bus.async_fire("homeassistant_stop")
+    await hass.async_block_till_done()
+    stored = hass_storage[key]["data"]
+    assert stored["saved_at"] == dt_util.utcnow().isoformat()
+    assert stored["sightings"][PHONE]["arrived"] == arrived_at
+    # A restart taking longer than the visit gap must not start a new visit: being down
+    # is no evidence that anyone left.
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    freezer.tick(timedelta(minutes=5))
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    tracker = hass.states.get("device_tracker.phone")
+    assert tracker.state == "home"
+    assert tracker.attributes["arrived_at"] == arrived_at
+    # ...but a device that had already left before the stop starts afresh when it returns
+    FakeDriver.results["ap1"] = PollResult([], GOOD.info)
+    coordinator = entry.runtime_data
+    await refresh_after(hass, freezer, coordinator, 61)
+    await refresh_after(hass, freezer, coordinator, 61)
+    await refresh_after(hass, freezer, coordinator, 61)
+    assert hass.states.get("device_tracker.phone").state == "not_home"
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    freezer.tick(timedelta(minutes=5))
+    FakeDriver.results["ap1"] = GOOD
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    tracker = hass.states.get("device_tracker.phone")
+    assert tracker.state == "home"
+    assert tracker.attributes["arrived_at"] == dt_util.utcnow().isoformat()
 
 
 async def refresh_after(

@@ -36,6 +36,7 @@ from .presence import (
     ride_out_total_failure,
     sightings_from_storage,
     sightings_to_storage,
+    stored_at,
 )
 from .sources import build_driver
 
@@ -47,10 +48,9 @@ type WifiAssociationConfigEntry = ConfigEntry[AssociationCoordinator]
 # sleep with Wi-Fi off (cars, tablets) can still be picked when adding a tracked device.
 SIGHTING_RETENTION = timedelta(days=7)
 STORAGE_VERSION = 1
-# Sightings and visits are written at most this often (and on unload): a few minutes of
-# staleness after a crash is fine, a write per poll is not (SD cards). Not done with
-# Store.async_delay_save's delay, which restarts on every call: called each poll with a
-# delay longer than the poll interval, it would never write until shutdown.
+# Sightings and visits are written at most this often, plus on unload and when Home
+# Assistant stops (it does not unload entries then): a few minutes of staleness after a
+# crash is fine, a write per poll is not (SD cards).
 STORAGE_SAVE_INTERVAL = timedelta(minutes=10)
 # A device read in the latest poll must count as present, so a shorter grace period
 # acts as this one: away after one missed poll.
@@ -144,6 +144,8 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         # could be is ridden out only within the grace period after it.
         self._last_success: datetime | None = None
         self._next_save: datetime | None = None
+        # When the restored sightings file was written; None once the first poll used it.
+        self._restored_at: datetime | None = None
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.sightings"
         )
@@ -160,13 +162,13 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
 
     async def async_restore_sightings(self) -> None:
         """Load the sightings saved before the last reload or restart."""
-        self._sightings = sightings_from_storage(
-            await self._store.async_load(), dt_util.utcnow(), SIGHTING_RETENTION
-        )
+        stored = await self._store.async_load()
+        self._sightings = sightings_from_storage(stored, dt_util.utcnow(), SIGHTING_RETENTION)
+        self._restored_at = stored_at(stored)
 
     async def async_save_sightings(self) -> None:
-        """Save now (on unload, so the next setup starts from current data)."""
-        await self._store.async_save(sightings_to_storage(self._sightings))
+        """Save now (on unload and on stop, so the next setup starts from current data)."""
+        await self._store.async_save(sightings_to_storage(self._sightings, dt_util.utcnow()))
 
     async def _async_update_data(self) -> PresenceData:
         """Read every AP in parallel; keep previous sightings for APs that fail."""
@@ -213,10 +215,19 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             return PresenceData(dict(self._sightings), dict(self._ap_states))
         self._last_success = now
 
-        seen = carry_visits(merged.sightings, self._sightings, now, self._visit_gap)
+        visit_gap = self._visit_gap
+        if self._restored_at is not None:
+            # First poll after a restart: Home Assistant being down between the save and
+            # now is no evidence of anyone leaving, so a device that was still within the
+            # grace period when the file was written continues its visit.
+            visit_gap += max(now - self._restored_at, timedelta(0))
+            self._restored_at = None
+        seen = carry_visits(merged.sightings, self._sightings, now, visit_gap)
         self._sightings = prune({**self._sightings, **seen}, now, SIGHTING_RETENTION)
         if self._next_save is None or now >= self._next_save:
-            self._store.async_delay_save(lambda: sightings_to_storage(self._sightings))
+            self._store.async_delay_save(
+                lambda: sightings_to_storage(self._sightings, dt_util.utcnow())
+            )
             self._next_save = now + STORAGE_SAVE_INTERVAL
         return PresenceData(dict(self._sightings), dict(self._ap_states))
 
