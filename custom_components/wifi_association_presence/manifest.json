@@ -11,5 +11,5 @@
   "loggers": ["asyncssh"],
   "requirements": ["asyncssh>=2.14.2"],
   "single_config_entry": true,
-  "version": "0.5.0b1"
+  "version": "0.5.0b2"
 }
