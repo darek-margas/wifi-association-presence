@@ -126,6 +126,8 @@ class UnifiNetworkDriver(AccessPointDriver):
 
     TYPE = "unifi_network"
     NAME = "UniFi (via the UniFi Network integration)"
+    # Until a UniFi user confirms it on a real controller.
+    EXPERIMENTAL = True
     # As the UniFi integration names it, so sharing its device changes nothing there.
     MANUFACTURER = "Ubiquiti Networks"
     FIELDS = (DriverField(CONF_AP_MAC),)

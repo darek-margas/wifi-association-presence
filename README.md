@@ -223,7 +223,7 @@ Leaving an access point's password empty keeps the current one.
 | Type | Models | Method |
 |---|---|---|
 | D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI | SSH: `config wlan 0/1` + `get clientinfo` |
-| UniFi (via the UniFi Network integration) | Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
+| UniFi (via the UniFi Network integration), **experimental** | Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
 | OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
 
 ### Two ways to read an access point
@@ -244,6 +244,9 @@ each AP keeps its own device and area, so room-level presence works the same.
 
 ### UniFi setup notes
 
+- **Experimental:** written against and tested with the UniFi integration's own library,
+  but not yet confirmed by a UniFi user on a real controller, so it is labelled
+  experimental in the type list. Reports in the issues are welcome.
 - Set up Home Assistant's **UniFi Network** integration first. No credentials are entered
   here: this integration reuses that one's connection to the controller.
 - **Add access point → UniFi (via the UniFi Network integration)**, then pick the AP from
@@ -298,7 +301,7 @@ each AP keeps its own device and area, so room-level presence works the same.
 
 **Access point support**
 - **Three kinds of access point so far:** D-Link DAP, UniFi (through Home Assistant's UniFi
-  Network integration) and OpenWrt. Support for more depends on owners contributing data
+  Network integration; experimental) and OpenWrt. Support for more depends on owners contributing data
   (see [Help add your access point](#help-add-your-access-point) and the
   [Roadmap](#roadmap)); the driver interface is designed for it.
 - **What the D-Link CLI provides is about all there is.** On the tested firmware it gives

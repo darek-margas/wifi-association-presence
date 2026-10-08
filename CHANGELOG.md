@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.5.0 — OpenWrt and UniFi access points
+
+Everything from the 0.5.0 betas (b1 to b4, below), for those upgrading from 0.4.2.
+
+### Features
+- New access point type **OpenWrt (SSH, ubus)**: reads every radio's hostapd over ubus
+  (associated and authorized stations, band, signal in dBm, SSID) and the AP's name,
+  model, firmware, uptime and memory, with one SSH command per poll. Verified end to end
+  in Home Assistant on OpenWrt 25.12.5 and on 22.03.7 (older `hostapd.wlan0` naming), in
+  VMs with simulated radios; reports from physical routers are welcome.
+- New access point type **UniFi (via the UniFi Network integration)**, **experimental**
+  until a UniFi user confirms it on a real controller: pick a UniFi AP known to Home
+  Assistant's UniFi Network integration; its clients are read from the controller's
+  active client list over that integration's connection, with no separate login and one
+  request per poll for all APs of a controller. The AP keeps its UniFi device, whose
+  area is what the tracked devices report.
+- Drivers can be marked experimental (shown so in the type list), and declare which
+  device details they report, so only those sensors are created (OpenWrt APs get no
+  Location or CPU sensor).
+
+### Changes
+- Sightings and visit start times survive a Home Assistant restart: the file is written
+  when Home Assistant stops and records when, so a device within the grace period then
+  continues its visit. Otherwise it is written at most every 10 minutes, not every poll.
+  (Thanks to David Coulson.)
+- A poll in which no access point at all can be read is ridden out on the previous
+  sightings within the grace period, instead of making every entity unavailable at once.
+- Access point CPU and memory sensors are disabled by default (a recorder row per AP per
+  minute otherwise).
+- An access point whose settings the driver rejects is skipped with an error in the log
+  instead of failing the whole integration.
+- The tracked devices' Area sensors only react to area changes of the access points'
+  devices, not to every device registry update.
+
+### Collector (`scripts/collect.py`)
+- Profiles `openwrt` and `cisco_wlc` (Catalyst 9800), SNMPv3 SHA-2 / AES-256, and wider
+  redaction (Cisco-style and bare MACs, IPv6 addresses, Cisco serial numbers).
+
 ## 0.5.0b4 — OpenWrt verified, tidier access point sensors (beta)
 
 Beta: in HACS, enable "Show beta versions" for this integration to install it.
