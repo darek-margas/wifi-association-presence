@@ -224,6 +224,7 @@ Leaving an access point's password empty keeps the current one.
 |---|---|---|
 | D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI | SSH: `config wlan 0/1` + `get clientinfo` |
 | UniFi (via the UniFi Network integration) | Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
+| OpenWrt (SSH, ubus) — **experimental** | Any AP running OpenWrt with its standard hostapd (`wpad-*`). Written from OpenWrt's source; not yet confirmed on a real device | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
 
 ### Two ways to read an access point
 
@@ -258,6 +259,26 @@ each AP keeps its own device and area, so room-level presence works the same.
   tracked devices on it fall back to the grace period, as with a failing D-Link AP.
 - The UniFi integration's own device trackers can stay enabled or be disabled; they are
   independent of this integration's trackers.
+
+### OpenWrt setup notes (experimental)
+
+- Works with OpenWrt's standard hostapd (`wpad-basic-*`, `wpad-*`), which exposes every
+  radio on ubus. Log in as `root` (or a user allowed to run `ubus`) with a password.
+- What you get depends on the release, as read from OpenWrt's hostapd source:
+
+  | OpenWrt | Clients, band | Signal | SSID name |
+  |---|---|---|---|
+  | 21.02, 22.03, 23.05, 24.10 | ✓ | ✓ (dBm) | ✓ |
+  | 18.06, 19.07 | ✓ | — | — |
+  | 17.01 | ✓ | — | — |
+
+- Only associated and authorized stations count (a phone still in the WPA handshake
+  doesn't), as in Home Assistant's own ubus tracker.
+- Both interface namings are found automatically (`hostapd.wlan0` up to 22.03,
+  `hostapd.phy0-ap0` from 23.05).
+- Device details: host name, model, firmware, hardware, uptime and memory.
+- Please report how it works on your device (see
+  [Help add your access point](#help-add-your-access-point); `collect.py --profile openwrt`).
 
 ### D-Link DAP setup notes
 
@@ -394,7 +415,7 @@ below needs an owner of that hardware to send data and test a build.
 |---|---|---|
 | **UniFi APs without a controller in HA** | SSH to each AP, `mca-dump` (JSON with each radio's station table and dBm signal) | `collect.py --profile unifi` report |
 | **SNMP drivers** | One SNMP base driver plus a small table map per vendor (MikroTik registration table first; Cisco, Aruba, Ruckus as reports arrive) | `collect.py --snmp` report |
-| **OpenWrt** | SSH, `iw dev <radio> station dump` | `collect.py --command "iw dev"` and a station dump |
+| **OpenWrt** (experimental driver ready) | SSH + ubus; later also HTTP JSON-RPC (`/ubus`, needs an rpcd ACL) | testers: a `collect.py --profile openwrt` report and a try of the driver |
 | **TP-Link Omada (controller)** | Like UniFi: through Home Assistant's [TP-Link Omada](https://www.home-assistant.io/integrations/tplink_omada/) integration, no extra login | that integration's **Download diagnostics** file (it lists the connected clients with the AP they are on, already anonymised) |
 | **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `collect.py` report (SSH or `--snmp`) |
 | **Other controllers** (Cisco WLC, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API | interest and a test setup |
@@ -409,6 +430,8 @@ The access point code lives in
 Assistant imports, so it can later become a standalone library.
 
 - Test an AP from the command line: `python3 scripts/probe.py --host <ip> --username admin`
+  (`--type openwrt_ssh --username root` for OpenWrt; `--list-types` shows all)
+- Testing the OpenWrt driver without hardware: [docs/openwrt-vm-test.md](docs/openwrt-vm-test.md)
 - Tests: `python3 -m pytest tests` (needs `pytest` and `asyncssh`). The presence rules
   (merging AP reads, roaming, grace period, visits, retention, storage) live in
   [`presence.py`](custom_components/wifi_association_presence/presence.py) without Home

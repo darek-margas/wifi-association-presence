@@ -81,6 +81,15 @@ PROFILES: dict[str, list[str]] = {
     ],
     # Cisco wireless LAN controllers (Catalyst 9800, IOS-XE). Lightweight APs (9120,
     # 3802, 1815...) don't list clients themselves; the controller does.
+    # OpenWrt: hostapd on ubus (JSON), the same calls the OpenWrt driver uses.
+    "openwrt": [
+        "ubus call system board",
+        "ubus call system info",
+        "ubus list 'hostapd.*'",
+        "for o in $(ubus list 'hostapd.*'); do echo \"== $o\"; ubus call \"$o\" get_status;"
+        " ubus call \"$o\" get_clients; done",
+        "iwinfo",
+    ],
     "cisco_wlc": [
         "terminal length 0",
         "show version | include Cisco IOS|uptime|Model",

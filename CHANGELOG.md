@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Features
+- New access point type **OpenWrt (SSH, ubus)**, marked experimental: reads every radio's
+  hostapd over ubus (associated and authorized stations, band, signal in dBm, SSID) and
+  the AP's name, model, firmware, uptime and memory. Written from OpenWrt's source and
+  unit-tested against its JSON formats; full data from OpenWrt 21.02, clients without
+  signal and SSID on 18.06 / 19.07.
+- Drivers can be marked experimental (shown so in the type list) until confirmed on
+  hardware, so untested drivers can ship without affecting the others.
+- Collector: `--profile openwrt`.
+
 ## 0.5.0b2 — restart fix (beta)
 
 Beta: in HACS, enable "Show beta versions" for this integration to install it.

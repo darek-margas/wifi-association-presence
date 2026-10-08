@@ -96,6 +96,10 @@ class AccessPointDriver(ABC):
     already registers the AP as a device; that device's area is used instead, found by
     the MAC from device_mac()."""
 
+    EXPERIMENTAL: ClassVar[bool] = False
+    """Not yet confirmed on real hardware: shown as experimental in the type list.
+    Drivers are separate files, so an experimental one can ship in a release without
+    affecting the others; the flag is dropped once a tester confirms it."""
     SOURCE: ClassVar[str | None] = None
     """Name of the Home Assistant data source the driver reads through instead of
     talking to the AP itself (e.g. "unifi": the UniFi Network integration). The
@@ -145,4 +149,4 @@ def normalize_mac(mac: str) -> str:
 
 
 # Import the driver modules last so they can use the definitions above and register.
-from . import dlink_dap_ssh, unifi_network  # noqa: E402, F401
+from . import dlink_dap_ssh, openwrt_ssh, unifi_network  # noqa: E402, F401

@@ -149,7 +149,12 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
                     vol.Required(CONF_DRIVER): SelectSelector(
                         SelectSelectorConfig(
                             options=[
-                                SelectOptionDict(value=type_, label=cls.NAME)
+                                SelectOptionDict(
+                                    value=type_,
+                                    label=f"{cls.NAME} (experimental)"
+                                    if cls.EXPERIMENTAL
+                                    else cls.NAME,
+                                )
                                 for type_, cls in DRIVERS.items()
                             ],
                             mode=SelectSelectorMode.DROPDOWN,
