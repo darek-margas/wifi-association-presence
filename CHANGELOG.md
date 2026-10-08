@@ -1,16 +1,26 @@
 # Changelog
 
-## Unreleased
+## 0.5.0b3 — OpenWrt access points (beta)
+
+Beta: in HACS, enable "Show beta versions" for this integration to install it.
 
 ### Features
 - New access point type **OpenWrt (SSH, ubus)**, marked experimental: reads every radio's
   hostapd over ubus (associated and authorized stations, band, signal in dBm, SSID) and
-  the AP's name, model, firmware, uptime and memory. Written from OpenWrt's source and
-  unit-tested against its JSON formats; full data from OpenWrt 21.02, clients without
+  the AP's name, model, firmware, uptime and memory, with one SSH command per poll.
+  Written from OpenWrt's source and verified on OpenWrt 25.12.5 in a VM with simulated
+  radios (not yet on a physical router). Full data from OpenWrt 21.02; clients without
   signal and SSID on 18.06 / 19.07.
 - Drivers can be marked experimental (shown so in the type list) until confirmed on
   hardware, so untested drivers can ship without affecting the others.
-- Collector: `--profile openwrt`.
+
+### Collector (`scripts/collect.py`)
+- Profiles `openwrt` and `cisco_wlc` (Catalyst 9800); on Cisco, SNMP also walks the
+  Airespace and LWAPP client and AP tables.
+- SNMPv3 `--snmp-auth` (md5 to sha512) and `--snmp-priv` (des, 3des, aes, aes192, aes256,
+  aes192c / aes256c).
+- Also redacts Cisco-style and bare MACs, IPv6 addresses and Cisco serial numbers; table
+  rows are no longer cut off by the secret-setting rule.
 
 ## 0.5.0b2 — restart fix (beta)
 
