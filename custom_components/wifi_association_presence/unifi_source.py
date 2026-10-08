@@ -17,8 +17,8 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import SelectOptionDict
 
-from .ap_drivers import AccessPointError, normalize_mac
-from .ap_drivers.unifi_network import DEVICE_STATES, STATE_CONNECTED, is_access_point
+from wifi_ap_associations import AccessPointError, normalize_mac
+from wifi_ap_associations.unifi_network import DEVICE_STATES, STATE_CONNECTED, is_access_point
 from .const import DOMAIN
 
 UNIFI_DOMAIN = "unifi"

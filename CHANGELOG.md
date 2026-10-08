@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0b1 — access point drivers moved to a library (beta)
+
+### Changes
+- **The access point drivers are now the library
+  [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/)** (0.1.0), which
+  Home Assistant installs with the integration. The code is the same as in 0.5.2, so
+  nothing changes for your access points, devices or settings. It is released and tested
+  on its own, and other tools can use it.
+- The driver tests and their fixtures moved with the code; `scripts/probe.py` now needs
+  `pip install wifi-ap-associations`.
+
 ## 0.5.2 — no joined visits after a crash
 
 ### Fixes

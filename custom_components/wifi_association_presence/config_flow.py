@@ -35,7 +35,7 @@ from homeassistant.helpers.selector import (
 )
 from homeassistant.util import dt as dt_util
 
-from .ap_drivers import (
+from wifi_ap_associations import (
     DRIVERS,
     AccessPointAuthError,
     AccessPointDriver,

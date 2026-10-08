@@ -160,7 +160,9 @@ AP's existing device from that controller's integration, which already has these
 - **Independent trackers.** Trackers are keyed by MAC address only, so you can remove,
   replace or change the type of an access point without losing them.
 - **Pluggable drivers.** Each kind of AP is a small driver (three so far: D-Link, OpenWrt,
-  UniFi); new ones can be added without touching the rest.
+  UniFi); new ones can be added without touching the rest. The drivers are a separate
+  library, [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), which
+  other tools can use too.
 
 ## Screenshots
 
@@ -228,6 +230,10 @@ hand: HACS → ⋮ → **Custom repositories** → add this repository's URL wit
 
 **Manual:** copy `custom_components/wifi_association_presence` to
 `/config/custom_components/` and restart Home Assistant.
+
+Either way, Home Assistant installs the access point drivers
+([wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), from PyPI) when
+it first loads the integration, so it needs internet access at that restart.
 
 ## Setup
 
@@ -475,21 +481,30 @@ below needs an owner of that hardware to send data and test a build.
 | **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `collect.py` report (SSH or `--snmp`) |
 | **Other controllers** (Cisco WLC, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API | interest and a test setup |
 
-Also planned: moving `ap_drivers/` into a standalone Python library on PyPI. It already
-has no Home Assistant imports and now covers three vendors; as a library it can be tested
-and released on its own, used by other tools, and it is what Home Assistant expects of an
-integration that talks to devices.
+Done in 0.6.0 (beta 0.6.0b1): the access point code is now a standalone library on PyPI,
+[wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), tested and
+released on its own and usable by other tools.
 
 ## Development
 
-The access point code lives in
-[`ap_drivers/`](custom_components/wifi_association_presence/ap_drivers) and has no Home
-Assistant imports, ready to become a standalone library (see [Roadmap](#roadmap)).
+The code is in two repos:
 
-- Test an AP from the command line: `python3 scripts/probe.py --host <ip> --username admin`
+| Repo | Holds | Released as |
+|---|---|---|
+| [wifi-ap-associations](https://github.com/darek-margas/wifi-ap-associations) | The access point drivers: logging in, reading the association table and the AP's own details. No Home Assistant imports. Driver tests and AP fixtures. | PyPI package `wifi-ap-associations` (tag `v<version>` in that repo) |
+| this repo | The integration: presence rules, trackers and sensors, configuration flow, the Home Assistant data sources (UniFi), `scripts/` | HACS release (version in `manifest.json`) |
+
+The integration pins the library exactly in `manifest.json`
+(`"requirements": ["wifi-ap-associations==<version>"]`), and Home Assistant installs that
+version. To work on a driver and the integration together, install your local copy of
+the library over the pinned one: `pip install -e ../wifi-ap-associations`.
+
+- Test an AP from the command line: `pip install wifi-ap-associations`, then
+  `python3 scripts/probe.py --host <ip> --username admin`
   (`--type openwrt_ssh --username root` for OpenWrt; `--list-types` shows all)
 - Testing the OpenWrt driver without hardware: [docs/openwrt-vm-test.md](docs/openwrt-vm-test.md)
-- Tests: `python3 -m pytest tests` (needs `pytest` and `asyncssh`). The presence rules
+- Tests: `python3 -m pytest tests` (needs `pytest` and `wifi-ap-associations`; the driver
+  tests are in the library). The presence rules
   (merging AP reads, roaming, grace period, visits, retention, storage) live in
   [`presence.py`](custom_components/wifi_association_presence/presence.py) without Home
   Assistant imports and are tested directly. `tests_ha/` runs the integration inside Home
@@ -506,10 +521,23 @@ Bump `version` in `manifest.json`, add a `## <version>` section at the top of
 runs the tests and hassfest and, if they pass, creates the tag `v<version>` and a GitHub
 release with that changelog section as its notes. HACS offers the new tag as an update.
 
+A version with a pre-release suffix (`0.6.0b1`, `0.6.0rc1`) is published as a GitHub
+pre-release: HACS offers it only to users who turn on *Show beta versions* for this
+integration. Release the final version (`0.6.0`) once the beta is confirmed.
+
+When a release needs a driver change, release the library first (see its
+[README](https://github.com/darek-margas/wifi-ap-associations#development): TestPyPI by
+hand, then a tag for PyPI), then raise the pinned version in `manifest.json` here and
+release the integration. Home Assistant can only install a library version that is
+already on PyPI.
+
 ### Adding a driver
 
-Create a module in `ap_drivers/` with a class deriving from `AccessPointDriver`, decorate
-it with `@register`, and set:
+Drivers are added in the library
+([wifi-ap-associations](https://github.com/darek-margas/wifi-ap-associations),
+`src/wifi_ap_associations/`), released there, and picked up here by raising the version
+in `requirements` in `manifest.json`. Create a module with a class deriving from
+`AccessPointDriver`, decorate it with `@register`, and set:
 
 - `TYPE` (stable ID stored in configuration; never change it), `NAME` (shown in the type
   list), `MANUFACTURER`, `FIELDS` (the settings it needs) and `SIGNAL_UNIT` (`"%"` or
@@ -536,8 +564,8 @@ it with `@register`, and set:
 - for SSH consoles, an `SshPolicy` (algorithms and login method) for that model.
 
 Treat every reply as untrusted: return `None` for anything you can't parse rather than
-passing error text through as a value. Import the module at the bottom of
-`ap_drivers/__init__.py`. New setting names need labels in `strings.json` and
+passing error text through as a value. Import the module at the bottom of the library's
+`__init__.py`. New setting names need labels in this integration's `strings.json` and
 `translations/en.json`.
 
 ## License

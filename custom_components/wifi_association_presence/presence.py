@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .ap_drivers import AccessPointInfo, PollResult
+    from wifi_ap_associations import AccessPointInfo, PollResult
 
 SIGNAL_PERCENT = "%"
 SIGNAL_DBM = "dBm"

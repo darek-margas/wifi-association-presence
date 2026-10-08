@@ -14,7 +14,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .ap_drivers import DRIVERS, AccessPointDriver, AccessPointError, AccessPointInfo
+from wifi_ap_associations import DRIVERS, AccessPointDriver, AccessPointError, AccessPointInfo
 from .const import (
     CONF_CONSIDER_HOME,
     CONF_DRIVER,

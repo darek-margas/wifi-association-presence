@@ -203,7 +203,7 @@ async def test_bad_ap_mac_subentry_is_skipped_not_fatal(hass, unifi):
 
 async def test_bad_ap_mac_in_flow_reports_field_error(hass, unifi):
     from custom_components.wifi_association_presence.config_flow import _async_build_and_test
-    from custom_components.wifi_association_presence.ap_drivers.unifi_network import UnifiNetworkDriver
+    from wifi_ap_associations.unifi_network import UnifiNetworkDriver
     assert await _async_build_and_test(hass, UnifiNetworkDriver, {"ap_mac": "zz:zz"}) == ({"ap_mac": "invalid_value"}, None)
     assert await _async_build_and_test(hass, UnifiNetworkDriver, {}) == ({"ap_mac": "invalid_value"}, None)
 

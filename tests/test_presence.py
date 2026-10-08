@@ -16,7 +16,7 @@ sys.path.insert(
     str(Path(__file__).resolve().parent.parent / "custom_components" / "wifi_association_presence"),
 )
 
-from ap_drivers import AccessPointError, AccessPointInfo, AssociatedClient, PollResult  # noqa: E402
+from wifi_ap_associations import AccessPointError, AccessPointInfo, AssociatedClient, PollResult  # noqa: E402
 from presence import (  # noqa: E402
     SIGNAL_DBM,
     SIGNAL_PERCENT,

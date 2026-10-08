@@ -18,7 +18,7 @@ from homeassistant.helpers import (
 )
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.wifi_association_presence.ap_drivers import (
+from wifi_ap_associations import (
     DRIVERS,
     AccessPointDriver,
     AccessPointError,

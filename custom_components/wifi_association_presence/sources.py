@@ -17,7 +17,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import SelectOptionDict
 
-from .ap_drivers import AccessPointDriver
+from wifi_ap_associations import AccessPointDriver
 from .unifi_source import HassUnifiSource, access_point_options
 
 

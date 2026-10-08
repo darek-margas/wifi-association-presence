@@ -6,7 +6,7 @@ Usage:
     python3 scripts/probe.py --list-types
 
 The password is asked for interactively (or taken from $AP_PASSWORD).
-Requires: pip install asyncssh
+Requires: pip install wifi-ap-associations
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ INTEGRATION_DIR = (
 )
 sys.path.insert(0, str(INTEGRATION_DIR))
 
-from ap_drivers import DRIVERS, AccessPointError  # noqa: E402
+from wifi_ap_associations import DRIVERS, AccessPointError  # noqa: E402
 
 
 def main() -> int:
