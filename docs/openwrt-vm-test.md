@@ -42,6 +42,9 @@ for the older `hostapd.wlan0` naming if you like.
    - Hyper-V: `qemu-img convert -O vhdx openwrt-…-combined.img openwrt.vhdx`
      (Generation 1 VM, Secure Boot off)
    - Proxmox / QEMU: use the `.img` as is.
+   - **QNAP Virtualization Station** (KVM): copy the `.img` to a shared folder and create a
+     VM with it as an **existing disk image** (Linux / Other, BIOS firmware, disk VirtIO or
+     SATA, network VirtIO or e1000 on a virtual switch bridged to your LAN). No conversion.
 3. Give the VM one network adapter **bridged** to your LAN, 256 MB RAM, 1 CPU.
 
 ## 2. First boot (VM console)
