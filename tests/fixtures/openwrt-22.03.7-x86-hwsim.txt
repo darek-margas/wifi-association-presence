@@ -1,0 +1,139 @@
+@@wap@@ board
+{
+	"kernel": "5.10.221",
+	"hostname": "OpenWrt",
+	"system": "Intel(R) Xeon(R) E-2224 CPU @ 3.40GHz",
+	"model": "VMware, Inc. VMware Virtual Platform",
+	"board_name": "vmware-inc-vmware-virtual-platform",
+	"rootfs_type": "ext4",
+	"release": {
+		"distribution": "OpenWrt",
+		"version": "22.03.7",
+		"revision": "r20341-591b7e93d3",
+		"target": "x86/64",
+		"description": "OpenWrt 22.03.7 r20341-591b7e93d3"
+	}
+}
+@@wap@@ info
+{
+	"localtime": 1791461522,
+	"uptime": 91,
+	"load": [
+		8832,
+		2048,
+		640
+	],
+	"memory": {
+		"total": 375209984,
+		"free": 329166848,
+		"shared": 77824,
+		"buffered": 966656,
+		"available": 311484416,
+		"cached": 12967936
+	},
+	"root": {
+		"total": 104788,
+		"free": 83796,
+		"used": 20992,
+		"avail": 81668
+	},
+	"tmp": {
+		"total": 183208,
+		"free": 183132,
+		"used": 76,
+		"avail": 183132
+	},
+	"swap": {
+		"total": 0,
+		"free": 0
+	}
+}
+@@wap@@ status hostapd.wlan0
+{
+	"status": "ENABLED",
+	"bssid": "02:00:00:00:00:00",
+	"ssid": "TestAP",
+	"freq": 2437,
+	"channel": 6,
+	"op_class": 81,
+	"beacon_interval": 100,
+	"phy": "wlan0",
+	"rrm": {
+		"neighbor_report_tx": 0
+	},
+	"wnm": {
+		"bss_transition_query_rx": 0,
+		"bss_transition_request_tx": 0,
+		"bss_transition_response_rx": 0
+	},
+	"airtime": {
+		"time": 0,
+		"time_busy": 0,
+		"utilization": 0
+	},
+	"dfs": {
+		"cac_seconds": 0,
+		"cac_active": false,
+		"cac_seconds_left": 0
+	}
+}
+@@wap@@ clients hostapd.wlan0
+{
+	"freq": 2437,
+	"clients": {
+		"02:00:00:00:01:00": {
+			"auth": true,
+			"assoc": true,
+			"authorized": true,
+			"preauth": false,
+			"wds": false,
+			"wmm": true,
+			"ht": true,
+			"vht": false,
+			"he": false,
+			"wps": false,
+			"mfp": false,
+			"rrm": [
+				0,
+				0,
+				0,
+				0,
+				0
+			],
+			"extended_capabilities": [
+				4,
+				0,
+				64,
+				0,
+				0,
+				0,
+				64,
+				64,
+				0,
+				0,
+				32
+			],
+			"aid": 1,
+			"bytes": {
+				"rx": 1460,
+				"tx": 513
+			},
+			"airtime": {
+				"rx": 0,
+				"tx": 0
+			},
+			"packets": {
+				"rx": 13,
+				"tx": 5
+			},
+			"rate": {
+				"rx": 13000,
+				"tx": 6000
+			},
+			"signal": -14,
+			"capabilities": {
+				
+			}
+		}
+	}
+}

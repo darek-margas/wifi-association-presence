@@ -4,6 +4,10 @@ No Wi-Fi hardware is needed: OpenWrt's `mac80211_hwsim` module creates simulated
 One radio runs an access point, a second one connects to it as a client, and hostapd
 then lists that client on ubus exactly as on a real AP.
 
+Also tested on **22.03.7** (2026-10-08): `opkg` and `wpad-basic-wolfssl` instead of `apk`
+and `wpad-basic-mbedtls`, interfaces named `wlan0` (AP) and `wlan1` (client); the steps
+below work unchanged otherwise.
+
 Tested setup: OpenWrt **25.12.5** x86-64, the current stable release, in VMware (2026-10-08):
 the driver read the simulated client with SSID, band and signal, and in Home Assistant the
 AP device, the tracker, its area and the departure / arrival times all worked. Its output is kept as a test fixture
@@ -80,7 +84,8 @@ installed.
 ```sh
 apk update
 apk add kmod-mac80211-hwsim wpad-basic-mbedtls iw
-# (24.10 and older: opkg update && opkg install kmod-mac80211-hwsim wpad-basic-mbedtls iw)
+# (24.10 / 23.05: opkg update && opkg install kmod-mac80211-hwsim wpad-basic-mbedtls iw)
+# (22.03 and older: opkg update && opkg install kmod-mac80211-hwsim wpad-basic-wolfssl iw)
 reboot
 ```
 

@@ -224,7 +224,7 @@ Leaving an access point's password empty keeps the current one.
 |---|---|---|
 | D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI | SSH: `config wlan 0/1` + `get clientinfo` |
 | UniFi (via the UniFi Network integration) | Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
-| OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant, in a VM with simulated radios; reports from physical routers welcome | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
+| OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
 
 ### Two ways to read an access point
 
@@ -278,8 +278,9 @@ each AP keeps its own device and area, so room-level presence works the same.
   `hostapd.phy0-ap0` from 23.05).
 - Device details: host name, model, firmware, hardware, uptime and memory (OpenWrt has no
   location setting and no CPU percentage, so those sensors are not created).
-- Verified on OpenWrt 25.12.5: clients with SSID, band and signal, device details,
-  areas, and departure / arrival in Home Assistant. Tested in a VM with simulated radios
+- Verified on OpenWrt 25.12.5 (clients with SSID, band and signal, device details, areas,
+  departure / arrival in Home Assistant) and 22.03.7 (same driver results with the older
+  `hostapd.wlan0` naming and Dropbear 2022.82). Tested in VMs with simulated radios
   ([how](docs/openwrt-vm-test.md)); the radios are the only simulated part.
 - Please report how it works on your router, especially older releases (see
   [Help add your access point](#help-add-your-access-point); `collect.py --profile openwrt`).

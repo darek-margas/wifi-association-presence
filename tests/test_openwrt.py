@@ -182,14 +182,22 @@ def test_poll_uses_one_command() -> None:
     assert len(result.clients) == 2
 
 
-def test_real_openwrt_25_12_5_output() -> None:
-    """Output of the driver's own command on OpenWrt 25.12.5 (x86 VM, simulated radios)."""
-    fixture = Path(__file__).parent / "fixtures" / "openwrt-25.12.5-x86-hwsim.txt"
-    result = parse_poll(fixture.read_text(encoding="utf-8"))
+@pytest.mark.parametrize(
+    ("fixture", "firmware"),
+    [
+        # hostapd.phy0-ap0 naming (23.05 and later)
+        ("openwrt-25.12.5-x86-hwsim.txt", "OpenWrt 25.12.5 r33051-f5dae5ece4"),
+        # hostapd.wlan0 naming (22.03 and earlier)
+        ("openwrt-22.03.7-x86-hwsim.txt", "OpenWrt 22.03.7 r20341-591b7e93d3"),
+    ],
+)
+def test_real_openwrt_output(fixture: str, firmware: str) -> None:
+    """Output of the driver's own command on OpenWrt (x86 VMs, simulated radios)."""
+    result = parse_poll((Path(__file__).parent / "fixtures" / fixture).read_text(encoding="utf-8"))
     assert [(c.mac, c.ssid, c.band, c.signal) for c in result.clients] == [
         ("02:00:00:00:01:00", "TestAP", "2.4GHz", -14)
     ]
-    assert result.info.firmware == "OpenWrt 25.12.5 r33051-f5dae5ece4"
+    assert result.info.firmware == firmware
     assert result.info.name == "OpenWrt"
     assert result.info.uptime_seconds is not None and result.info.memory_percent is not None
 
