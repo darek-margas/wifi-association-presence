@@ -229,6 +229,22 @@ Leaving an access point's password empty keeps the current one.
 | D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI | SSH: `config wlan 0/1` + `get clientinfo` |
 | UniFi (via the UniFi Network integration) | Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
 
+### Two ways to read an access point
+
+Each type of access point is a driver, and there are two kinds:
+
+- **Directly from the AP** (D-Link today; SSH or SNMP to the AP itself). Works without any
+  controller, and with only the APs you are allowed to log in to.
+- **Through a controller** (UniFi today, via Home Assistant's UniFi Network integration).
+  No login per AP and one request for all of them, but you need access to the controller.
+
+Both can exist for the same vendor and can be mixed in one installation, because every
+access point is its own entry and trackers don't care which driver saw a device. That
+matters outside a simple home network: in an office or a shared building you may be
+given access to the APs in your area but not to the controller, or your area may be
+covered by APs of two different controllers of which you only need a few. Either way,
+each AP keeps its own device and area, so room-level presence works the same.
+
 ### UniFi setup notes
 
 - Set up Home Assistant's **UniFi Network** integration first. No credentials are entered
@@ -367,17 +383,19 @@ If your AP lists clients only in its web UI, say so in the issue.
 
 ## Roadmap
 
-The principle: read each access point **directly**, one entry per AP. That keeps the
-AP's position (its area) and doesn't depend on a controller's API, which not every
-vendor offers or keeps stable. Every item below needs an owner of that hardware to send
-a collector report and test a build.
+One entry per access point, whichever way it is read (see
+[Two ways to read an access point](#two-ways-to-read-an-access-point)): where a vendor
+offers both, a direct driver and a controller driver can exist side by side. Every item
+below needs an owner of that hardware to send data and test a build.
 
 | Next | How | What's needed |
 |---|---|---|
 | **UniFi APs without a controller in HA** | SSH to each AP, `mca-dump` (JSON with each radio's station table and dBm signal) | `collect.py --profile unifi` report |
 | **SNMP drivers** | One SNMP base driver plus a small table map per vendor (MikroTik registration table first; Cisco, Aruba, Ruckus as reports arrive) | `collect.py --snmp` report |
 | **OpenWrt** | SSH, `iw dev <radio> station dump` | `collect.py --command "iw dev"` and a station dump |
-| **Controller-only systems** (Omada, Cisco WLC, Aruba Instant) | Only where the APs can't be read directly: one entry that reports several APs, each still its own device with its own area | interest and a test setup |
+| **TP-Link Omada (controller)** | Like UniFi: through Home Assistant's [TP-Link Omada](https://www.home-assistant.io/integrations/tplink_omada/) integration, no extra login | that integration's **Download diagnostics** file (it lists the connected clients with the AP they are on, already anonymised) |
+| **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `collect.py` report (SSH or `--snmp`) |
+| **Other controllers** (Cisco WLC, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API | interest and a test setup |
 
 Also planned: Home Assistant-level tests, and splitting `ap_drivers/` into a standalone
 library once there is more than one vendor.
