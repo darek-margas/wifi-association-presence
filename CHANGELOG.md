@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — UniFi confirmed
+
+### Changes
+- **UniFi is no longer experimental.** David Coulson confirmed the UniFi access point
+  type on his UniFi Network controller, so it is listed without "(experimental)" in the
+  type list. No other change: existing UniFi access points keep working as they are.
+
 ## 0.5.0 — OpenWrt and UniFi access points
 
 Everything from the 0.5.0 betas (b1 to b4, below), for those upgrading from 0.4.2.
