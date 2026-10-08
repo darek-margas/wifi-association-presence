@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
+    DOMAIN as SENSOR_DOMAIN,
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
@@ -16,11 +17,15 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import PERCENTAGE, EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
-from homeassistant.helpers import area_registry as ar, device_registry as dr
+from homeassistant.helpers import (
+    area_registry as ar,
+    device_registry as dr,
+    entity_registry as er,
+)
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_MAC, SUBENTRY_TRACKED_DEVICE
+from .const import CONF_MAC, DOMAIN, SUBENTRY_TRACKED_DEVICE
 from .coordinator import (
     AccessPointState,
     AssociationCoordinator,
@@ -38,6 +43,9 @@ class AccessPointSensorDescription(SensorEntityDescription):
     """An access point sensor and how to read it from the AP's state."""
 
     value_fn: Callable[[AccessPointState], StateValue]
+    # The AccessPointInfo field the value comes from, if any: the sensor is only created
+    # for drivers that report it (AccessPointDriver.REPORTS).
+    info_field: str | None = None
 
 
 ACCESS_POINT_SENSORS = (
@@ -64,6 +72,7 @@ ACCESS_POINT_SENSORS = (
     AccessPointSensorDescription(
         key="cpu",
         translation_key="cpu",
+        info_field="cpu_percent",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -73,6 +82,7 @@ ACCESS_POINT_SENSORS = (
     AccessPointSensorDescription(
         key="memory",
         translation_key="memory",
+        info_field="memory_percent",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -82,6 +92,7 @@ ACCESS_POINT_SENSORS = (
     AccessPointSensorDescription(
         key="last_boot",
         translation_key="last_boot",
+        info_field="uptime_seconds",
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda s: s.last_boot,
@@ -89,6 +100,7 @@ ACCESS_POINT_SENSORS = (
     AccessPointSensorDescription(
         key="location",
         translation_key="location",
+        info_field="location",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda s: s.info.location if s.info else None,
     ),
@@ -151,11 +163,24 @@ async def async_setup_entry(
 ) -> None:
     """Add sensors for each access point and each tracked device."""
     coordinator = entry.runtime_data
+    registry = er.async_get(hass)
     for ap in coordinator.access_points:
         if not ap.driver.OWN_DEVICE:
             continue
+        reported = [
+            d
+            for d in ACCESS_POINT_SENSORS
+            if d.info_field is None or d.info_field in ap.driver.REPORTS
+        ]
+        # Sensors created by earlier versions for details this driver never reports.
+        for description in ACCESS_POINT_SENSORS:
+            if description in reported:
+                continue
+            unique_id = f"{ap.subentry_id}_{description.key}"
+            if entity_id := registry.async_get_entity_id(SENSOR_DOMAIN, DOMAIN, unique_id):
+                registry.async_remove(entity_id)
         async_add_entities(
-            [AccessPointSensor(coordinator, ap, d) for d in ACCESS_POINT_SENSORS],
+            [AccessPointSensor(coordinator, ap, d) for d in reported],
             config_subentry_id=ap.subentry_id,
         )
     for subentry in entry.get_subentries_of_type(SUBENTRY_TRACKED_DEVICE):

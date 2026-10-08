@@ -191,3 +191,16 @@ def test_real_openwrt_25_12_5_output() -> None:
     assert result.info.firmware == "OpenWrt 25.12.5 r33051-f5dae5ece4"
     assert result.info.name == "OpenWrt"
     assert result.info.uptime_seconds is not None and result.info.memory_percent is not None
+
+
+def test_every_driver_reports_only_real_info_fields() -> None:
+    from dataclasses import fields
+
+    from ap_drivers import AccessPointInfo
+
+    known = {f.name for f in fields(AccessPointInfo)}
+    for type_, cls in DRIVERS.items():
+        assert cls.REPORTS <= known, (type_, cls.REPORTS - known)
+    assert "location" not in DRIVERS["openwrt_ssh"].REPORTS
+    assert "cpu_percent" not in DRIVERS["openwrt_ssh"].REPORTS
+    assert "location" in DRIVERS["dlink_dap_ssh"].REPORTS

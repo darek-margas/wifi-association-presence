@@ -151,6 +151,11 @@ class DlinkDapSsh(AccessPointDriver):
     NAME = "D-Link DAP (SSH console)"
     MANUFACTURER = "D-Link"
     SIGNAL_UNIT = "%"
+    # No model over the CLI (it is entered in the access point's settings instead).
+    REPORTS = frozenset(
+        {"name", "location", "firmware", "hardware", "uptime_seconds",
+         "cpu_percent", "memory_percent"}
+    )
     SSH_POLICY = DAP_SSH_POLICY
     FIELDS = (
         DriverField("host"),

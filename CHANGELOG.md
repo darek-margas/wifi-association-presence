@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changes
+- Access point sensors are only created for details the driver can report: OpenWrt APs no
+  longer get a Location sensor (OpenWrt has no such setting) or a CPU sensor (it reports
+  load averages, not a percentage). Such sensors left by earlier versions are removed.
+  Drivers declare this in `REPORTS`; D-Link is unchanged.
+
 ## 0.5.0b3 — OpenWrt access points (beta)
 
 Beta: in HACS, enable "Show beta versions" for this integration to install it.

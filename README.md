@@ -471,6 +471,8 @@ it with `@register`, and set:
   [`sources.py`](custom_components/wifi_association_presence/sources.py) (how to create
   it, the options, the "nothing left to add" message); the driver module itself stays free
   of Home Assistant imports;
+- `REPORTS`: the `AccessPointInfo` fields the driver can fill (default all); sensors for
+  the others are not created, so an AP doesn't show sensors that are always unknown;
 - for SSH consoles, an `SshPolicy` (algorithms and login method) for that model.
 
 Treat every reply as untrusted: return `None` for anything you can't parse rather than

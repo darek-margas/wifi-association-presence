@@ -218,6 +218,10 @@ class OpenWrtSsh(AccessPointDriver):
     MANUFACTURER = "OpenWrt"
     SIGNAL_UNIT = "dBm"
     EXPERIMENTAL = True
+    # OpenWrt has no location setting, and reports load averages rather than CPU %.
+    REPORTS = frozenset(
+        {"name", "model", "firmware", "hardware", "uptime_seconds", "memory_percent"}
+    )
     SSH_POLICY = OPENWRT_SSH_POLICY
     FIELDS = (
         DriverField("host"),

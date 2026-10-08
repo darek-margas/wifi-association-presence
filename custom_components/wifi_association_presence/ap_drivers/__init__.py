@@ -96,6 +96,12 @@ class AccessPointDriver(ABC):
     already registers the AP as a device; that device's area is used instead, found by
     the MAC from device_mac()."""
 
+    REPORTS: ClassVar[frozenset[str]] = frozenset(
+        {"name", "location", "model", "firmware", "hardware",
+         "uptime_seconds", "cpu_percent", "memory_percent"}
+    )
+    """AccessPointInfo fields this driver can report. Sensors for the others (e.g. a
+    location an AP has no setting for) are not created. Defaults to all of them."""
     EXPERIMENTAL: ClassVar[bool] = False
     """Not yet confirmed on real hardware: shown as experimental in the type list.
     Drivers are separate files, so an experimental one can ship in a release without

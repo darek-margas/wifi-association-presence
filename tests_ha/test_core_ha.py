@@ -110,6 +110,36 @@ async def test_setup_tracker_and_ap_sensors(hass: HomeAssistant) -> None:
         assert hass.states.get(f"sensor.hallway_ap_{key}") is None
 
 
+async def test_only_reported_details_get_sensors(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A driver without location or CPU (like OpenWrt): no sensors for them, and ones
+    # left over from earlier versions are removed.
+    monkeypatch.setattr(
+        FakeDriver, "REPORTS", frozenset({"name", "uptime_seconds", "memory_percent"})
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Wi-Fi", data={}, subentries_data=[ap("ap1"), PHONE_SUB]
+    )
+    entry.add_to_hass(hass)
+    ap_id = next(
+        s.subentry_id for s in entry.subentries.values() if s.subentry_type == "access_point"
+    )
+    registry = er.async_get(hass)
+    stale = registry.async_get_or_create(
+        "sensor", DOMAIN, f"{ap_id}_location", config_entry=entry
+    )
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert registry.async_get(stale.entity_id) is None
+    keys = {
+        e.unique_id.removeprefix(f"{ap_id}_")
+        for e in registry.entities.values()
+        if e.config_entry_id == entry.entry_id and e.unique_id.startswith(ap_id)
+    }
+    assert keys == {"clients_2_4ghz", "clients_5ghz", "clients_total", "memory", "last_boot"}
+
+
 async def test_stop_saves_and_restart_keeps_visit(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory, hass_storage: dict[str, Any]
 ) -> None:
