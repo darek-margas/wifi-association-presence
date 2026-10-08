@@ -2,23 +2,19 @@
 
 # Wi-Fi Association Presence
 
-**Who is home, and near which access point, straight from your Wi-Fi access points.**
+**Home Assistant presence from your Wi-Fi access points: who is home, and in which room.**
 
-A Home Assistant integration that reads the **association tables** of your access points:
-the list of devices that are authenticated and joined to each radio right now. Each phone,
-tablet or laptop you track becomes a device in Home Assistant with:
+- **Home / away** for each phone, tablet or laptop, steady while the phone sleeps.
+- **Which room**: the area of the access point it is connected to, and its signal.
+- **When it arrived or left**, to the minute, for automations.
+- **Access points as devices**: connected clients, firmware, CPU, memory, uptime.
+- **Nothing to install on the phones.** It reads the list of devices joined to each
+  access point, from the access point itself or from its controller.
 
-- a **presence tracker** (`home` / `not_home`) that holds steady while the phone sleeps,
-- the **access point** it is connected to and its **signal**,
-- the **area** it is in, taken from the area you assigned to that access point,
-- **when it arrived or when it left** (to within a minute), ready for automations.
-
-Each access point becomes a device too, with client counts, firmware, CPU, memory and uptime.
-
-> **Status:** early development (0.5.x). Supports **D-Link DAP** access points (tested
-> with DAP-2610 and DAP-3662) and **UniFi** access points through Home Assistant's
-> UniFi Network integration, on Home Assistant 2026.9+. More vendors can be added through
-> pluggable drivers; see [Help add your access point](#help-add-your-access-point).
+[Supported access points](#supported-access-points) ·
+[Install](#installation) ·
+[Help add yours](#help-add-your-access-point) ·
+Early development, Home Assistant 2026.9+
 
 ## Why association, not ARP or MAC tables
 
