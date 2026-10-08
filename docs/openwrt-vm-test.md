@@ -4,14 +4,15 @@ No Wi-Fi hardware is needed: OpenWrt's `mac80211_hwsim` module creates simulated
 One radio runs an access point, a second one connects to it as a client, and hostapd
 then lists that client on ubus exactly as on a real AP.
 
-Tested setup to aim for: OpenWrt **24.10.8** x86-64 (current 24.10 release; uses
-`opkg`). **25.12** works the same way with `apk` instead of `opkg`. Repeat with **22.03**
-for the older `hostapd.wlan0` naming if you like.
+Tested setup to aim for: OpenWrt **25.12.5** x86-64, the current stable release (its
+hostapd ubus output has every field the driver reads). The previous series, **24.10**,
+works the same way with `opkg` instead of `apk`. Repeat with **22.03** for the older
+`hostapd.wlan0` naming if you like.
 
 ## 1. The VM
 
-1. Download the x86-64 image from <https://downloads.openwrt.org/releases/24.10.8/targets/x86/64/>:
-   `openwrt-24.10.8-x86-64-generic-ext4-combined.img.gz` (about 13 MB; the BIOS image,
+1. Download the x86-64 image from <https://downloads.openwrt.org/releases/25.12.5/targets/x86/64/>:
+   `openwrt-25.12.5-x86-64-generic-ext4-combined.img.gz` (about 13 MB; the BIOS image,
    simpler than `-efi`), and unpack it (7-Zip, or `gunzip`; a "trailing garbage" warning
    is normal).
 2. Use it in your hypervisor:
@@ -24,7 +25,7 @@ for the older `hostapd.wlan0` naming if you like.
      parentCID=ffffffff
      createType="monolithicFlat"
 
-     RW <SECTORS> FLAT "openwrt-24.10.8-x86-64-generic-ext4-combined.img" 0
+     RW <SECTORS> FLAT "openwrt-25.12.5-x86-64-generic-ext4-combined.img" 0
 
      ddb.adapterType = "ide"
      ddb.geometry.heads = "16"
@@ -62,8 +63,9 @@ router.
 ## 3. Simulated radios, an AP and a client
 
 ```sh
-opkg update
-opkg install kmod-mac80211-hwsim wpad-openssl iw
+apk update
+apk add kmod-mac80211-hwsim wpad-basic-mbedtls iw
+# (24.10 and older: opkg update && opkg install kmod-mac80211-hwsim wpad-basic-mbedtls iw)
 wifi config                              # writes /etc/config/wireless for the 2 hwsim radios
 
 # radio0: access point "TestAP" (WPA2)
@@ -92,8 +94,6 @@ After a few seconds, check on the VM:
 ubus list 'hostapd.*'                    # e.g. hostapd.phy0-ap0
 ubus call hostapd.phy0-ap0 get_clients   # one client, "authorized": true
 ```
-
-(On OpenWrt 25.x and later, `opkg` is replaced by `apk add …`.)
 
 ## 4. The driver against the VM
 
