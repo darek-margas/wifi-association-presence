@@ -4,6 +4,8 @@
 
 - The diagnostics now also record the SSH port and the extra commands used for the
   access point report (the username and password are never recorded).
+- The "Report collected" message links to the integration page, says where Download
+  diagnostics is (now and later), and what else the file contains.
 
 ## 0.6.0b4 — "Collect access point report" button (beta)
 

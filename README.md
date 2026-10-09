@@ -418,7 +418,9 @@ and attach it to a
    The password is used for this login only and not stored.
 3. Wait for *Report collected* (up to a minute or two), then open the menu (⋮) of the
    *Wi-Fi association presence* hub → **Download diagnostics**. The report is in `access_point_report`.
-4. Read it (see below), then attach the file to the issue.
+4. Read it (see below), then attach the file to the issue. Besides the report, the file
+   holds Home Assistant's usual diagnostics details: your Home Assistant version and the
+   list of custom integrations you have installed.
 
 The report stays in memory until Home Assistant restarts or you collect another one.
 For SNMP, or from a computer instead, use the command-line collector below.
