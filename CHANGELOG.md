@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0b3 — Wi-Fi coverage sensors and dashboard (beta)
+
+- **New per access point** (D-Link, OpenWrt, MikroTik):
+  - **Average client signal** (0-100 %).
+  - **Weak clients** (below 50 %, about -75 dBm).
+- **New per tracked device:**
+  - **Roams today**: moved to another access point.
+  - **Short drops today**: vanished and came back within the grace period, which
+    presence hides.
+  - **Late roams today**: switched access point and gained 15 dB or more.
+- The integration counts these from the polls it already makes. The counts are kept in
+  memory and start again at midnight and when Home Assistant restarts. Clients of an
+  access point that couldn't be read don't count as dropped. A device away longer than
+  the grace period has left, so that isn't a drop.
+- New [coverage dashboard](docs/coverage-dashboard.md) guide. It explains each sensor and
+  has a ready-made dashboard: plain cards, or auto-entities for all devices at once.
+- Uses wifi-ap-associations 0.5.1, unchanged.
+
 ## 0.7.0b2 — MikroTik: only authorized clients count (beta)
 
 - MikroTik access points: a client still authenticating doesn't count as connected yet.

@@ -9,6 +9,9 @@
 - **Which room.** Put each access point in a room (an *area*), and every device shows the
   room it is connected in: the living room, the studio, the garden.
 - **When.** Arrival and departure times, to the minute, for your automations.
+- **How good your Wi-Fi is** *(beta)*. Shows which rooms have a weak signal, which devices
+  keep dropping off, and which ones hang on to a far access point.
+  [Coverage dashboard](docs/coverage-dashboard.md).
 - **Nothing to install on the phones**, and no app or account: it asks your access points
   which devices are connected to them.
 
@@ -177,6 +180,20 @@ its web UI, the details it reports about itself (model, firmware, hardware) and 
 
 An access point read through a controller (UniFi) gets no device of its own: it uses the
 AP's existing device from that controller's integration, which already has these details.
+
+### Wi-Fi coverage (beta)
+The integration counts these from the polls it already makes. You don't need a floor plan
+or an app. The [coverage dashboard](docs/coverage-dashboard.md) explains each sensor and
+has a dashboard to paste in.
+- **Per access point:** **Average client signal** (0-100 %) and **Weak clients** (how
+  many are below 50 %, about -75 dBm). These come only for access points with their own
+  device (not UniFi).
+- **Per tracked device:** **Roams today**, **Short drops today** and **Late roams today**.
+  A short drop means the device vanished and came back within the grace period, which
+  presence hides. A late roam means the device switched AP and gained 15 dB or more,
+  because it had stayed too long on a far AP.
+- The counts are kept in memory. They start again at midnight and when Home Assistant
+  restarts.
 
 ### Easy and robust
 - **Set up entirely in the UI.** Access points and tracked devices are entries of the
@@ -395,6 +412,8 @@ each AP keeps its own device and area, so room-level presence works the same.
   or host names, so Home Assistant features that rely on a tracker's IP aren't available.
 - Signal quality is an approximation: D-Link reports a percentage, and dBm values are
   mapped linearly (-100 dBm = 0 %, -50 dBm = 100 %).
+- **Coverage is what each access point hears** from the device it serves, not how the
+  other APs hear it. So it shows where clients struggle, but it can't draw a map.
 
 **Presence**
 - **Wi-Fi only.** Wired devices, and devices on networks served by other equipment, are

@@ -33,6 +33,7 @@ from .coordinator import (
     Sighting,
     WifiAssociationConfigEntry,
 )
+from .coverage_stats import AccessPointCoverage, DeviceCounts
 from .entity import access_point_device_info, tracked_device_info
 
 type StateValue = str | int | datetime | None
@@ -43,6 +44,8 @@ class AccessPointSensorDescription(SensorEntityDescription):
     """An access point sensor and how to read it from the AP's state."""
 
     value_fn: Callable[[AccessPointState], StateValue]
+    # Coverage sensors read the latest poll's client signal instead (value_fn unused).
+    coverage_fn: Callable[[AccessPointCoverage | None], StateValue] | None = None
     # The AccessPointInfo field the value comes from, if any: the sensor is only created
     # for drivers that report it (AccessPointDriver.REPORTS).
     info_field: str | None = None
@@ -104,8 +107,22 @@ ACCESS_POINT_SENSORS = (
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda s: s.info.location if s.info else None,
     ),
+    AccessPointSensorDescription(
+        key="average_client_signal",
+        translation_key="average_client_signal",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda _: None,
+        coverage_fn=lambda c: c.average_quality if c else None,
+    ),
+    AccessPointSensorDescription(
+        key="weak_clients",
+        translation_key="weak_clients",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda _: None,
+        coverage_fn=lambda c: c.weak_clients if c else 0,
+    ),
 )
-
 
 
 def _area_name(coordinator: AssociationCoordinator, sighting: Sighting) -> str | None:
@@ -129,6 +146,8 @@ class TrackedSensorDescription(SensorEntityDescription):
     follows_areas: bool = False
     # Attributes; keep to values that change together with the state (recorder rows).
     attrs_fn: Callable[[AssociationCoordinator, Sighting], dict[str, Any]] | None = None
+    # Coverage counts of the day: shown while away too (value_fn unused).
+    counts_fn: Callable[[DeviceCounts], int] | None = None
 
 
 TRACKED_SENSORS = (
@@ -152,6 +171,28 @@ TRACKED_SENSORS = (
         follows_areas=True,
         value_fn=_area_name,
         attrs_fn=_area_id,
+    ),
+    # Coverage, counted per day (back to 0 at midnight; a decrease is a reset).
+    TrackedSensorDescription(
+        key="roams_today",
+        translation_key="roams_today",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda _, __: None,
+        counts_fn=lambda c: c.roams,
+    ),
+    TrackedSensorDescription(
+        key="drops_today",
+        translation_key="drops_today",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda _, __: None,
+        counts_fn=lambda c: c.drops,
+    ),
+    TrackedSensorDescription(
+        key="late_roams_today",
+        translation_key="late_roams_today",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda _, __: None,
+        counts_fn=lambda c: c.late_roams,
     ),
 )
 
@@ -222,6 +263,8 @@ class AccessPointSensor(CoordinatorEntity[AssociationCoordinator], SensorEntity)
     @property
     def native_value(self) -> StateValue:
         """Current value."""
+        if (coverage_fn := self.entity_description.coverage_fn) is not None:
+            return coverage_fn(self.coordinator.access_point_coverage.get(self._subentry_id))
         state = self._ap_state
         return self.entity_description.value_fn(state) if state else None
 
@@ -247,7 +290,13 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
 
     @property
     def native_value(self) -> StateValue:
-        """Value while the device is home (within the grace period), else unknown."""
+        """Value while the device is home (within the grace period), else unknown.
+
+        Coverage counts of the day are shown whether the device is home or not.
+        """
+        if (counts_fn := self.entity_description.counts_fn) is not None:
+            counts = self.coordinator.coverage.counts.get(self._mac)
+            return counts_fn(counts) if counts else 0
         sighting = self.coordinator.current_sighting(self._mac)
         return self.entity_description.value_fn(self.coordinator, sighting) if sighting else None
 

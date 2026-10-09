@@ -63,6 +63,11 @@
       "memory": { "name": "Memory" },
       "last_boot": { "name": "Last boot" },
       "location": { "name": "Location" },
+      "average_client_signal": { "name": "Average client signal" },
+      "weak_clients": { "name": "Weak clients" },
+      "roams_today": { "name": "Roams today" },
+      "drops_today": { "name": "Short drops today" },
+      "late_roams_today": { "name": "Late roams today" },
       "access_point": { "name": "Access point" },
       "signal": { "name": "Signal" },
       "area": { "name": "Area" }

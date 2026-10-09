@@ -25,6 +25,7 @@ from .const import (
     SCAN_INTERVAL,
     SUBENTRY_ACCESS_POINT,
 )
+from .coverage_stats import AccessPointCoverage, CoverageTracker, access_point_coverage
 from .presence import (
     AccessPointRead,
     AccessPointState,
@@ -160,6 +161,9 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             MIN_CONSIDER_HOME,
         )
         self._visit_gap = max(self.consider_home, MIN_VISIT_GAP)
+        # Coverage sensors: per-device counts of the day, per-AP client signal.
+        self.coverage = CoverageTracker()
+        self.access_point_coverage: dict[str, AccessPointCoverage] = {}
 
     @property
     def has_access_points(self) -> bool:
@@ -224,6 +228,14 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             LOGGER.debug("No access point could be read; within the grace period")
             return PresenceData(dict(self._sightings), dict(self._ap_states))
         self._last_success = now
+        self.coverage.update(
+            merged.sightings,
+            merged.failed,
+            now,
+            dt_util.as_local(now).date(),
+            self.consider_home,
+        )
+        self.access_point_coverage = access_point_coverage(merged.sightings)
 
         visit_gap = self._visit_gap
         if self._restored_at is not None:

@@ -18,6 +18,11 @@
       "location": { "default": "mdi:map-marker" },
       "access_point": { "default": "mdi:access-point" },
       "area": { "default": "mdi:home-map-marker" },
+      "average_client_signal": { "default": "mdi:wifi-check" },
+      "weak_clients": { "default": "mdi:wifi-alert" },
+      "roams_today": { "default": "mdi:swap-horizontal" },
+      "drops_today": { "default": "mdi:wifi-off" },
+      "late_roams_today": { "default": "mdi:timer-sand" },
       "signal": {
         "default": "mdi:wifi-strength-4",
         "range": {
