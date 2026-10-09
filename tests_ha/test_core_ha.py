@@ -104,8 +104,10 @@ async def test_setup_tracker_and_ap_sensors(hass: HomeAssistant) -> None:
     assert hass.states.get("sensor.hallway_ap_clients_5_ghz").state == "1"
     # Coverage: counted from the polls, nothing happened yet.
     assert hass.states.get("sensor.hallway_ap_weak_clients") is not None
-    for key in ("roams_today", "drops_today", "late_roams_today"):
-        assert hass.states.get(f"sensor.phone_{key}").state == "0"
+    for key in ("roams_today", "short_drops_today", "late_roams_today"):
+        state = hass.states.get(f"sensor.phone_{key}")
+        assert state is not None
+        assert state.state == "0"
     # CPU and memory exist but are opt-in: a recorder row per AP per minute otherwise
     registry = er.async_get(hass)
     for key in ("cpu", "memory"):
