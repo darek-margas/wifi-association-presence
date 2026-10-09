@@ -535,6 +535,11 @@ same time: CI here installs the requirements from `manifest.json` and waits up t
 (`.github/scripts/install-requirements.sh`), so the integration is never released
 against a library version that isn't there.
 
+After such a release, wait about 10 minutes before updating a Home Assistant that already
+had the integration. Its installer keeps PyPI's version list cached for up to 10 minutes;
+right after a library release it then logs `Unable to install package
+wifi-ap-associations==<version>` and keeps the old library. Another restart installs it.
+
 ### Adding a driver
 
 Drivers are added in the library
