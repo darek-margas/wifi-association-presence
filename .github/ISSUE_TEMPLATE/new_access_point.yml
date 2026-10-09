@@ -6,9 +6,15 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping! The most useful thing is a report from `wifi-ap-collect`:
-        it logs into your access point, runs read-only commands only, and redacts MAC
-        and IP addresses and secret-looking settings.
+        Thanks for helping! The most useful thing is a report collected from the access
+        point: it logs in, runs read-only commands only, and redacts MAC and IP addresses
+        and secret-looking settings.
+
+        **In Home Assistant (SSH):** Wi-Fi Association Presence -> Configure -> **Collect a
+        report from an access point**, then on the integration page (⋮) -> **Download
+        diagnostics** and attach that file below.
+
+        **From a computer:**
 
         ```bash
         pip install wifi-ap-associations
@@ -61,9 +67,8 @@ body:
   - type: textarea
     id: report
     attributes:
-      label: wifi-ap-collect report
-      description: Paste the report, or drag the file here. Read it first and redact by hand anything still private.
-      render: text
+      label: Report
+      description: Attach the diagnostics file (from Home Assistant) or the wifi-ap-collect report file, or paste the report. Read it first and redact by hand anything still private.
     validations:
       required: true
   - type: checkboxes

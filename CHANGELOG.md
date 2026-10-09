@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.6.0b3 — collect an access point report from Home Assistant (beta)
+
+### New
+- **Collect a report from an access point, in Home Assistant.** For an access point that
+  isn't supported yet: Configure → *Collect a report from an access point*, enter its
+  address and SSH login, pick a command list, and Home Assistant runs the same read-only,
+  redacting collector as `wifi-ap-collect`. Then **Download diagnostics** on the
+  integration page and attach the file to a *New access point model* issue. No Python
+  or computer needed. The password is used for that login only and not stored; the
+  report is kept in memory until Home Assistant restarts or the next collection. SSH
+  only for now (SNMP still with `wifi-ap-collect --snmp`).
+- **Download diagnostics** now exists for the integration: the library version, your
+  options, the access point types, the number of tracked devices, and the last collected
+  report. It contains no addresses or credentials of your configured access points.
+
+### Changes
+- **Configure is now a menu:** *Grace period* (the setting that was there before) or
+  *Collect a report from an access point*.
+- Uses wifi-ap-associations 0.3.0 (adds the collector as a function; drivers unchanged).
+- The *New access point model* issue form accepts the diagnostics file.
+
 ## 0.6.0b2 — collector and probe are library commands (beta)
 
 ### Changes

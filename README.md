@@ -395,10 +395,27 @@ each AP keeps its own device and area, so room-level presence works the same.
 
 ## Help add your access point
 
-You don't need to write code to get an access point supported. Run the collector,
-`wifi-ap-collect`, against it from any computer on the same network with Python 3.12 or
-newer (`pip install wifi-ap-associations`), and attach the report to a
+You don't need to write code to get an access point supported. Collect a report from it
+and attach it to a
 [New access point model](../../issues/new?template=new_access_point.yml) issue.
+
+**In Home Assistant (SSH, nothing to install):**
+
+1. Settings → Devices & services → **Wi-Fi Association Presence** → **Configure** →
+   **Collect a report from an access point**.
+2. Enter its address, SSH port, username and password, and pick a command list (or
+   *Generic*). Turn on *Allow old SSH algorithms* for older models such as D-Link DAP.
+   The password is used for this login only and not stored.
+3. Wait for *Report collected* (up to a minute or two), then on the integration page open
+   the menu (⋮) → **Download diagnostics**. The report is in `access_point_report`.
+4. Read it (see below), then attach the file to the issue.
+
+The report stays in memory until Home Assistant restarts or you collect another one.
+For SNMP, or from a computer instead, use the command-line collector below.
+
+**From a computer:** `wifi-ap-collect`, on any computer on the same network with Python
+3.12 or newer (`pip install wifi-ap-associations`). It runs the same commands with the
+same redaction, and also does SNMP.
 
 > **Read the report before you submit it, and redact by hand what is still private.**
 > The collector removes MAC, IP and email addresses, key-like strings, the credentials

@@ -20,8 +20,10 @@ from homeassistant.config_entries import (
     OptionsFlow,
     SubentryFlowResult,
 )
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -42,12 +44,18 @@ from wifi_ap_associations import (
     AccessPointError,
     normalize_mac,
 )
+from wifi_ap_associations.collect import PROFILES as COLLECT_PROFILES
+from wifi_ap_associations.collect import async_collect_ssh_report
 from .const import (
+    COLLECT_TIMEOUT,
+    CONF_COMMANDS,
     CONF_CONSIDER_HOME,
     CONF_DRIVER,
+    CONF_LEGACY_SSH,
     CONF_MAC,
     CONF_MODEL,
     CONF_NAME,
+    CONF_PROFILE,
     DEFAULT_CONSIDER_HOME,
     DOMAIN,
     LOGGER,
@@ -55,6 +63,7 @@ from .const import (
     SUBENTRY_TRACKED_DEVICE,
 )
 from .coordinator import AssociationCoordinator, user_named
+from .diagnostics import store_report
 from .presence import Sighting
 from .sources import build_driver, field_choices
 
@@ -94,16 +103,28 @@ class WifiAssociationPresenceConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class WifiAssociationPresenceOptionsFlow(OptionsFlow):
-    """Grace period before a device that disappeared counts as away."""
+    """Hub options: the grace period, and collecting a report from an access point."""
+
+    def __init__(self) -> None:
+        """Start without a collection running."""
+        self._collect_input: dict[str, Any] = {}
+        self._collect_task: asyncio.Task[str | None] | None = None
+        self._collect_error: str | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Show the options form."""
+        """Choose what to configure."""
+        return self.async_show_menu(step_id="init", menu_options=["settings", "collect"])
+
+    async def async_step_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Grace period before a device that disappeared counts as away."""
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            return self.async_create_entry(data={**self.config_entry.options, **user_input})
         return self.async_show_form(
-            step_id="init",
+            step_id="settings",
             data_schema=self.add_suggested_values_to_schema(
                 vol.Schema(
                     {
@@ -128,6 +149,110 @@ class WifiAssociationPresenceOptionsFlow(OptionsFlow):
                 },
             ),
         )
+
+    async def async_step_collect(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask how to log in to the access point to collect a report from."""
+        if user_input is not None:
+            self._collect_input = user_input
+            self._collect_error = None
+            return await self.async_step_collecting()
+        errors = {"base": self._collect_error} if self._collect_error else {}
+        suggested = {k: v for k, v in self._collect_input.items() if k != CONF_PASSWORD}
+        return self.async_show_form(
+            step_id="collect",
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(
+                    {
+                        vol.Required(CONF_HOST): TextSelector(),
+                        vol.Required(CONF_PORT, default=22): vol.All(
+                            NumberSelector(
+                                NumberSelectorConfig(min=1, max=65535, mode=NumberSelectorMode.BOX)
+                            ),
+                            vol.Coerce(int),
+                        ),
+                        vol.Required(CONF_USERNAME, default="admin"): TextSelector(),
+                        vol.Required(CONF_PASSWORD): TextSelector(
+                            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                        ),
+                        vol.Required(CONF_PROFILE, default="generic"): SelectSelector(
+                            SelectSelectorConfig(
+                                options=list(COLLECT_PROFILES),
+                                mode=SelectSelectorMode.DROPDOWN,
+                                translation_key=CONF_PROFILE,
+                            )
+                        ),
+                        vol.Optional(CONF_COMMANDS, default=""): TextSelector(
+                            TextSelectorConfig(multiline=True)
+                        ),
+                        vol.Required(CONF_LEGACY_SSH, default=False): BooleanSelector(),
+                    }
+                ),
+                suggested,
+            ),
+            errors=errors,
+        )
+
+    async def async_step_collecting(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Run the collection, showing progress (it can take a minute)."""
+        if self._collect_task is None:
+            self._collect_task = self.hass.async_create_task(
+                self._async_collect(self._collect_input)
+            )
+        if not self._collect_task.done():
+            return self.async_show_progress(
+                step_id="collecting",
+                progress_action="collecting",
+                progress_task=self._collect_task,
+                description_placeholders={"host": self._collect_input[CONF_HOST]},
+            )
+        self._collect_error = self._collect_task.result()
+        self._collect_task = None
+        return self.async_show_progress_done(
+            next_step_id="collect" if self._collect_error else "collect_done"
+        )
+
+    async def async_step_collect_done(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Point to the diagnostics download; the options are left unchanged."""
+        return self.async_abort(reason="report_ready")
+
+    async def _async_collect(self, data: dict[str, Any]) -> str | None:
+        """Collect and keep the report for diagnostics; return an error key, or None."""
+        commands = [line.strip() for line in data.get(CONF_COMMANDS, "").splitlines()]
+        try:
+            async with asyncio.timeout(COLLECT_TIMEOUT):
+                report = await async_collect_ssh_report(
+                    data[CONF_HOST].strip(),
+                    data[CONF_USERNAME],
+                    data[CONF_PASSWORD],
+                    port=data[CONF_PORT],
+                    profile=data[CONF_PROFILE],
+                    commands=[c for c in commands if c],
+                    legacy_ssh=data[CONF_LEGACY_SSH],
+                )
+        except AccessPointAuthError:
+            return "invalid_auth"
+        except AccessPointError as err:
+            LOGGER.debug("Collecting a report from %s failed: %s", data[CONF_HOST], err)
+            return "legacy_ssh" if "legacy SSH" in str(err) else "cannot_connect"
+        except TimeoutError:
+            return "timeout"
+        except Exception:  # never leave the flow stuck on an unexpected error
+            LOGGER.exception("Unexpected error collecting a report from %s", data[CONF_HOST])
+            return "unknown"
+        store_report(
+            self.hass,
+            host=data[CONF_HOST].strip(),
+            profile=data[CONF_PROFILE],
+            legacy_ssh=data[CONF_LEGACY_SSH],
+            report=report,
+        )
+        return None
 
 
 class AccessPointSubentryFlow(ConfigSubentryFlow):

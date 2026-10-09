@@ -17,6 +17,15 @@ CONF_NAME = "name"
 CONF_MODEL = "model"
 CONF_CONSIDER_HOME = "consider_home"
 
+# Options menu: collect a report from an access point (for adding support for it).
+CONF_PROFILE = "profile"
+CONF_COMMANDS = "commands"
+CONF_LEGACY_SSH = "legacy_ssh"
+# Login plus up to ~10 commands, each waited on for at most 20 s; most finish in seconds.
+COLLECT_TIMEOUT = 180
+# hass.data key of the last collected report, kept in memory for Download diagnostics.
+DATA_AP_REPORT = f"{DOMAIN}_ap_report"
+
 # Fixed by design (Home Assistant integrations don't expose polling intervals).
 SCAN_INTERVAL = timedelta(seconds=60)
 # Grace period (seconds, user-adjustable in the options): a device stays "home" this
