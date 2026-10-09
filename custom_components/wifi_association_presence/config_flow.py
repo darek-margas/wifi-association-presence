@@ -255,6 +255,15 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
             self._method = method
             self._collect_input = user_input
             self._collect_error = None
+            # Only a submitted form starts a collection; the progress step never does, so
+            # however often Home Assistant calls it, one submit means one collection.
+            # The work is a background task of its own and the progress task only waits
+            # for it, shielded: closing the window cancels the waiting, not the work.
+            self._work = self.hass.async_create_background_task(
+                self._async_collect(method, user_input),
+                name=f"{DOMAIN} access point report",
+            )
+            self._wait = self.hass.async_create_task(_async_wait_for(self._work))
             return await self.async_step_collecting()
         errors = {"base": self._collect_error} if self._collect_error else {}
         suggested = {
@@ -271,15 +280,9 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
     async def async_step_collecting(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Run the collection, showing progress (SSH a minute or two, SNMP up to five)."""
-        if self._wait is None:
-            # The work is a background task of its own and the progress task only waits
-            # for it, shielded: closing the window cancels the waiting, not the work.
-            self._work = self.hass.async_create_background_task(
-                self._async_collect(self._method, self._collect_input),
-                name=f"{DOMAIN} access point report",
-            )
-            self._wait = self.hass.async_create_task(_async_wait_for(self._work))
+        """Show progress until the collection is done (SSH a minute or two, SNMP up to five)."""
+        if self._work is None or self._wait is None:  # not started from a form
+            return self.async_show_progress_done(next_step_id="user")
         if not self._wait.done():
             return self.async_show_progress(
                 step_id="collecting",
@@ -290,9 +293,7 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
                     "duration": "five minutes" if self._method != "ssh" else "two minutes",
                 },
             )
-        assert self._work is not None
         self._collect_error = self._work.result()
-        self._work = self._wait = None
         return self.async_show_progress_done(
             next_step_id=self._method if self._collect_error else "collect_done"
         )
