@@ -57,8 +57,14 @@ you with your own access points and devices:
 2. The **Result** pane on the right now shows a complete dashboard, with your access points
    and devices filled in. Copy all of it.
 3. Go to **Settings → Dashboards → Add dashboard → New dashboard from scratch**, and name it
-   *Wi-Fi coverage*. Open it, click the pencil, then **⋮ → Raw configuration editor**.
-4. Select everything in the editor, paste the result over it, and click **Save**.
+   *Wi-Fi coverage*.
+4. Open the new dashboard itself from the sidebar. (Clicking it in the Settings list only
+   opens its settings: title, icon, admin only.) At the top right, click the **pencil**
+   (on some versions it's under **⋮ → Edit dashboard**). Edit mode is on when the top bar
+   changes colour and shows **Done**.
+5. In edit mode, open the **⋮** menu at the top right and choose **Raw configuration
+   editor**. Select everything in the editor, paste the result over it, click **Save**,
+   close the editor and click **Done**.
 
 When you add an access point or a tracked device later, do the same again: run the
 template, then paste the new result over the old one.
