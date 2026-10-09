@@ -102,6 +102,10 @@ async def test_setup_tracker_and_ap_sensors(hass: HomeAssistant) -> None:
     assert hass.states.get("sensor.phone_access_point").state == "Hallway AP"
     assert hass.states.get("sensor.hallway_ap_clients").state == "1"
     assert hass.states.get("sensor.hallway_ap_clients_5_ghz").state == "1"
+    # Coverage: counted from the polls, nothing happened yet.
+    assert hass.states.get("sensor.hallway_ap_weak_clients") is not None
+    for key in ("roams_today", "drops_today", "late_roams_today"):
+        assert hass.states.get(f"sensor.phone_{key}").state == "0"
     # CPU and memory exist but are opt-in: a recorder row per AP per minute otherwise
     registry = er.async_get(hass)
     for key in ("cpu", "memory"):
@@ -137,7 +141,16 @@ async def test_only_reported_details_get_sensors(
         for e in registry.entities.values()
         if e.config_entry_id == entry.entry_id and e.unique_id.startswith(ap_id)
     }
-    assert keys == {"clients_2_4ghz", "clients_5ghz", "clients_total", "memory", "last_boot"}
+    # Coverage sensors come with every access point that has its own device.
+    assert keys == {
+        "clients_2_4ghz",
+        "clients_5ghz",
+        "clients_total",
+        "memory",
+        "last_boot",
+        "average_client_signal",
+        "weak_clients",
+    }
 
 
 async def test_stop_saves_and_restart_keeps_visit(
