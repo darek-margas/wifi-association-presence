@@ -164,8 +164,11 @@ async def test_snmp_v3_report_keeps_no_keys(hass: HomeAssistant) -> None:
 
 async def test_rejected_login_shows_error_and_is_recorded(hass: HomeAssistant) -> None:
     entry = await setup_hub(hass)
-    with patch(f"{FLOW}.async_collect_ssh_report", AsyncMock(side_effect=AccessPointAuthError("x"))):
+    collector = AsyncMock(side_effect=AccessPointAuthError("x"))
+    with patch(f"{FLOW}.async_collect_ssh_report", collector):
         result = await finish(hass, await start(hass, entry, "ssh", SSH_FORM))
+
+    collector.assert_awaited_once()
 
     assert result is not None
     assert result["type"] is FlowResultType.FORM and result["step_id"] == "ssh"
@@ -173,7 +176,22 @@ async def test_rejected_login_shows_error_and_is_recorded(hass: HomeAssistant) -
     stored = hass.data[DATA_AP_REPORT]
     assert stored["last_attempt"]["result"] == "failed: invalid_auth"
     assert "report" not in stored
-    close(hass, result)
+
+    # Redisplaying the error must not retry; a fresh submission must.
+    with patch(f"{FLOW}.async_collect_ssh_report", collector):
+        redisplayed = await hass.config_entries.subentries.async_configure(result["flow_id"])
+    assert redisplayed["errors"] == {"base": "invalid_auth"}
+    collector.assert_awaited_once()
+
+    retry = AsyncMock(return_value=REPORT)
+    with patch(f"{FLOW}.async_collect_ssh_report", retry):
+        result = await finish(
+            hass,
+            await hass.config_entries.subentries.async_configure(result["flow_id"], SSH_FORM),
+        )
+    assert is_ready(result), result
+    retry.assert_awaited_once()
+    assert hass.data[DATA_AP_REPORT]["last_attempt"]["result"] == "ok"
 
 
 async def test_old_algorithms_suggest_legacy_ssh(hass: HomeAssistant) -> None:

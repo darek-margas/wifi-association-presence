@@ -295,8 +295,18 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
             )
         self._collect_error = self._work.result()
         return self.async_show_progress_done(
-            next_step_id=self._method if self._collect_error else "collect_done"
+            next_step_id="collect_error" if self._collect_error else "collect_done"
         )
+
+    async def async_step_collect_error(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Show the failed method form without resubmitting the original input.
+
+        The flow manager carries submitted input through SHOW_PROGRESS_DONE when
+        work finishes immediately. Only a new submission may retry collection.
+        """
+        return await getattr(self, f"async_step_{self._method}")(None)
 
     async def async_step_collect_done(
         self, user_input: dict[str, Any] | None = None
