@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0b5 — clearer report result, port and extra commands in diagnostics (beta)
 
 - The diagnostics now also record the SSH port and the extra commands used for the
   access point report (the username and password are never recorded).
