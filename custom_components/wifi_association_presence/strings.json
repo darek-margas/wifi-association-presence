@@ -183,7 +183,7 @@
           },
           "data_description": {
             "profile": "Generic tries common show/get commands. Choose a vendor list if yours is there.",
-            "commands": "One display command per line: show, get or display commands, or supported read-only ubus calls. Shell chaining, redirection and expansion are refused; unsupported commands are skipped.",
+            "commands": "One command per line that lists the connected clients, e.g. show, get or display commands, iw dev wlan0 station dump, iwinfo wlan0 assoclist, wlanconfig ath0 list, wl assoclist, read-only ubus calls or a MikroTik print command. Shell chaining, redirection and expansion are refused; other commands are skipped.",
             "legacy_ssh": "Turn on if the connection fails with an algorithm error (older access points, e.g. D-Link DAP)."
           }
         },
