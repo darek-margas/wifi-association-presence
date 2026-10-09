@@ -186,6 +186,7 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
 
     async def _async_update_data(self) -> PresenceData:
         """Read every AP in parallel; keep previous sightings for APs that fail."""
+        self.coverage.reset_day(dt_util.as_local(dt_util.utcnow()).date())
         if not self.access_points:
             return PresenceData(dict(self._sightings), {})
 

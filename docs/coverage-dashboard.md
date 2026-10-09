@@ -91,13 +91,13 @@ cards:
     entities:
       - entity: sensor.phone_roams_today
         name: Phone roams
-      - entity: sensor.phone_drops_today
+      - entity: sensor.phone_short_drops_today
         name: Phone drops
       - entity: sensor.phone_late_roams_today
         name: Phone late
       - entity: sensor.laptop_roams_today
         name: Laptop roams
-      - entity: sensor.laptop_drops_today
+      - entity: sensor.laptop_short_drops_today
         name: Laptop drops
       - entity: sensor.laptop_late_roams_today
         name: Laptop late
@@ -138,7 +138,7 @@ cards:
       title: Short drops today
     filter:
       include:
-        - entity_id: sensor.*_drops_today
+        - entity_id: sensor.*_short_drops_today
           state: "> 0"
     sort:
       method: state
