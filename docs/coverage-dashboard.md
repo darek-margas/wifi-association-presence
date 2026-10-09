@@ -89,6 +89,7 @@ views:
 {%- for e in avg %}
           - entity: {{ e }}
             name: {{ short(e, 'Average client signal') | tojson }}
+            icon: mdi:wifi-check
 {%- endfor %}
       - type: entities
         title: Access points – weak clients
@@ -96,6 +97,7 @@ views:
 {%- for e in weak %}
           - entity: {{ e }}
             name: {{ short(e, 'Weak clients') | tojson }}
+            icon: mdi:wifi-alert
 {%- endfor %}
       - type: statistics-graph
         title: Average client signal, 7 days
@@ -113,6 +115,7 @@ views:
 {%- for e in roams %}
           - entity: {{ e }}
             name: {{ short(e, 'Roams today') | tojson }}
+            icon: mdi:swap-horizontal
 {%- endfor %}
       - type: entities
         title: Short drops today
@@ -120,6 +123,7 @@ views:
 {%- for e in drops %}
           - entity: {{ e }}
             name: {{ short(e, 'Short drops today') | tojson }}
+            icon: mdi:wifi-off
 {%- endfor %}
       - type: entities
         title: Late roams today
@@ -127,6 +131,7 @@ views:
 {%- for e in late %}
           - entity: {{ e }}
             name: {{ short(e, 'Late roams today') | tojson }}
+            icon: mdi:timer-sand
 {%- endfor %}
       - type: history-graph
         title: Device signal, 24 h
