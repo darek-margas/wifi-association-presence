@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0b1 — MikroTik RouterOS access points, experimental (beta)
+
+- **Add access point → "MikroTik RouterOS (SSH)"**, shown as experimental: RouterOS
+  access points, routers with Wi-Fi and CAPsMAN controllers. Clients with SSID, band,
+  signal and connected time; the access point's name, model, firmware, uptime, CPU and
+  memory.
+- **Experimental** because only the system details are confirmed so far (RouterOS 7.20
+  on a switch). The client table follows MikroTik's documentation. If you have a MikroTik
+  access point: add it, and if clients don't show up as expected, send a **Collect access
+  point report** with the *MikroTik RouterOS* command list.
+- Uses wifi-ap-associations 0.5.0.
+
 ## 0.6.1 — better access point reports: MikroTik, timing, CPU and memory over SNMP
 
 Everything since 0.6.0 (the betas below have the details). Nothing changes for your
