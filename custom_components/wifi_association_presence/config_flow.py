@@ -53,6 +53,7 @@ from wifi_ap_associations.collect import (
     async_collect_ssh_report,
 )
 from .const import (
+    DATA_AP_REPORT_BUSY,
     COLLECT_METHODS,
     COLLECT_TIMEOUT,
     CONF_AUTH_KEY,
@@ -252,19 +253,23 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         """Show a method's form (again with the last error), or start collecting."""
         if user_input is not None:
-            self._method = method
-            self._collect_input = user_input
-            self._collect_error = None
-            # Only a submitted form starts a collection; the progress step never does, so
-            # however often Home Assistant calls it, one submit means one collection.
-            # The work is a background task of its own and the progress task only waits
-            # for it, shielded: closing the window cancels the waiting, not the work.
-            self._work = self.hass.async_create_background_task(
-                self._async_collect(method, user_input),
-                name=f"{DOMAIN} access point report",
-            )
-            self._wait = self.hass.async_create_task(_async_wait_for(self._work))
-            return await self.async_step_collecting()
+            self._collect_input = {
+                key: value for key, value in user_input.items() if key not in SECRET_KEYS
+            }
+            if self.hass.data.get(DATA_AP_REPORT_BUSY):
+                self._collect_error = "collection_in_progress"
+            else:
+                self._method = method
+                self._collect_error = None
+                # Set the guard before creating an eager task. Closing the flow only
+                # cancels its waiter; the guard belongs to the actual collection.
+                self.hass.data[DATA_AP_REPORT_BUSY] = True
+                self._work = self.hass.async_create_background_task(
+                    self._async_collect(method, dict(user_input)),
+                    name=f"{DOMAIN} access point report",
+                )
+                self._wait = self.hass.async_create_task(_async_wait_for(self._work))
+                return await self.async_step_collecting()
         errors = {"base": self._collect_error} if self._collect_error else {}
         suggested = {
             key: value
@@ -321,6 +326,15 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
         )
 
     async def _async_collect(self, method: str, data: dict[str, Any]) -> str | None:
+        """Own the collection guard and discard credentials on every exit."""
+        try:
+            return await self._async_collect_report(method, data)
+        finally:
+            for key in SECRET_KEYS:
+                data.pop(key, None)
+            self.hass.data.pop(DATA_AP_REPORT_BUSY, None)
+
+    async def _async_collect_report(self, method: str, data: dict[str, Any]) -> str | None:
         """Collect and keep the result for diagnostics; return an error key, or None."""
         host = data[CONF_HOST].strip()
         settings: dict[str, Any] = {"port": data[CONF_PORT]}
@@ -755,3 +769,4 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
             ),
             description_placeholders={"mac": subentry.data[CONF_MAC]},
         )
+

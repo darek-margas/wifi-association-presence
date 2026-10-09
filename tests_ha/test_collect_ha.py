@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+
+import pytest
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -11,7 +13,8 @@ from homeassistant.data_entry_flow import FlowResultType, UnknownFlow
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from wifi_ap_associations import AccessPointAuthError, AccessPointError
-from custom_components.wifi_association_presence.const import DATA_AP_REPORT, DOMAIN
+from custom_components.wifi_association_presence.const import DATA_AP_REPORT, DATA_AP_REPORT_BUSY, DOMAIN, SECRET_KEYS
+from custom_components.wifi_association_presence.config_flow import CollectReportSubentryFlow
 from custom_components.wifi_association_presence.diagnostics import (
     NO_REPORT,
     async_get_config_entry_diagnostics,
@@ -255,3 +258,57 @@ async def test_diagnostics_without_report(hass: HomeAssistant) -> None:
     assert diagnostics["access_point_report"] == NO_REPORT
     assert diagnostics["access_point_types"] == []
     assert diagnostics["tracked_devices"] == 0
+
+
+
+async def test_overlapping_reports_are_refused_until_work_finishes(hass: HomeAssistant) -> None:
+    entry = await setup_hub(hass)
+    release = asyncio.Event()
+    calls = 0
+
+    async def slow_collector(*args: Any, **kwargs: Any) -> str:
+        nonlocal calls
+        calls += 1
+        await release.wait()
+        return REPORT
+
+    with patch(f"{FLOW}.async_collect_ssh_report", slow_collector):
+        first = await start(hass, entry, "ssh", SSH_FORM)
+        assert first["type"] is FlowResultType.SHOW_PROGRESS
+        assert hass.data[DATA_AP_REPORT_BUSY]
+        handler = hass.config_entries.subentries._progress[first["flow_id"]]
+        assert not SECRET_KEYS.intersection(handler._collect_input)
+        close(hass, first)
+        blocked = await start(hass, entry, "ssh", SSH_FORM)
+        assert blocked["type"] is FlowResultType.FORM
+        assert blocked["errors"] == {"base": "collection_in_progress"}
+        assert calls == 1
+        close(hass, blocked)
+        release.set()
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert DATA_AP_REPORT_BUSY not in hass.data
+    retry = AsyncMock(return_value=REPORT)
+    with patch(f"{FLOW}.async_collect_ssh_report", retry):
+        assert is_ready(await finish(hass, await start(hass, entry, "ssh", SSH_FORM)))
+    retry.assert_awaited_once()
+
+
+@pytest.mark.parametrize("outcome", ["success", "error", "cancel"])
+async def test_collection_discards_credentials_and_guard_on_every_exit(
+    hass: HomeAssistant, outcome: str
+) -> None:
+    flow = CollectReportSubentryFlow()
+    flow.hass = hass
+    data = {"host": "192.0.2.1", **{key: "secret" for key in SECRET_KEYS}}
+    hass.data[DATA_AP_REPORT_BUSY] = True
+    error = RuntimeError("read failed") if outcome == "error" else asyncio.CancelledError()
+    collector = AsyncMock(return_value=None) if outcome == "success" else AsyncMock(side_effect=error)
+    with patch.object(flow, "_async_collect_report", collector):
+        if outcome == "success":
+            assert await flow._async_collect("ssh", data) is None
+        else:
+            with pytest.raises(type(error)):
+                await flow._async_collect("ssh", data)
+    assert data == {"host": "192.0.2.1"}
+    assert DATA_AP_REPORT_BUSY not in hass.data

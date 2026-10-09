@@ -171,7 +171,7 @@
         },
         "ssh": {
           "title": "Collect a report over SSH",
-          "description": "Home Assistant logs in, runs commands that only display information (anything that could change settings is refused) and keeps a redacted report.",
+          "description": "Home Assistant logs in, runs the built-in display commands and validates extra commands, then keeps a redacted report.",
           "data": {
             "host": "Host or IP address",
             "port": "SSH port",
@@ -183,7 +183,7 @@
           },
           "data_description": {
             "profile": "Generic tries common show/get commands. Choose a vendor list if yours is there.",
-            "commands": "One per line: a command you know lists the connected clients. Commands that could change settings are refused.",
+            "commands": "One display command per line: show, get or display commands, or supported read-only ubus calls. Shell chaining, redirection and expansion are refused; unsupported commands are skipped.",
             "legacy_ssh": "Turn on if the connection fails with an algorithm error (older access points, e.g. D-Link DAP)."
           }
         },
@@ -217,6 +217,7 @@
         "collecting": "Collecting a report from {host}. This takes up to {duration}.\n\nYou can close this window: the collection continues. Its result (the report, or why it failed) then appears in Download diagnostics: Settings → Devices & services → Wi-Fi Association Presence → the menu (⋮) on the Wi-Fi association presence row → Download diagnostics."
       },
       "error": {
+        "collection_in_progress": "Another access point report is still being collected. Wait for it to finish, then try again.",
         "invalid_auth": "The access point rejected the username or password.",
         "cannot_connect": "Could not connect to the access point over SSH. Check the address, port and that SSH is enabled.",
         "legacy_ssh": "The access point only offers old SSH algorithms. Turn on \"Allow old SSH algorithms\" and try again.",
@@ -231,3 +232,4 @@
     }
   }
 }
+

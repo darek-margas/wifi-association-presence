@@ -429,6 +429,8 @@ and attach it to a
    list of custom integrations you have installed.
 
 The report stays in memory until Home Assistant restarts or you collect another one.
+Only one report can be collected at a time; closing the window does not release that
+slot until the collection finishes. Submitted credentials are discarded when it finishes.
 
 **From a computer:** `wifi-ap-collect`, on any computer on the same network with Python
 3.12 or newer (`pip install wifi-ap-associations`). It runs the same commands and walks
@@ -448,7 +450,8 @@ pip install wifi-ap-associations
 wifi-ap-collect --host <AP IP> --username <user>
 ```
 
-- It runs **read-only commands only** (anything that could change settings is refused)
+- It runs built-in display commands and validates extra commands (shell chaining,
+  redirection, expansion and unsupported command families are refused)
   and **redacts** MAC addresses (vendor prefix kept), IP and email addresses, key-like
   strings and secret-looking settings. JSON replies are split one key per line so secret
   keys are caught too.
@@ -614,3 +617,4 @@ passing error text through as a value. Import the module at the bottom of the li
 ## License
 
 GPL-3.0
+

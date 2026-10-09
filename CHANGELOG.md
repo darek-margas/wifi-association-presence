@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0b6 (beta)
+
+- Use wifi-ap-associations 0.4.1: OpenWrt read failures no longer become empty client lists; custom SSH collector commands are validated; SNMP engines are closed on all exit paths.
+- Allow only one AP report collection at a time, including after its dialog closes, so concurrent collections cannot overwrite each other's report.
+- Keep only non-secret form suggestions and discard collection credentials on completion, failure or cancellation.
+
 ## 0.6.0b5 — access point reports over SNMP, collection survives a closed window (beta)
 
 ### New
@@ -308,3 +314,4 @@ Supports D-Link DAP access points over SSH (tested: DAP-2610, DAP-3662).
 - Spaces around host, username and other settings are stripped during setup.
 - D-Link: an error reply such as "Invalid parameter: 9" is no longer taken as a value.
 - Presence rules are tested on every push (pytest, ruff, hassfest, HACS validation).
+
