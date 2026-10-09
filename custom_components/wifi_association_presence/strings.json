@@ -28,7 +28,8 @@
         "unifi": "UniFi access point (device SSH login)",
         "openwrt": "OpenWrt",
         "cisco_wlc": "Cisco wireless controller (Catalyst 9800)",
-        "dlink_dap": "D-Link DAP"
+        "dlink_dap": "D-Link DAP",
+        "mikrotik": "MikroTik RouterOS"
       }
     },
     "auth_protocol": {

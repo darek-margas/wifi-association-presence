@@ -482,7 +482,10 @@ wifi-ap-collect --host <AP IP> --username <user>
   (ubus hostapd and system calls), `--profile unifi` the UniFi one
   (`info`, `mca-dump`; log in with the device SSH credentials set in the UniFi
   controller), `--profile cisco_wlc` the Cisco wireless controller one (Catalyst 9800:
-  AP, WLAN and client summaries); `--list-profiles` shows all. MAC addresses are redacted
+  AP, WLAN and client summaries), `--profile mikrotik` the MikroTik RouterOS one (system
+  details, interfaces and the client table of each RouterOS Wi-Fi package, each command
+  run on its own instead of in an interactive terminal); `--list-profiles` shows all. In
+  Home Assistant these are the *Command list* choices. MAC addresses are redacted
   in any notation (`aa:bb:..`, `aa-bb-..`, Cisco `aabb.ccdd.eeff`, bare `aabbccddeeff`),
   as are IPv6 addresses and Cisco serial numbers.
 

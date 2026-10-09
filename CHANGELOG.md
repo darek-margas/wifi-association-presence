@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1b1 — MikroTik command list for access point reports (beta)
+
+- **Collect access point report → SSH → Command list: "MikroTik RouterOS"**: identity,
+  resources, routerboard, packages, interfaces and the client table of each RouterOS
+  Wi-Fi package (`wireless`, `wifi`, `wifiwave2`, CAPsMAN). The commands run one by one
+  instead of in RouterOS's interactive terminal, so the report is readable (no logo,
+  escape codes, echoed commands or lines wrapped at 80 columns). A first step towards a
+  MikroTik driver.
+- Uses wifi-ap-associations 0.4.3.
+
 ## 0.6.0 — help add your access point from Home Assistant; drivers as a library
 
 Everything since 0.5.2 (the betas below have the details). Update from HACS and restart;
