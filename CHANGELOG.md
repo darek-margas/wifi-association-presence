@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.6.0 — help add your access point from Home Assistant; drivers as a library
+
+Everything since 0.5.2 (the betas below have the details). Update from HACS and restart;
+Home Assistant needs internet access at that restart to install the driver library.
+Nothing changes for your access points, trackers or settings.
+
+### New
+- **Collect access point report** (a button on the integration page): for an access point
+  that isn't supported yet, Home Assistant reads it once, over **SSH** or **SNMP v2c / v3**,
+  and keeps a redacted report. Download it with **Download diagnostics** and attach it to
+  a *New access point model* issue. Only display commands run (extra commands are
+  checked; shell tricks are refused), and passwords, communities and keys are used for
+  that collection only, never stored. Closing the window doesn't stop it, and a failed
+  attempt is recorded in the diagnostics too.
+- **Download diagnostics** for the integration: library version, options, access point
+  types, number of tracked devices, and the last report. No addresses or credentials of
+  your access points.
+
+### Changes
+- **The access point drivers are now a separate library,
+  [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/)** (0.4.2),
+  installed by Home Assistant. Other tools can use it too, and it brings the command-line
+  tools `wifi-ap-collect` and `wifi-ap-probe`.
+- **OpenWrt:** a failed or garbled read of an access point's client table now counts as
+  a failed read (devices keep their last state through the grace period) instead of
+  "no clients".
+- README: the first screen says what it does, how to set it up, and what to do if your
+  access points aren't supported yet.
+
 ## 0.6.0b6 (beta)
 
 - Use wifi-ap-associations 0.4.1: OpenWrt read failures no longer become empty client lists; custom SSH collector commands are validated; SNMP engines are closed on all exit paths.

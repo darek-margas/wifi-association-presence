@@ -2,33 +2,51 @@
 
 # Wi-Fi Association Presence
 
-**Home Assistant presence from your Wi-Fi access points: who is home, and in which room.**
+**Know who is home, and in which room, from the Wi-Fi you already have.**
 
-- **Home / away** for each phone, tablet or laptop, steady while the phone sleeps.
-- **Which room**: the area of the access point it is connected to, and its signal.
-- **When it arrived or left**, to the minute, for automations.
-- **Access points as devices**: connected clients per band, firmware, uptime and whatever
-  else the AP reports about itself.
-- **Nothing to install on the phones.** It reads the list of devices joined to each
-  access point, from the access point itself or from its controller.
+- **Who is home.** Each phone, tablet or laptop shows as home or away in Home Assistant,
+  and stays home while the phone sleeps in someone's pocket.
+- **Which room.** Put each access point in a room (an *area*), and every device shows the
+  room it is connected in: the living room, the studio, the garden.
+- **When.** Arrival and departure times, to the minute, for your automations.
+- **Nothing to install on the phones**, and no app or account: it asks your access points
+  which devices are connected to them.
 
 [![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=darek-margas&repository=wifi-association-presence&category=integration)
 [![Open your Home Assistant instance and start setting up Wi-Fi Association Presence.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=wifi_association_presence)
+
+## Setup in four steps
+
+1. **Install** it from HACS (button above) and restart Home Assistant.
+2. **Add access point**: choose its type, enter its address and login. Home Assistant
+   checks the login right away.
+3. **Put each access point in its room** (open its device → ✏️ → Area).
+4. **Add tracked device**: pick your phone from the list of devices the access points
+   see, and give it a name. No MAC addresses to look up.
+
+That's all. [More detail on setup](#setup).
+
+## Your access points aren't supported yet?
+
+Install it anyway; you can help get them supported without any technical knowledge:
+
+1. On the integration page press **Collect access point report** and enter your
+   access point's address and login. Home Assistant reads it once and only displays
+   information; nothing is changed on the access point.
+2. **Download diagnostics** (⋮ on the integration page) and attach the file to a
+   [New access point model](../../issues/new?template=new_access_point.yml) issue.
+   Read it first: it is redacted automatically, but check nothing private is left.
+3. **Wait for an update that supports your model**, then add your access points as above.
+
+Supported today: **D-Link DAP, OpenWrt and UniFi.**
+[More about reports](#help-add-your-access-point) · [What each type reads](#supported-access-points)
+
+---
 
 [Supported access points](#supported-access-points) ·
 [Install](#installation) ·
 [Help add yours](#help-add-your-access-point) ·
 Early development, Home Assistant 2026.9+
-
-> **Your access points aren't supported yet?** Install the integration anyway. You don't
-> need to understand any of the technical parts below to help add them:
-> press **Collect access point report** on the integration page, then **Download diagnostics**
-> and attach the file to a
-> [New access point model](../../issues/new?template=new_access_point.yml) issue. When a
-> release supports your model, update and add your access points.
-> [How it works, step by step](#help-add-your-access-point).
->
-> Supported today: D-Link DAP, OpenWrt and UniFi.
 
 ## Why association, not ARP or MAC tables
 
@@ -450,8 +468,11 @@ pip install wifi-ap-associations
 wifi-ap-collect --host <AP IP> --username <user>
 ```
 
-- It runs built-in display commands and validates extra commands (shell chaining,
-  redirection, expansion and unsupported command families are refused)
+- It runs built-in display commands and validates extra commands: `show` / `get` /
+  `display` commands, read-only `ubus` calls and the usual client-list commands
+  (`iw dev <if> station dump`, `iwinfo <if> assoclist`, `wlanconfig <if> list`,
+  `wl assoclist`, MikroTik `/... print`) are accepted; shell chaining, redirection,
+  expansion and anything else are refused
   and **redacts** MAC addresses (vendor prefix kept), IP and email addresses, key-like
   strings and secret-looking settings. JSON replies are split one key per line so secret
   keys are caught too.
@@ -519,7 +540,7 @@ below needs an owner of that hardware to send data and test a build.
 | **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `wifi-ap-collect` report (SSH or `--snmp`) |
 | **Other controllers** (Cisco WLC, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API | interest and a test setup |
 
-Done in 0.6.0 (beta 0.6.0b1): the access point code is now a standalone library on PyPI,
+Done in 0.6.0: the access point code is now a standalone library on PyPI,
 [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), tested and
 released on its own and usable by other tools.
 
