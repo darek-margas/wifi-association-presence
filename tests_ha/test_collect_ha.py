@@ -114,6 +114,7 @@ async def test_ssh_report_is_in_diagnostics(hass: HomeAssistant) -> None:
     assert report["host"] == "192.x.x.23" and report["method"] == "ssh"
     assert report["port"] == 22 and report["profile"] == "dlink_dap"
     assert report["extra_commands"] == ["show station"] and report["legacy_ssh"] is True
+    assert isinstance(report["duration_seconds"], float) and report["duration_seconds"] >= 0
     assert report["last_attempt"]["result"] == "ok"
     assert "hunter2" not in str(diagnostics)
 

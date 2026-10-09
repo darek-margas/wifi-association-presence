@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.1b2 — report shows how long it took; MikroTik and SNMP reports read more (beta)
+
+- **"Report collected in 0.8 s"**: the result says how long the collection took, and the
+  diagnostics record it (`duration_seconds`). A MikroTik report over SSH takes under a
+  second, which looked as if nothing ran. The report text itself ends with
+  `# finished: 11 commands in 0.8 s`.
+- **MikroTik command list** also reads the Wi-Fi interfaces with their SSID and band.
+- **SNMP reports** also read the standard CPU and memory tables (HOST-RESOURCES), which a
+  future SNMP driver needs for the access point's health sensors.
+- CI retries installing a freshly released library while PyPI's servers catch up.
+- Uses wifi-ap-associations 0.4.4.
+
 ## 0.6.1b1 — MikroTik command list for access point reports (beta)
 
 - **Collect access point report → SSH → Command list: "MikroTik RouterOS"**: identity,

@@ -8,6 +8,7 @@ touching them; with no access point configured the trackers report "unknown".
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 import voluptuous as vol
@@ -179,6 +180,7 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
         self._work: asyncio.Task[str | None] | None = None
         self._wait: asyncio.Task[None] | None = None
         self._collect_error: str | None = None
+        self._elapsed = ""
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -322,6 +324,7 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
             description_placeholders={
                 "integration_url": f"/config/integrations/integration/{DOMAIN}",
                 "issue_url": NEW_ACCESS_POINT_ISSUE_URL,
+                "elapsed": self._elapsed or "a moment",
             },
         )
 
@@ -338,6 +341,7 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
         """Collect and keep the result for diagnostics; return an error key, or None."""
         host = data[CONF_HOST].strip()
         settings: dict[str, Any] = {"port": data[CONF_PORT]}
+        started = time.monotonic()
         try:
             if method == "ssh":
                 commands = [
@@ -403,6 +407,11 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
             LOGGER.exception("Unexpected error collecting a report from %s", host)
             error = "unknown"
         else:
+            # Shown in the result: a collection over SSH exec can take under a second,
+            # which otherwise looks as if nothing ran.
+            duration = round(time.monotonic() - started, 1)
+            settings["duration_seconds"] = duration
+            self._elapsed = f"{duration:.1f} s"
             store_report(
                 self.hass, host=host, method=method, settings=settings, report=report
             )
