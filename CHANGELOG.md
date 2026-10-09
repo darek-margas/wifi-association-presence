@@ -1,12 +1,31 @@
 # Changelog
 
-## 0.6.0b5 — clearer report result, port and extra commands in diagnostics (beta)
+## 0.6.0b5 — access point reports over SNMP, collection survives a closed window (beta)
 
-- The diagnostics now also record the SSH port and the extra commands used for the
-  access point report (the username and password are never recorded).
-- The "Report collected" message links to the integration page, says where Download
-  diagnostics is (now and later), what else the file contains, and starts with a warning
-  to read the whole report before submitting it.
+### New
+- **Collect access point report over SNMP**, v2c (community) or v3 (user, keys and
+  algorithms), next to SSH: the button first asks how to read the access point. It runs
+  the same walk and redaction as `wifi-ap-collect --snmp`: the vendor's own tables and the
+  standard wireless tables, the likely client tables listed first, other values shown only
+  as their length. Up to 5000 values per table and 5 minutes. Communities and keys are
+  used for this collection only and not stored.
+- **Closing the window doesn't stop a collection.** The progress window says so, and
+  where the result appears: Download diagnostics.
+- **A failed collection is recorded in the diagnostics** (`last_attempt`, e.g.
+  `failed: invalid_auth`), so you can see what happened after closing the window. An
+  earlier successful report is kept.
+
+### Changes
+- The diagnostics record how the report was collected: method, port, and for SSH the
+  command list, extra commands and legacy SSH; for SNMP v3 the algorithms. Usernames,
+  passwords, communities and keys are never recorded.
+- Releases now wait for all tests, including the ones that run the integration in a test
+  Home Assistant (0.6.0b4 was released while those were failing).
+- The "Report collected" message starts with a warning to read the whole report before
+  submitting it, links to the integration page, and says where Download diagnostics is
+  (now and later) and what else the file contains.
+- Uses wifi-ap-associations 0.4.0, which includes pysnmp. Home Assistant imports pysnmp
+  only when you collect over SNMP, so startup doesn't change.
 
 ## 0.6.0b4 — "Collect access point report" button (beta)
 

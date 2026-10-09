@@ -30,6 +30,27 @@
         "cisco_wlc": "Cisco wireless controller (Catalyst 9800)",
         "dlink_dap": "D-Link DAP"
       }
+    },
+    "auth_protocol": {
+      "options": {
+        "md5": "MD5",
+        "sha": "SHA-1",
+        "sha224": "SHA-224",
+        "sha256": "SHA-256",
+        "sha384": "SHA-384",
+        "sha512": "SHA-512"
+      }
+    },
+    "priv_protocol": {
+      "options": {
+        "des": "DES",
+        "3des": "3DES",
+        "aes": "AES-128",
+        "aes192": "AES-192",
+        "aes256": "AES-256",
+        "aes192c": "AES-192 (Cisco key extension)",
+        "aes256c": "AES-256 (Cisco key extension)"
+      }
     }
   },
   "entity": {
@@ -141,7 +162,16 @@
       "step": {
         "user": {
           "title": "Collect a report from an access point",
-          "description": "For an access point that isn't supported yet: Home Assistant logs in over SSH, runs commands that only display information (anything that could change settings is refused) and keeps a redacted report. Then download it with Download diagnostics on the integration page and attach it to a \"New access point model\" issue. Nothing is added to your setup, and the password is used for this login only and not stored.",
+          "description": "For an access point that isn't supported yet: Home Assistant reads it once and keeps a redacted report, which you then download with Download diagnostics and attach to a \"New access point model\" issue. Nothing is added to your setup, and passwords, communities and keys are used for this collection only and not stored.\n\nHow can Home Assistant read this access point?",
+          "menu_options": {
+            "ssh": "SSH console (login with username and password)",
+            "snmp_v2c": "SNMP v2c (community)",
+            "snmp_v3": "SNMP v3 (user and keys)"
+          }
+        },
+        "ssh": {
+          "title": "Collect a report over SSH",
+          "description": "Home Assistant logs in, runs commands that only display information (anything that could change settings is refused) and keeps a redacted report.",
           "data": {
             "host": "Host or IP address",
             "port": "SSH port",
@@ -156,20 +186,47 @@
             "commands": "One per line: a command you know lists the connected clients. Commands that could change settings are refused.",
             "legacy_ssh": "Turn on if the connection fails with an algorithm error (older access points, e.g. D-Link DAP)."
           }
+        },
+        "snmp_v2c": {
+          "title": "Collect a report over SNMP v2c",
+          "description": "Home Assistant reads the access point's system details, its vendor's own tables and the standard wireless tables, and lists the tables that look like client tables. Values outside those are shown only as their length. Use a read-only community: v2c sends it unencrypted over your network.",
+          "data": {
+            "host": "Host or IP address",
+            "port": "SNMP port",
+            "community": "Community (read-only)"
+          }
+        },
+        "snmp_v3": {
+          "title": "Collect a report over SNMP v3",
+          "description": "Home Assistant reads the access point's system details, its vendor's own tables and the standard wireless tables, and lists the tables that look like client tables. Values outside those are shown only as their length.",
+          "data": {
+            "host": "Host or IP address",
+            "port": "SNMP port",
+            "username": "User",
+            "auth_key": "Authentication key",
+            "auth_protocol": "Authentication algorithm",
+            "priv_key": "Privacy key (optional)",
+            "priv_protocol": "Privacy algorithm"
+          },
+          "data_description": {
+            "priv_key": "Leave empty to use the authentication key."
+          }
         }
       },
       "progress": {
-        "collecting": "Collecting a report from {host}. This takes up to a minute or two."
+        "collecting": "Collecting a report from {host}. This takes up to {duration}.\n\nYou can close this window: the collection continues. Its result (the report, or why it failed) then appears in Download diagnostics: Settings → Devices & services → Wi-Fi Association Presence → the menu (⋮) on the Wi-Fi association presence row → Download diagnostics."
       },
       "error": {
         "invalid_auth": "The access point rejected the username or password.",
         "cannot_connect": "Could not connect to the access point over SSH. Check the address, port and that SSH is enabled.",
         "legacy_ssh": "The access point only offers old SSH algorithms. Turn on \"Allow old SSH algorithms\" and try again.",
+        "invalid_snmp_auth": "The access point rejected the SNMPv3 user, keys or algorithms.",
+        "snmp_no_answer": "No SNMP answer. Check the address and port, the community (v2c) or user (v3), and that SNMP is enabled on the access point.",
         "timeout": "The access point did not finish answering in time.",
         "unknown": "Unexpected error, see the Home Assistant log."
       },
       "abort": {
-        "report_ready": "**Report collected.**\n\n⚠️ **Read the whole report before you submit it.** Automatic redaction removes MAC, IP and email addresses, key-like strings and the password you typed, but it can't recognise everything: a Wi-Fi passphrase, names, locations or serial numbers can look like ordinary text. Replace anything you don't want public with `<redacted>`. Issues on GitHub are public.\n\nTo download it, open the [Wi-Fi Association Presence page](/config/integrations/integration/wifi_association_presence), then the menu (⋮) on the **Wi-Fi association presence** row at the top, and choose **Download diagnostics**. The report is the `access_point_report` part of that file.\n\nLater you find it the same way: Settings → Devices & services → Wi-Fi Association Presence → ⋮ → Download diagnostics. It is kept until Home Assistant restarts or you collect another report.\n\nThe file also contains Home Assistant's usual diagnostics details (your Home Assistant version and the list of custom integrations). Once you have read it, attach it to a [New access point model](https://github.com/darek-margas/wifi-association-presence/issues/new?template=new_access_point.yml) issue."
+        "report_ready": "**Report collected.**\n\n⚠️ **Read the whole report before you submit it.** Automatic redaction removes MAC, IP and email addresses, key-like strings and the password, community or keys you typed, but it can't recognise everything: a Wi-Fi passphrase, names, locations or serial numbers can look like ordinary text. Replace anything you don't want public by hand. Issues on GitHub are public.\n\nTo download it, open the [Wi-Fi Association Presence page](/config/integrations/integration/wifi_association_presence), then the menu (⋮) on the **Wi-Fi association presence** row at the top, and choose **Download diagnostics**. The report is the `access_point_report` part of that file.\n\nLater you find it the same way: Settings → Devices & services → Wi-Fi Association Presence → ⋮ → Download diagnostics. It is kept until Home Assistant restarts or you collect another report.\n\nThe file also contains Home Assistant's usual diagnostics details (your Home Assistant version and the list of custom integrations). Once you have read it, attach it to a [New access point model](https://github.com/darek-margas/wifi-association-presence/issues/new?template=new_access_point.yml) issue."
       }
     }
   }

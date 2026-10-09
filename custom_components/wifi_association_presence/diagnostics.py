@@ -1,8 +1,9 @@
 """Download diagnostics: the integration's setup, and the last access point report.
 
-The report comes from the "Collect access point report" button. It is kept
-in memory only (until Home Assistant restarts or the next collection), already redacted
-by the collector, and the password used for it is never stored.
+The report comes from the "Collect access point report" button. It is kept in memory
+only (until Home Assistant restarts or the next collection), already redacted by the
+collector. Passwords, SNMP communities and keys are never stored. A failed attempt is
+recorded too, so someone who closed the window can see what happened.
 """
 
 from __future__ import annotations
@@ -22,29 +23,41 @@ NO_REPORT = (
     "No report collected since Home Assistant started. To collect one: Settings -> "
     "Devices & services -> Wi-Fi Association Presence -> Collect access point report."
 )
+METHOD_NAMES = {"ssh": "ssh", "snmp_v2c": "snmp-v2c", "snmp_v3": "snmp-v3"}
 
 
 def store_report(
-    hass: HomeAssistant,
-    *,
-    host: str,
-    port: int,
-    profile: str,
-    commands: list[str],
-    legacy_ssh: bool,
-    report: str,
+    hass: HomeAssistant, *, host: str, method: str, settings: dict[str, Any], report: str
 ) -> None:
-    """Keep the last collected report, and how it was collected, for diagnostics."""
+    """Keep the collected report, and how it was collected, for diagnostics."""
     redactor = Redactor([])
+    shown = {
+        key: [redactor.text(item) for item in value] if key == "extra_commands" else value
+        for key, value in settings.items()
+    }
+    attempt = _attempt(host, method, "ok")
     hass.data[DATA_AP_REPORT] = {
-        "collected_at": dt_util.utcnow().isoformat(timespec="seconds"),
-        "host": _redact_host(host),
-        "method": "ssh",
-        "port": port,
-        "profile": profile,
-        "extra_commands": [redactor.text(command) for command in commands],
-        "legacy_ssh": legacy_ssh,
+        "last_attempt": attempt,
+        "collected_at": attempt["at"],
+        "host": attempt["host"],
+        "method": attempt["method"],
+        **shown,
         "report": report.splitlines(),
+    }
+
+
+def store_failed_attempt(hass: HomeAssistant, *, host: str, method: str, error: str) -> None:
+    """Record a failed collection; an earlier successful report is kept."""
+    stored = hass.data.setdefault(DATA_AP_REPORT, {})
+    stored["last_attempt"] = _attempt(host, method, f"failed: {error}")
+
+
+def _attempt(host: str, method: str, result: str) -> dict[str, str]:
+    return {
+        "at": dt_util.utcnow().isoformat(timespec="seconds"),
+        "host": _redact_host(host),
+        "method": METHOD_NAMES.get(method, method),
+        "result": result,
     }
 
 

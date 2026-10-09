@@ -10,7 +10,7 @@ body:
         point: it logs in, runs read-only commands only, and redacts MAC and IP addresses
         and secret-looking settings.
 
-        **In Home Assistant (SSH):** on the Wi-Fi Association Presence page press **Collect
+        **In Home Assistant (SSH or SNMP):** on the Wi-Fi Association Presence page press **Collect
         access point report**, then (⋮) of the hub -> **Download diagnostics** and attach
         that file below.
 
@@ -24,7 +24,7 @@ body:
         Add `--command "<cmd>"` (repeatable) for any command you know lists connected
         clients. UniFi APs: `--profile unifi`.
 
-        **SNMP instead of SSH:** `pip install pysnmp`, then
+        **SNMP instead of SSH:**
         `wifi-ap-collect --host <AP IP> --snmp` (v2c, use a read-only community)
         or add `--snmp-user <user>` for v3. It finds your vendor's private MIB and lists
         the tables that look like client tables.

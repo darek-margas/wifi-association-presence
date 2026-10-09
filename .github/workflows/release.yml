@@ -23,19 +23,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # All of tests.yml: the plain tests and the Home Assistant-level tests (tests_ha).
+  # Releasing used to need only the plain tests, so 0.6.0b4 shipped while tests_ha failed.
   test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - name: Install test dependencies (waits for a just-released library on PyPI)
-        run: bash .github/scripts/install-requirements.sh pytest ruff
-      - name: Lint (errors only)
-        run: ruff check --select E9,F custom_components scripts tests
-      - name: Run tests
-        run: python -m pytest -v tests
+    uses: ./.github/workflows/tests.yml
 
   hassfest:
     runs-on: ubuntu-latest

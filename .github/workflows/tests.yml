@@ -4,6 +4,8 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  # The release workflow runs these same tests (both jobs) before it publishes.
+  workflow_call:
 
 permissions:
   contents: read

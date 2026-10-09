@@ -22,6 +22,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.importlib import async_import_module
 from homeassistant.helpers.selector import (
     BooleanSelector,
     NumberSelector,
@@ -45,17 +46,31 @@ from wifi_ap_associations import (
     normalize_mac,
 )
 from wifi_ap_associations.collect import PROFILES as COLLECT_PROFILES
-from wifi_ap_associations.collect import async_collect_ssh_report
+from wifi_ap_associations.collect import (
+    SNMP_AUTH,
+    SNMP_PRIV,
+    async_collect_snmp_report,
+    async_collect_ssh_report,
+)
 from .const import (
+    COLLECT_METHODS,
     COLLECT_TIMEOUT,
+    CONF_AUTH_KEY,
+    CONF_AUTH_PROTOCOL,
     CONF_COMMANDS,
+    CONF_COMMUNITY,
     CONF_CONSIDER_HOME,
     CONF_DRIVER,
     CONF_LEGACY_SSH,
     CONF_MAC,
     CONF_MODEL,
     CONF_NAME,
+    CONF_PRIV_KEY,
+    CONF_PRIV_PROTOCOL,
     CONF_PROFILE,
+    SECRET_KEYS,
+    SNMP_COLLECT_TIMEOUT,
+    SNMP_MAX_VALUES,
     DEFAULT_CONSIDER_HOME,
     DOMAIN,
     LOGGER,
@@ -64,7 +79,7 @@ from .const import (
     SUBENTRY_TRACKED_DEVICE,
 )
 from .coordinator import AssociationCoordinator, user_named
-from .diagnostics import store_report
+from .diagnostics import store_failed_attempt, store_report
 from .presence import Sighting
 from .sources import build_driver, field_choices
 
@@ -147,79 +162,138 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
     """Collect a report from an access point that isn't supported yet.
 
     Started by the "Collect access point report" button on the integration page. It
-    creates no subentry: the redacted report is kept in memory for Download
-    diagnostics, and the password is used for this one login only.
+    creates no subentry: the redacted report (or why collecting failed) is kept in
+    memory for Download diagnostics, and passwords, communities and keys are used for
+    this one collection only.
+
+    The collection runs detached from the window: closing the window doesn't stop it,
+    and its result still lands in the diagnostics.
     """
 
     def __init__(self) -> None:
         """Start without a collection running."""
+        self._method = ""
         self._collect_input: dict[str, Any] = {}
-        self._collect_task: asyncio.Task[str | None] | None = None
+        self._work: asyncio.Task[str | None] | None = None
+        self._wait: asyncio.Task[None] | None = None
         self._collect_error: str | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Ask how to log in to the access point to collect a report from."""
+        """Choose how to read the access point."""
+        return self.async_show_menu(step_id="user", menu_options=list(COLLECT_METHODS))
+
+    async def async_step_ssh(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """SSH login, command list and extra commands."""
+        return await self._async_method_form(
+            "ssh",
+            user_input,
+            {
+                vol.Required(CONF_HOST): TextSelector(),
+                vol.Required(CONF_PORT, default=22): _port_selector(),
+                vol.Required(CONF_USERNAME, default="admin"): TextSelector(),
+                vol.Required(CONF_PASSWORD): _secret_selector(),
+                vol.Required(CONF_PROFILE, default="generic"): SelectSelector(
+                    SelectSelectorConfig(
+                        options=list(COLLECT_PROFILES),
+                        mode=SelectSelectorMode.DROPDOWN,
+                        translation_key=CONF_PROFILE,
+                    )
+                ),
+                vol.Optional(CONF_COMMANDS, default=""): TextSelector(
+                    TextSelectorConfig(multiline=True)
+                ),
+                vol.Required(CONF_LEGACY_SSH, default=False): BooleanSelector(),
+            },
+        )
+
+    async def async_step_snmp_v2c(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """SNMP v2c: address and a (read-only) community."""
+        return await self._async_method_form(
+            "snmp_v2c",
+            user_input,
+            {
+                vol.Required(CONF_HOST): TextSelector(),
+                vol.Required(CONF_PORT, default=161): _port_selector(),
+                vol.Required(CONF_COMMUNITY): _secret_selector(),
+            },
+        )
+
+    async def async_step_snmp_v3(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """SNMP v3: user, keys and algorithms."""
+        return await self._async_method_form(
+            "snmp_v3",
+            user_input,
+            {
+                vol.Required(CONF_HOST): TextSelector(),
+                vol.Required(CONF_PORT, default=161): _port_selector(),
+                vol.Required(CONF_USERNAME): TextSelector(),
+                vol.Required(CONF_AUTH_KEY): _secret_selector(),
+                vol.Required(CONF_AUTH_PROTOCOL, default="sha"): _choice(
+                    SNMP_AUTH, CONF_AUTH_PROTOCOL
+                ),
+                vol.Optional(CONF_PRIV_KEY, default=""): _secret_selector(),
+                vol.Required(CONF_PRIV_PROTOCOL, default="aes"): _choice(
+                    SNMP_PRIV, CONF_PRIV_PROTOCOL
+                ),
+            },
+        )
+
+    async def _async_method_form(
+        self, method: str, user_input: dict[str, Any] | None, fields: dict[Any, Any]
+    ) -> SubentryFlowResult:
+        """Show a method's form (again with the last error), or start collecting."""
         if user_input is not None:
+            self._method = method
             self._collect_input = user_input
             self._collect_error = None
             return await self.async_step_collecting()
         errors = {"base": self._collect_error} if self._collect_error else {}
-        suggested = {k: v for k, v in self._collect_input.items() if k != CONF_PASSWORD}
+        suggested = {
+            key: value
+            for key, value in self._collect_input.items()
+            if key not in SECRET_KEYS
+        }
         return self.async_show_form(
-            step_id="user",
-            data_schema=self.add_suggested_values_to_schema(
-                vol.Schema(
-                    {
-                        vol.Required(CONF_HOST): TextSelector(),
-                        vol.Required(CONF_PORT, default=22): vol.All(
-                            NumberSelector(
-                                NumberSelectorConfig(min=1, max=65535, mode=NumberSelectorMode.BOX)
-                            ),
-                            vol.Coerce(int),
-                        ),
-                        vol.Required(CONF_USERNAME, default="admin"): TextSelector(),
-                        vol.Required(CONF_PASSWORD): TextSelector(
-                            TextSelectorConfig(type=TextSelectorType.PASSWORD)
-                        ),
-                        vol.Required(CONF_PROFILE, default="generic"): SelectSelector(
-                            SelectSelectorConfig(
-                                options=list(COLLECT_PROFILES),
-                                mode=SelectSelectorMode.DROPDOWN,
-                                translation_key=CONF_PROFILE,
-                            )
-                        ),
-                        vol.Optional(CONF_COMMANDS, default=""): TextSelector(
-                            TextSelectorConfig(multiline=True)
-                        ),
-                        vol.Required(CONF_LEGACY_SSH, default=False): BooleanSelector(),
-                    }
-                ),
-                suggested,
-            ),
+            step_id=method,
+            data_schema=self.add_suggested_values_to_schema(vol.Schema(fields), suggested),
             errors=errors,
         )
 
     async def async_step_collecting(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Run the collection, showing progress (it can take a minute)."""
-        if self._collect_task is None:
-            self._collect_task = self.hass.async_create_task(
-                self._async_collect(self._collect_input)
+        """Run the collection, showing progress (SSH a minute or two, SNMP up to five)."""
+        if self._wait is None:
+            # The work is a background task of its own and the progress task only waits
+            # for it, shielded: closing the window cancels the waiting, not the work.
+            self._work = self.hass.async_create_background_task(
+                self._async_collect(self._method, self._collect_input),
+                name=f"{DOMAIN} access point report",
             )
-        if not self._collect_task.done():
+            self._wait = self.hass.async_create_task(_async_wait_for(self._work))
+        if not self._wait.done():
             return self.async_show_progress(
                 step_id="collecting",
                 progress_action="collecting",
-                progress_task=self._collect_task,
-                description_placeholders={"host": self._collect_input[CONF_HOST]},
+                progress_task=self._wait,
+                description_placeholders={
+                    "host": self._collect_input[CONF_HOST],
+                    "duration": "five minutes" if self._method != "ssh" else "two minutes",
+                },
             )
-        self._collect_error = self._collect_task.result()
-        self._collect_task = None
+        assert self._work is not None
+        self._collect_error = self._work.result()
+        self._work = self._wait = None
         return self.async_show_progress_done(
-            next_step_id="user" if self._collect_error else "collect_done"
+            next_step_id=self._method if self._collect_error else "collect_done"
         )
 
     async def async_step_collect_done(
@@ -228,40 +302,113 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
         """Point to the diagnostics download; nothing is added or changed."""
         return self.async_abort(reason="report_ready")
 
-    async def _async_collect(self, data: dict[str, Any]) -> str | None:
-        """Collect and keep the report for diagnostics; return an error key, or None."""
-        commands = [line.strip() for line in data.get(CONF_COMMANDS, "").splitlines()]
+    async def _async_collect(self, method: str, data: dict[str, Any]) -> str | None:
+        """Collect and keep the result for diagnostics; return an error key, or None."""
+        host = data[CONF_HOST].strip()
+        settings: dict[str, Any] = {"port": data[CONF_PORT]}
         try:
-            async with asyncio.timeout(COLLECT_TIMEOUT):
-                report = await async_collect_ssh_report(
-                    data[CONF_HOST].strip(),
-                    data[CONF_USERNAME],
-                    data[CONF_PASSWORD],
-                    port=data[CONF_PORT],
-                    profile=data[CONF_PROFILE],
-                    commands=[c for c in commands if c],
-                    legacy_ssh=data[CONF_LEGACY_SSH],
-                )
+            if method == "ssh":
+                commands = [
+                    line.strip()
+                    for line in data.get(CONF_COMMANDS, "").splitlines()
+                    if line.strip()
+                ]
+                settings |= {
+                    "profile": data[CONF_PROFILE],
+                    "extra_commands": commands,
+                    "legacy_ssh": data[CONF_LEGACY_SSH],
+                }
+                async with asyncio.timeout(COLLECT_TIMEOUT):
+                    report = await async_collect_ssh_report(
+                        host,
+                        data[CONF_USERNAME],
+                        data[CONF_PASSWORD],
+                        port=data[CONF_PORT],
+                        profile=data[CONF_PROFILE],
+                        commands=commands,
+                        legacy_ssh=data[CONF_LEGACY_SSH],
+                    )
+            else:
+                settings["max_values_per_table"] = SNMP_MAX_VALUES
+                if method == "snmp_v3":
+                    settings |= {
+                        "auth_protocol": data[CONF_AUTH_PROTOCOL],
+                        "priv_protocol": data[CONF_PRIV_PROTOCOL],
+                    }
+                # pysnmp loads its modules from disk on first import: do that off the
+                # event loop, and only when someone collects over SNMP.
+                await async_import_module(self.hass, "pysnmp.hlapi.v3arch.asyncio")
+                async with asyncio.timeout(SNMP_COLLECT_TIMEOUT):
+                    if method == "snmp_v2c":
+                        report = await async_collect_snmp_report(
+                            host,
+                            port=data[CONF_PORT],
+                            community=data[CONF_COMMUNITY],
+                            max_values=SNMP_MAX_VALUES,
+                        )
+                    else:
+                        report = await async_collect_snmp_report(
+                            host,
+                            port=data[CONF_PORT],
+                            user=data[CONF_USERNAME],
+                            auth_key=data[CONF_AUTH_KEY],
+                            priv_key=data.get(CONF_PRIV_KEY, ""),
+                            auth_protocol=data[CONF_AUTH_PROTOCOL],
+                            priv_protocol=data[CONF_PRIV_PROTOCOL],
+                            max_values=SNMP_MAX_VALUES,
+                        )
         except AccessPointAuthError:
-            return "invalid_auth"
+            error = "invalid_auth" if method == "ssh" else "invalid_snmp_auth"
         except AccessPointError as err:
-            LOGGER.debug("Collecting a report from %s failed: %s", data[CONF_HOST], err)
-            return "legacy_ssh" if "legacy SSH" in str(err) else "cannot_connect"
+            LOGGER.debug("Collecting a report from %s failed: %s", host, err)
+            if method != "ssh":
+                error = "snmp_no_answer"
+            else:
+                error = "legacy_ssh" if "legacy SSH" in str(err) else "cannot_connect"
         except TimeoutError:
-            return "timeout"
+            error = "timeout"
         except Exception:  # never leave the flow stuck on an unexpected error
-            LOGGER.exception("Unexpected error collecting a report from %s", data[CONF_HOST])
-            return "unknown"
-        store_report(
-            self.hass,
-            host=data[CONF_HOST].strip(),
-            port=data[CONF_PORT],
-            profile=data[CONF_PROFILE],
-            commands=[c for c in commands if c],
-            legacy_ssh=data[CONF_LEGACY_SSH],
-            report=report,
+            LOGGER.exception("Unexpected error collecting a report from %s", host)
+            error = "unknown"
+        else:
+            store_report(
+                self.hass, host=host, method=method, settings=settings, report=report
+            )
+            return None
+        store_failed_attempt(self.hass, host=host, method=method, error=error)
+        return error
+
+
+async def _async_wait_for(work: asyncio.Task[Any]) -> None:
+    """Wait for the collection without cancelling it when the waiting is cancelled."""
+    try:
+        await asyncio.shield(work)
+    except Exception:  # noqa: BLE001 - the flow reads the outcome from the work task
+        pass
+
+
+def _port_selector() -> Any:
+    """A port number box."""
+    return vol.All(
+        NumberSelector(NumberSelectorConfig(min=1, max=65535, mode=NumberSelectorMode.BOX)),
+        vol.Coerce(int),
+    )
+
+
+def _secret_selector() -> TextSelector:
+    """A masked text box for passwords, communities and keys."""
+    return TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+
+
+def _choice(options: dict[str, str], translation_key: str) -> SelectSelector:
+    """A dropdown of the collector's SNMPv3 algorithm names."""
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=list(options),
+            mode=SelectSelectorMode.DROPDOWN,
+            translation_key=translation_key,
         )
-        return None
+    )
 
 
 class AccessPointSubentryFlow(ConfigSubentryFlow):

@@ -409,25 +409,30 @@ You don't need to write code to get an access point supported. Collect a report 
 and attach it to a
 [New access point model](../../issues/new?template=new_access_point.yml) issue.
 
-**In Home Assistant (SSH, nothing to install):**
+**In Home Assistant (SSH or SNMP, nothing to install):**
 
 1. Settings → Devices & services → **Wi-Fi Association Presence** → the blue
    **Collect access point report** button at the top (next to *Add access point*).
-2. Enter its address, SSH port, username and password, and pick a command list (or
-   *Generic*). Turn on *Allow old SSH algorithms* for older models such as D-Link DAP.
-   The password is used for this login only and not stored.
-3. Wait for *Report collected* (up to a minute or two), then open the menu (⋮) of the
-   *Wi-Fi association presence* hub → **Download diagnostics**. The report is in `access_point_report`.
+2. Choose how to read it:
+   - **SSH console**: address, SSH port, username and password, and a command list (or
+     *Generic*). Turn on *Allow old SSH algorithms* for older models such as D-Link DAP.
+   - **SNMP v2c**: address and a read-only community.
+   - **SNMP v3**: address, user, keys and algorithms.
+
+   Passwords, communities and keys are used for this collection only and not stored.
+3. Wait for *Report collected* (SSH: up to a minute or two; SNMP: up to five). You can
+   close the window meanwhile: the collection continues. Then open the menu (⋮) of the
+   *Wi-Fi association presence* hub → **Download diagnostics**. The report is in
+   `access_point_report`; if collecting failed, `last_attempt` says why.
 4. Read it (see below), then attach the file to the issue. Besides the report, the file
    holds Home Assistant's usual diagnostics details: your Home Assistant version and the
    list of custom integrations you have installed.
 
 The report stays in memory until Home Assistant restarts or you collect another one.
-For SNMP, or from a computer instead, use the command-line collector below.
 
 **From a computer:** `wifi-ap-collect`, on any computer on the same network with Python
-3.12 or newer (`pip install wifi-ap-associations`). It runs the same commands with the
-same redaction, and also does SNMP.
+3.12 or newer (`pip install wifi-ap-associations`). It runs the same commands and walks
+with the same redaction, and has more options (see below).
 
 > **Read the report before you submit it, and redact by hand what is still private.**
 > The collector removes MAC, IP and email addresses, key-like strings, the credentials
@@ -460,7 +465,7 @@ wifi-ap-collect --host <AP IP> --username <user>
 **SNMP**
 
 ```bash
-pip install wifi-ap-associations pysnmp
+pip install wifi-ap-associations
 wifi-ap-collect --host <AP IP> --snmp                    # v2c, asks for the community
 wifi-ap-collect --host <AP IP> --snmp --snmp-user <user> # v3 (SHA / AES-128)
 wifi-ap-collect --host <AP IP> --snmp --snmp-user <user> --snmp-auth sha256 --snmp-priv aes

@@ -9,7 +9,7 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/darek-margas/wifi-association-presence/issues",
   "loggers": ["asyncssh"],
-  "requirements": ["wifi-ap-associations==0.3.0"],
+  "requirements": ["wifi-ap-associations==0.4.0"],
   "single_config_entry": true,
   "version": "0.6.0b5"
 }
