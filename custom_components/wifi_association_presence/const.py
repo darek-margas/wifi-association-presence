@@ -39,6 +39,11 @@ SNMP_COLLECT_TIMEOUT = 300
 SNMP_MAX_VALUES = 5000
 # hass.data key of the last collected report, kept in memory for Download diagnostics.
 DATA_AP_REPORT = f"{DOMAIN}_ap_report"
+# Linked from the "Report collected" message (Home Assistant wants URLs as placeholders).
+NEW_ACCESS_POINT_ISSUE_URL = (
+    "https://github.com/darek-margas/wifi-association-presence/issues/new"
+    "?template=new_access_point.yml"
+)
 
 # Fixed by design (Home Assistant integrations don't expose polling intervals).
 SCAN_INTERVAL = timedelta(seconds=60)

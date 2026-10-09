@@ -74,6 +74,7 @@ from .const import (
     DEFAULT_CONSIDER_HOME,
     DOMAIN,
     LOGGER,
+    NEW_ACCESS_POINT_ISSUE_URL,
     SUBENTRY_ACCESS_POINT,
     SUBENTRY_REPORT,
     SUBENTRY_TRACKED_DEVICE,
@@ -300,7 +301,13 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
         """Point to the diagnostics download; nothing is added or changed."""
-        return self.async_abort(reason="report_ready")
+        return self.async_abort(
+            reason="report_ready",
+            description_placeholders={
+                "integration_url": f"/config/integrations/integration/{DOMAIN}",
+                "issue_url": NEW_ACCESS_POINT_ISSUE_URL,
+            },
+        )
 
     async def _async_collect(self, method: str, data: dict[str, Any]) -> str | None:
         """Collect and keep the result for diagnostics; return an error key, or None."""
