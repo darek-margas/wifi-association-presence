@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.1 — better access point reports: MikroTik, timing, CPU and memory over SNMP
+
+Everything since 0.6.0 (the betas below have the details). Nothing changes for your
+access points, trackers or settings.
+
+- **Collect access point report → SSH → Command list "MikroTik RouterOS"**: system
+  details, interfaces and the client table of each RouterOS Wi-Fi package, read command
+  by command (no terminal), in well under a second. Tested on RouterOS 7.20.
+- **The result says how long the collection took** ("Report collected in 0.3 s"), and the
+  report and diagnostics record it.
+- **SNMP reports** also read the standard CPU and memory tables (HOST-RESOURCES).
+- **Extra commands** accept the usual client-list commands of Linux, Broadcom, Atheros
+  and MikroTik based access points (since library 0.4.2).
+- CI copes with PyPI's delay right after a library release.
+- Uses wifi-ap-associations 0.4.4.
+
 ## 0.6.1b2 — report shows how long it took; MikroTik and SNMP reports read more (beta)
 
 - **"Report collected in 0.8 s"**: the result says how long the collection took, and the

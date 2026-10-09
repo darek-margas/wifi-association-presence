@@ -11,6 +11,6 @@
   "loggers": ["asyncssh"],
   "requirements": ["wifi-ap-associations==0.4.4"],
   "single_config_entry": true,
-  "version": "0.6.1b2"
+  "version": "0.6.1"
 }
 
