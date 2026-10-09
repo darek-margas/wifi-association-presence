@@ -1,6 +1,6 @@
 """Download diagnostics: the integration's setup, and the last access point report.
 
-The report comes from Configure -> "Collect a report from an access point". It is kept
+The report comes from the "Collect access point report" button. It is kept
 in memory only (until Home Assistant restarts or the next collection), already redacted
 by the collector, and the password used for it is never stored.
 """
@@ -20,8 +20,7 @@ from .const import CONF_DRIVER, DATA_AP_REPORT, SUBENTRY_ACCESS_POINT, SUBENTRY_
 
 NO_REPORT = (
     "No report collected since Home Assistant started. To collect one: Settings -> "
-    "Devices & services -> Wi-Fi Association Presence -> Configure -> Collect a report "
-    "from an access point."
+    "Devices & services -> Wi-Fi Association Presence -> Collect access point report."
 )
 
 

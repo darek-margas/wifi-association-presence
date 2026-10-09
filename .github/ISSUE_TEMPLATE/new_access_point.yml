@@ -10,9 +10,9 @@ body:
         point: it logs in, runs read-only commands only, and redacts MAC and IP addresses
         and secret-looking settings.
 
-        **In Home Assistant (SSH):** Wi-Fi Association Presence -> Configure -> **Collect a
-        report from an access point**, then on the integration page (⋮) -> **Download
-        diagnostics** and attach that file below.
+        **In Home Assistant (SSH):** on the Wi-Fi Association Presence page press **Collect
+        access point report**, then (⋮) of the hub -> **Download diagnostics** and attach
+        that file below.
 
         **From a computer:**
 

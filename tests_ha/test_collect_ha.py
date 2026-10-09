@@ -1,4 +1,4 @@
-"""Configure menu: collect a report from an access point, then Download diagnostics."""
+"""The "Collect access point report" button, then Download diagnostics."""
 
 from __future__ import annotations
 
@@ -38,23 +38,21 @@ async def setup_hub(hass: HomeAssistant) -> MockConfigEntry:
 
 
 async def collect(hass: HomeAssistant, entry: MockConfigEntry, collector: AsyncMock) -> dict[str, Any] | None:
-    """Menu -> collect -> submit -> wait for the progress step; the flow's last result.
+    """Button -> form -> submit -> wait for the progress step; the flow's last result.
 
     None when the flow finished by itself after the collection (Home Assistant runs the
     step after a finished progress task on its own).
     """
     with patch(COLLECTOR, collector):
-        result = await hass.config_entries.options.async_init(entry.entry_id)
-        assert result["type"] is FlowResultType.MENU
-        result = await hass.config_entries.options.async_configure(
-            result["flow_id"], {"next_step_id": "collect"}
+        result = await hass.config_entries.subentries.async_init(
+            (entry.entry_id, "access_point_report"), context={"source": "user"}
         )
-        assert result["type"] is FlowResultType.FORM and result["step_id"] == "collect"
-        result = await hass.config_entries.options.async_configure(result["flow_id"], FORM)
+        assert result["type"] is FlowResultType.FORM and result["step_id"] == "user"
+        result = await hass.config_entries.subentries.async_configure(result["flow_id"], FORM)
         assert result["type"] is FlowResultType.SHOW_PROGRESS
         await hass.async_block_till_done()
         try:
-            return await hass.config_entries.options.async_configure(result["flow_id"])
+            return await hass.config_entries.subentries.async_configure(result["flow_id"])
         except UnknownFlow:
             return None
 
@@ -77,6 +75,7 @@ async def test_collected_report_is_in_diagnostics(hass: HomeAssistant) -> None:
         legacy_ssh=True,
     )
     assert entry.options == {}  # collecting changes no settings
+    assert not entry.subentries  # and adds nothing
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
     report = diagnostics["access_point_report"]
@@ -91,7 +90,7 @@ async def test_rejected_login_shows_error_and_keeps_no_report(hass: HomeAssistan
     result = await collect(hass, entry, AsyncMock(side_effect=AccessPointAuthError("rejected")))
 
     assert result is not None
-    assert result["type"] is FlowResultType.FORM and result["step_id"] == "collect"
+    assert result["type"] is FlowResultType.FORM and result["step_id"] == "user"
     assert result["errors"] == {"base": "invalid_auth"}
     assert DATA_AP_REPORT not in hass.data
 
@@ -111,13 +110,10 @@ async def test_unreachable_is_cannot_connect(hass: HomeAssistant) -> None:
     assert result is not None and result["errors"] == {"base": "cannot_connect"}
 
 
-async def test_grace_period_still_set_from_the_menu(hass: HomeAssistant) -> None:
+async def test_grace_period_is_the_options_form(hass: HomeAssistant) -> None:
     entry = await setup_hub(hass)
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"next_step_id": "settings"}
-    )
-    assert result["type"] is FlowResultType.FORM and result["step_id"] == "settings"
+    assert result["type"] is FlowResultType.FORM and result["step_id"] == "init"
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {"consider_home": 60}
     )

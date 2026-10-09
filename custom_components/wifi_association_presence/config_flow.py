@@ -60,6 +60,7 @@ from .const import (
     DOMAIN,
     LOGGER,
     SUBENTRY_ACCESS_POINT,
+    SUBENTRY_REPORT,
     SUBENTRY_TRACKED_DEVICE,
 )
 from .coordinator import AssociationCoordinator, user_named
@@ -95,36 +96,27 @@ class WifiAssociationPresenceConfigFlow(ConfigFlow, domain=DOMAIN):
     def async_get_supported_subentry_types(
         cls, config_entry: ConfigEntry
     ) -> dict[str, type[ConfigSubentryFlow]]:
-        """Access points and tracked devices are added from the integration page."""
+        """Buttons on the integration page: add an access point or a tracked device, or
+        collect a report from an access point that isn't supported yet (that one never
+        creates a subentry)."""
         return {
             SUBENTRY_ACCESS_POINT: AccessPointSubentryFlow,
             SUBENTRY_TRACKED_DEVICE: TrackedDeviceSubentryFlow,
+            SUBENTRY_REPORT: CollectReportSubentryFlow,
         }
 
 
 class WifiAssociationPresenceOptionsFlow(OptionsFlow):
-    """Hub options: the grace period, and collecting a report from an access point."""
-
-    def __init__(self) -> None:
-        """Start without a collection running."""
-        self._collect_input: dict[str, Any] = {}
-        self._collect_task: asyncio.Task[str | None] | None = None
-        self._collect_error: str | None = None
+    """Grace period before a device that disappeared counts as away."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Choose what to configure."""
-        return self.async_show_menu(step_id="init", menu_options=["settings", "collect"])
-
-    async def async_step_settings(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Grace period before a device that disappeared counts as away."""
+        """Show the options form."""
         if user_input is not None:
-            return self.async_create_entry(data={**self.config_entry.options, **user_input})
+            return self.async_create_entry(data=user_input)
         return self.async_show_form(
-            step_id="settings",
+            step_id="init",
             data_schema=self.add_suggested_values_to_schema(
                 vol.Schema(
                     {
@@ -150,9 +142,24 @@ class WifiAssociationPresenceOptionsFlow(OptionsFlow):
             ),
         )
 
-    async def async_step_collect(
+
+class CollectReportSubentryFlow(ConfigSubentryFlow):
+    """Collect a report from an access point that isn't supported yet.
+
+    Started by the "Collect access point report" button on the integration page. It
+    creates no subentry: the redacted report is kept in memory for Download
+    diagnostics, and the password is used for this one login only.
+    """
+
+    def __init__(self) -> None:
+        """Start without a collection running."""
+        self._collect_input: dict[str, Any] = {}
+        self._collect_task: asyncio.Task[str | None] | None = None
+        self._collect_error: str | None = None
+
+    async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    ) -> SubentryFlowResult:
         """Ask how to log in to the access point to collect a report from."""
         if user_input is not None:
             self._collect_input = user_input
@@ -161,7 +168,7 @@ class WifiAssociationPresenceOptionsFlow(OptionsFlow):
         errors = {"base": self._collect_error} if self._collect_error else {}
         suggested = {k: v for k, v in self._collect_input.items() if k != CONF_PASSWORD}
         return self.async_show_form(
-            step_id="collect",
+            step_id="user",
             data_schema=self.add_suggested_values_to_schema(
                 vol.Schema(
                     {
@@ -196,7 +203,7 @@ class WifiAssociationPresenceOptionsFlow(OptionsFlow):
 
     async def async_step_collecting(
         self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    ) -> SubentryFlowResult:
         """Run the collection, showing progress (it can take a minute)."""
         if self._collect_task is None:
             self._collect_task = self.hass.async_create_task(
@@ -212,13 +219,13 @@ class WifiAssociationPresenceOptionsFlow(OptionsFlow):
         self._collect_error = self._collect_task.result()
         self._collect_task = None
         return self.async_show_progress_done(
-            next_step_id="collect" if self._collect_error else "collect_done"
+            next_step_id="user" if self._collect_error else "collect_done"
         )
 
     async def async_step_collect_done(
         self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Point to the diagnostics download; the options are left unchanged."""
+    ) -> SubentryFlowResult:
+        """Point to the diagnostics download; nothing is added or changed."""
         return self.async_abort(reason="report_ready")
 
     async def _async_collect(self, data: dict[str, Any]) -> str | None:

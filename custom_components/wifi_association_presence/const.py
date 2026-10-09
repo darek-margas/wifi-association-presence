@@ -10,6 +10,8 @@ LOGGER = logging.getLogger(__package__)
 
 SUBENTRY_ACCESS_POINT = "access_point"
 SUBENTRY_TRACKED_DEVICE = "tracked_device"
+# A button on the integration page that collects a report; never stored as a subentry.
+SUBENTRY_REPORT = "access_point_report"
 
 CONF_DRIVER = "driver"
 CONF_MAC = "mac"
@@ -17,7 +19,7 @@ CONF_NAME = "name"
 CONF_MODEL = "model"
 CONF_CONSIDER_HOME = "consider_home"
 
-# Options menu: collect a report from an access point (for adding support for it).
+# Collect access point report (for adding support for an access point).
 CONF_PROFILE = "profile"
 CONF_COMMANDS = "commands"
 CONF_LEGACY_SSH = "legacy_ssh"

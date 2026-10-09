@@ -12,50 +12,13 @@
   "options": {
     "step": {
       "init": {
-        "menu_options": {
-          "settings": "Grace period",
-          "collect": "Collect a report from an access point"
-        }
-      },
-      "settings": {
         "data": {
           "consider_home": "Grace period"
         },
         "data_description": {
           "consider_home": "How long a device stays home after it was last seen associated to any access point. Covers roaming between access points, coverage gaps and a failing access point. Values under 30 s act as 30 s (away after one missed poll)."
         }
-      },
-      "collect": {
-        "title": "Collect a report from an access point",
-        "description": "For an access point that isn't supported yet: Home Assistant logs in over SSH, runs commands that only display information (anything that could change settings is refused) and keeps a redacted report. Then download it with Download diagnostics on the integration page and attach it to a \"New access point model\" issue. The password is used for this login only and not stored.",
-        "data": {
-          "host": "Host or IP address",
-          "port": "SSH port",
-          "username": "Username",
-          "password": "Password",
-          "profile": "Command list",
-          "commands": "Extra commands (optional)",
-          "legacy_ssh": "Allow old SSH algorithms"
-        },
-        "data_description": {
-          "profile": "Generic tries common show/get commands. Choose a vendor list if yours is there.",
-          "commands": "One per line: a command you know lists the connected clients. Commands that could change settings are refused.",
-          "legacy_ssh": "Turn on if the connection fails with an algorithm error (older access points, e.g. D-Link DAP)."
-        }
       }
-    },
-    "progress": {
-      "collecting": "Collecting a report from {host}. This takes up to a minute or two."
-    },
-    "error": {
-      "invalid_auth": "The access point rejected the username or password.",
-      "cannot_connect": "Could not connect to the access point over SSH. Check the address, port and that SSH is enabled.",
-      "legacy_ssh": "The access point only offers old SSH algorithms. Turn on \"Allow old SSH algorithms\" and try again.",
-      "timeout": "The access point did not finish answering in time.",
-      "unknown": "Unexpected error, see the Home Assistant log."
-    },
-    "abort": {
-      "report_ready": "Report collected. Download it: on the integration page, open the menu (⋮) and choose Download diagnostics. Read it before sharing: automatic redaction can't recognise everything (a Wi-Fi passphrase, names, serial numbers). The report is kept until Home Assistant restarts or you collect another."
     }
   },
   "selector": {
@@ -168,6 +131,45 @@
       "abort": {
         "already_configured": "This device is already tracked.",
         "reconfigure_successful": "Device updated."
+      }
+    },
+    "access_point_report": {
+      "entry_type": "Access point report",
+      "initiate_flow": {
+        "user": "Collect access point report"
+      },
+      "step": {
+        "user": {
+          "title": "Collect a report from an access point",
+          "description": "For an access point that isn't supported yet: Home Assistant logs in over SSH, runs commands that only display information (anything that could change settings is refused) and keeps a redacted report. Then download it with Download diagnostics on the integration page and attach it to a \"New access point model\" issue. Nothing is added to your setup, and the password is used for this login only and not stored.",
+          "data": {
+            "host": "Host or IP address",
+            "port": "SSH port",
+            "username": "Username",
+            "password": "Password",
+            "profile": "Command list",
+            "commands": "Extra commands (optional)",
+            "legacy_ssh": "Allow old SSH algorithms"
+          },
+          "data_description": {
+            "profile": "Generic tries common show/get commands. Choose a vendor list if yours is there.",
+            "commands": "One per line: a command you know lists the connected clients. Commands that could change settings are refused.",
+            "legacy_ssh": "Turn on if the connection fails with an algorithm error (older access points, e.g. D-Link DAP)."
+          }
+        }
+      },
+      "progress": {
+        "collecting": "Collecting a report from {host}. This takes up to a minute or two."
+      },
+      "error": {
+        "invalid_auth": "The access point rejected the username or password.",
+        "cannot_connect": "Could not connect to the access point over SSH. Check the address, port and that SSH is enabled.",
+        "legacy_ssh": "The access point only offers old SSH algorithms. Turn on \"Allow old SSH algorithms\" and try again.",
+        "timeout": "The access point did not finish answering in time.",
+        "unknown": "Unexpected error, see the Home Assistant log."
+      },
+      "abort": {
+        "report_ready": "Report collected. Download it: on the integration page, open the menu (⋮) of \"Wi-Fi association presence\" and choose Download diagnostics. Read it before sharing: automatic redaction can't recognise everything (a Wi-Fi passphrase, names, serial numbers). The report is kept until Home Assistant restarts or you collect another."
       }
     }
   }

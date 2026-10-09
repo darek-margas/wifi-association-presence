@@ -22,7 +22,7 @@ Early development, Home Assistant 2026.9+
 
 > **Your access points aren't supported yet?** Install the integration anyway. You don't
 > need to understand any of the technical parts below to help add them:
-> **Configure → Collect a report from an access point**, then **Download diagnostics**
+> press **Collect access point report** on the integration page, then **Download diagnostics**
 > and attach the file to a
 > [New access point model](../../issues/new?template=new_access_point.yml) issue. When a
 > release supports your model, update and add your access points.
@@ -411,13 +411,13 @@ and attach it to a
 
 **In Home Assistant (SSH, nothing to install):**
 
-1. Settings → Devices & services → **Wi-Fi Association Presence** → **Configure** →
-   **Collect a report from an access point**.
+1. Settings → Devices & services → **Wi-Fi Association Presence** → the blue
+   **Collect access point report** button at the top (next to *Add access point*).
 2. Enter its address, SSH port, username and password, and pick a command list (or
    *Generic*). Turn on *Allow old SSH algorithms* for older models such as D-Link DAP.
    The password is used for this login only and not stored.
-3. Wait for *Report collected* (up to a minute or two), then on the integration page open
-   the menu (⋮) → **Download diagnostics**. The report is in `access_point_report`.
+3. Wait for *Report collected* (up to a minute or two), then open the menu (⋮) of the
+   *Wi-Fi association presence* hub → **Download diagnostics**. The report is in `access_point_report`.
 4. Read it (see below), then attach the file to the issue.
 
 The report stays in memory until Home Assistant restarts or you collect another one.

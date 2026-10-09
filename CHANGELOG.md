@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0b4 — "Collect access point report" button (beta)
+
+### Changes
+- **The report collector has its own button** on the integration page, **Collect access
+  point report**, next to *Add access point* and *Add tracked device*. In 0.6.0b3 it was
+  hidden behind the hub's gear (Configure). It works the same: the same form, progress
+  and Download diagnostics, and it adds nothing to your setup.
+- **The hub's gear opens the grace period directly again**, without the menu of 0.6.0b3.
+
 ## 0.6.0b3 — collect an access point report from Home Assistant (beta)
 
 ### New
