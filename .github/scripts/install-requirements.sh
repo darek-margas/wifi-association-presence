@@ -15,4 +15,4 @@ for i in $(seq 1 30); do
   echo "Waiting for ${REQS[*]} to appear on PyPI ($i/30)..."
   sleep 30
 done
-pip install "$@" "${REQS[@]}"
+pip install --no-cache-dir "$@" "${REQS[@]}"
