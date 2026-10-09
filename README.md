@@ -38,7 +38,7 @@ Install it anyway; you can help get them supported without any technical knowled
    Read it first: it is redacted automatically, but check nothing private is left.
 3. **Wait for an update that supports your model**, then add your access points as above.
 
-Supported today: **D-Link DAP, OpenWrt and UniFi.**
+Supported today: **D-Link DAP, OpenWrt and UniFi**, and MikroTik RouterOS as experimental.
 [More about reports](#help-add-your-access-point) · [What each type reads](#supported-access-points)
 
 ---
@@ -291,22 +291,23 @@ Leaving an access point's password empty keeps the current one.
 | D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI | SSH: `config wlan 0/1` + `get clientinfo` |
 | UniFi (via the UniFi Network integration) | **Confirmed** on a UniFi Network controller by a user. Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
 | OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
+| MikroTik RouterOS (SSH), **experimental** | RouterOS access points, routers with Wi-Fi and CAPsMAN controllers. **Confirmed:** connection and system details on RouterOS 7.20 (a CRS310 switch). **Not yet confirmed:** the client table, which follows MikroTik's documentation; a report from a real MikroTik access point is welcome | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) or `/interface wireless` (RouterOS 6) `registration-table print terse` and `print terse` |
 
 ### What each type reports
 
-| | D-Link DAP | OpenWrt | UniFi |
-|---|---|---|---|
-| Clients, band, SSID name | ✓ | ✓ | ✓ |
-| Signal | % | dBm | dBm |
-| AP device and sensors created here | ✓ | ✓ | — (uses the UniFi device) |
-| Name | system name | host name | UniFi name |
-| Model | — (enter it in the AP's settings) | ✓ | in UniFi |
-| Firmware, hardware | ✓ | ✓ | in UniFi |
-| Last boot (uptime) | ✓ | ✓ | in UniFi |
-| Location | ✓ | — (no such setting) | — |
-| CPU % | ✓ | — (only load averages) | in UniFi |
-| Memory % | ✓ | ✓ | in UniFi |
-| Login | SSH, password | SSH, password | none (the UniFi integration's session) |
+| | D-Link DAP | OpenWrt | UniFi | MikroTik (experimental) |
+|---|---|---|---|---|
+| Clients, band, SSID name | ✓ | ✓ | ✓ | ✓ |
+| Signal | % | dBm | dBm | dBm |
+| AP device and sensors created here | ✓ | ✓ | — (uses the UniFi device) | ✓ |
+| Name | system name | host name | UniFi name | identity |
+| Model | — (enter it in the AP's settings) | ✓ | in UniFi | ✓ (board name) |
+| Firmware, hardware | ✓ | ✓ | in UniFi | firmware |
+| Last boot (uptime) | ✓ | ✓ | in UniFi | ✓ |
+| Location | ✓ | — (no such setting) | — | — |
+| CPU % | ✓ | — (only load averages) | in UniFi | ✓ |
+| Memory % | ✓ | ✓ | in UniFi | ✓ |
+| Login | SSH, password | SSH, password | none (the UniFi integration's session) | SSH, password |
 
 Sensors for details a type can't report are not created. No type gives clients' IP
 addresses or host names to this integration, so trackers have no `ip` / `host_name`.
