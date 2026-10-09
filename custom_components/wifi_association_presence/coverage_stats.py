@@ -60,6 +60,12 @@ class CoverageTracker:
     # Per MAC: since when it is missing from every access point (not yet gone).
     _missing_since: dict[str, datetime] = field(default_factory=dict)
 
+    def reset_day(self, today: date) -> None:
+        """Reset daily counts independently of whether access points can be read."""
+        if today != self.day:
+            self.day = today
+            self.counts = {}
+
     def update(
         self,
         seen: Mapping[str, Sighting],
@@ -70,9 +76,19 @@ class CoverageTracker:
     ) -> None:
         """Feed one poll: who was seen where. Clients of an access point that couldn't
         be read aren't missing, just unknown, so they don't count as drops."""
-        if today != self.day:
-            self.day = today
-            self.counts = {}
+        self.reset_day(today)
+        # An unreadable AP interrupts observation: neither a gap nor a roam across
+        # that interval can be established from these polls.
+        for mac, (access_point_id, _quality) in list(self._last.items()):
+            if access_point_id in failed_access_points:
+                self._last.pop(mac, None)
+                self._missing_since.pop(mac, None)
+        # Expire gaps before processing returning clients, including a return on
+        # the first poll beyond grace (there need not be an intervening empty poll).
+        for mac, since in list(self._missing_since.items()):
+            if now - since > grace:
+                self._last.pop(mac, None)
+                del self._missing_since[mac]
         for mac, sighting in seen.items():
             counts = self.counts.setdefault(mac, DeviceCounts())
             missing_since = self._missing_since.pop(mac, None)

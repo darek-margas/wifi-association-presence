@@ -135,3 +135,41 @@ def test_access_point_coverage_without_signal() -> None:
     coverage = access_point_coverage({PHONE: seen("hall", None)})
     assert coverage["hall"] == AccessPointCoverage(clients=1, average_quality=None, weak_clients=0)
     assert access_point_coverage({}) == {}
+
+
+def test_return_on_first_poll_past_grace_is_not_a_roam() -> None:
+    tracker = CoverageTracker()
+    tracker.update({PHONE: seen("hall", 30)}, (), START, TODAY, GRACE)
+    tracker.update({}, (), START + POLL, TODAY, GRACE)
+    tracker.update(
+        {PHONE: seen("kitchen", 90)}, (), START + POLL + GRACE + POLL, TODAY, GRACE
+    )
+    assert tracker.counts[PHONE].drops == 0
+    assert tracker.counts[PHONE].roams == 0
+    assert tracker.counts[PHONE].late_roams == 0
+
+
+def test_failed_ap_interrupts_an_existing_missing_gap() -> None:
+    tracker = CoverageTracker()
+    tracker.update({PHONE: seen("hall")}, (), START, TODAY, GRACE)
+    tracker.update({}, (), START + POLL, TODAY, GRACE)
+    tracker.update({}, ("hall",), START + 2 * POLL, TODAY, GRACE)
+    tracker.update({PHONE: seen("hall")}, (), START + 3 * POLL, TODAY, GRACE)
+    assert tracker.counts[PHONE].drops == 0
+
+
+def test_ap_failure_does_not_create_a_roam_on_recovery() -> None:
+    tracker = CoverageTracker()
+    tracker.update({PHONE: seen("hall", 30)}, (), START, TODAY, GRACE)
+    tracker.update({}, ("hall",), START + POLL, TODAY, GRACE)
+    tracker.update({PHONE: seen("kitchen", 90)}, (), START + 2 * POLL, TODAY, GRACE)
+    assert tracker.counts[PHONE].roams == 0
+    assert tracker.counts[PHONE].late_roams == 0
+
+
+def test_daily_reset_does_not_require_a_successful_poll() -> None:
+    tracker = CoverageTracker()
+    feed(tracker, [{PHONE: seen("hall")}, {PHONE: seen("kitchen")}])
+    tracker.reset_day(date(2026, 10, 10))
+    assert tracker.counts == {}
+    assert tracker.day == date(2026, 10, 10)

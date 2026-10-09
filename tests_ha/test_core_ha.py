@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 from unittest.mock import patch
 
@@ -296,3 +296,24 @@ async def test_area_sensor_follows_only_access_point_devices(hass: HomeAssistant
     await hass.async_block_till_done()
     assert hass.states.get("sensor.phone_area").state == "Kitchen"
     assert hass.states.get("sensor.phone_area").attributes["area_id"] == kitchen.id
+
+
+async def test_coverage_day_resets_during_total_ap_failure(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    from custom_components.wifi_association_presence.coverage_stats import DeviceCounts
+
+    # Cross local midnight while the last successful poll is still within grace.
+    tomorrow = dt_util.as_local(dt_util.utcnow()).date() + timedelta(days=1)
+    midnight = datetime.combine(tomorrow, datetime.min.time(), dt_util.DEFAULT_TIME_ZONE)
+    freezer.move_to(dt_util.as_utc(midnight) - timedelta(seconds=30))
+    entry = await setup_entry(hass, ap("ap1"), PHONE_SUB)
+    coordinator = entry.runtime_data
+    previous_day = coordinator.coverage.day
+    coordinator.coverage.counts[PHONE] = DeviceCounts(roams=3, drops=2, late_roams=1)
+    FakeDriver.results["ap1"] = AccessPointError("down")
+    await refresh_after(hass, freezer, coordinator, 61)
+    assert coordinator.coverage.day == dt_util.as_local(dt_util.utcnow()).date()
+    assert coordinator.coverage.day != previous_day
+    assert coordinator.coverage.counts == {}
+    assert hass.states.get("sensor.phone_roams_today").state == "0"
