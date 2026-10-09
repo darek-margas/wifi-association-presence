@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0b2 — MikroTik: only authorized clients count (beta)
+
+- MikroTik access points: a client still authenticating doesn't count as connected yet.
+  The client-table columns were checked against MikroTik's WiFi manual; the driver stays
+  experimental until confirmed on a real MikroTik access point.
+- Uses wifi-ap-associations 0.5.1.
+
 ## 0.7.0b1 — MikroTik RouterOS access points, experimental (beta)
 
 - **Add access point → "MikroTik RouterOS (SSH)"**, shown as experimental: RouterOS
