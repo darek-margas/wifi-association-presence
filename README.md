@@ -9,7 +9,7 @@
 - **Which room.** Put each access point in a room (an *area*), and every device shows the
   room it is connected in: the living room, the studio, the garden.
 - **When.** Arrival and departure times, to the minute, for your automations.
-- **How good your Wi-Fi is** *(beta)*. Shows which rooms have a weak signal, which devices
+- **How good your Wi-Fi is.** Shows which rooms have a weak signal, which devices
   keep dropping off, and which ones hang on to a far access point.
   [Coverage dashboard](docs/coverage-dashboard.md).
 - **Nothing to install on the phones**, and no app or account: it asks your access points
@@ -28,6 +28,9 @@
    see, and give it a name. No MAC addresses to look up.
 
 That's all. [More detail on setup](#setup).
+
+Optional: paste one template to get a [Wi-Fi coverage dashboard](docs/coverage-dashboard.md)
+showing which rooms have a weak signal and which devices keep dropping off.
 
 ## Your access points aren't supported yet?
 
@@ -181,10 +184,11 @@ its web UI, the details it reports about itself (model, firmware, hardware) and 
 An access point read through a controller (UniFi) gets no device of its own: it uses the
 AP's existing device from that controller's integration, which already has these details.
 
-### Wi-Fi coverage (beta)
+### Wi-Fi coverage
 The integration counts these from the polls it already makes. You don't need a floor plan
 or an app. The [coverage dashboard](docs/coverage-dashboard.md) explains each sensor and
-has a dashboard to paste in.
+has a template that builds the whole dashboard from your own access points and devices,
+so there are no entity ids to look up.
 - **Per access point:** **Average client signal** (0-100 %) and **Weak clients** (how
   many are below 50 %, about -75 dBm). These come only for access points with their own
   device (not UniFi).
@@ -204,10 +208,11 @@ has a dashboard to paste in.
   other APs keep updating. Unexpected replies are discarded, not shown as values.
 - **Independent trackers.** Trackers are keyed by MAC address only, so you can remove,
   replace or change the type of an access point without losing them.
-- **Pluggable drivers.** Each kind of AP is a small driver (three so far: D-Link, OpenWrt,
-  UniFi); new ones can be added without touching the rest. The drivers are a separate
-  library, [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), which
-  other tools can use too.
+- **Pluggable drivers.** Each kind of AP is a small driver (so far D-Link, OpenWrt, UniFi
+  and, experimental, MikroTik); new ones can be added without touching the rest. The
+  drivers are a separate library,
+  [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), which other
+  tools can use too.
 
 ## Screenshots
 
@@ -224,6 +229,12 @@ A tracked device: its tracker, the access point it is connected to, the area of 
 access point, and the signal.
 
 ![Tracked device](docs/images/tracked-device.png)
+
+The [coverage dashboard](docs/coverage-dashboard.md), built by a template: average client
+signal and weak clients per access point (plus roams, short drops and late roams per
+device, and graphs).
+
+![Coverage dashboard](docs/images/coverage-dashboard.png)
 
 ## How presence is decided
 
@@ -403,9 +414,10 @@ each AP keeps its own device and area, so room-level presence works the same.
 ## Limitations
 
 **Access point support**
-- **Three kinds of access point so far:** D-Link DAP, OpenWrt and UniFi (through Home
-  Assistant's UniFi Network integration). Support for more depends on owners contributing
-  data (see [Help add your access point](#help-add-your-access-point) and the
+- **Four kinds of access point so far:** D-Link DAP, OpenWrt, UniFi (through Home
+  Assistant's UniFi Network integration) and MikroTik RouterOS (experimental). Support
+  for more depends on owners contributing data (see
+  [Help add your access point](#help-add-your-access-point) and the
   [Roadmap](#roadmap)); the driver interface is designed for it.
 - **Each type gives what its AP offers**, no more (see
   [What each type reports](#what-each-type-reports)). No type gives clients' IP addresses

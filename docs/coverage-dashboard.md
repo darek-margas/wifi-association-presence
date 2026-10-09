@@ -1,6 +1,6 @@
-# Wi-Fi coverage dashboard (beta)
+# Wi-Fi coverage dashboard
 
-From version 0.7.0b3 the integration also tells you **how well your Wi-Fi covers the
+From version 0.7.0 the integration also tells you **how well your Wi-Fi covers the
 home**, from the same access point polls it uses for presence. You don't need a floor plan,
 an app on the phone or extra hardware.
 
@@ -152,7 +152,7 @@ What you get:
 - **Device signal, 24 h:** each device's signal. A jump marks a roam, and a long low
   stretch shows a device that stayed on a far access point.
 
-The coverage sensors exist from 0.7.0b3 on. If the result has empty card lists, update the
+The coverage sensors exist from 0.7.0 on. If the result has empty card lists, update the
 integration, restart Home Assistant, and run the template again.
 
 ### All devices automatically (optional)
@@ -216,6 +216,6 @@ cards:
   overlap less, or turn on the AP's band steering or minimum-signal options where it has
   them.
 
-This is a **beta**. Thresholds and names may still change. Tell us what you see, or what
+The thresholds may still be tuned. Tell us what you see, or what
 you'd like it to show, in an
 [issue](https://github.com/darek-margas/wifi-association-presence/issues).

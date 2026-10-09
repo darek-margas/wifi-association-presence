@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.7.0 — Wi-Fi coverage dashboard; MikroTik RouterOS (experimental)
+
+Everything from the 0.7.0 betas, for everyone:
+
+- **How good your Wi-Fi is.** These are new sensors, counted from the polls the
+  integration already makes:
+  - **For each access point:** **Average client signal** and **Weak clients** (below
+    50 %, about -75 dBm).
+  - **For each tracked device:** **Roams today**, **Short drops today** (gaps that
+    presence hides) and **Late roams today** (stayed too long on a far access point).
+  - The counts are kept in memory and start again at midnight and when Home Assistant
+    restarts.
+- **[Coverage dashboard](docs/coverage-dashboard.md):** paste one template into
+  *Developer tools → Template*, and it writes the whole dashboard with your own access
+  points and devices. There are no entity ids to look up. The guide explains each sensor
+  and how to read it.
+- **MikroTik RouterOS access points (experimental),** over SSH:
+  - clients with SSID, band, signal and connected time;
+  - the access point's model, firmware, uptime, CPU and memory;
+  - only authorized clients count.
+  - It stays experimental until confirmed on a MikroTik access point that has clients.
+- Uses wifi-ap-associations 0.5.1.
+
 ## 0.7.0b4 — coverage counter fixes (beta)
 
 - A device coming back after more than the grace period isn't counted as a roam, even
