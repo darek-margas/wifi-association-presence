@@ -255,7 +255,9 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
         store_report(
             self.hass,
             host=data[CONF_HOST].strip(),
+            port=data[CONF_PORT],
             profile=data[CONF_PROFILE],
+            commands=[c for c in commands if c],
             legacy_ssh=data[CONF_LEGACY_SSH],
             report=report,
         )

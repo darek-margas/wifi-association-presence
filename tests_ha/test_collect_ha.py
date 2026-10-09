@@ -82,6 +82,7 @@ async def test_collected_report_is_in_diagnostics(hass: HomeAssistant) -> None:
     assert report["report"] == REPORT.splitlines()
     assert report["host"] == "192.x.x.23"
     assert report["profile"] == "dlink_dap" and report["legacy_ssh"] is True
+    assert report["port"] == 22 and report["extra_commands"] == ["show station"]
     assert "hunter2" not in str(diagnostics)
 
 

@@ -25,14 +25,24 @@ NO_REPORT = (
 
 
 def store_report(
-    hass: HomeAssistant, *, host: str, profile: str, legacy_ssh: bool, report: str
+    hass: HomeAssistant,
+    *,
+    host: str,
+    port: int,
+    profile: str,
+    commands: list[str],
+    legacy_ssh: bool,
+    report: str,
 ) -> None:
-    """Keep the last collected report for the next diagnostics download."""
+    """Keep the last collected report, and how it was collected, for diagnostics."""
+    redactor = Redactor([])
     hass.data[DATA_AP_REPORT] = {
         "collected_at": dt_util.utcnow().isoformat(timespec="seconds"),
         "host": _redact_host(host),
         "method": "ssh",
+        "port": port,
         "profile": profile,
+        "extra_commands": [redactor.text(command) for command in commands],
         "legacy_ssh": legacy_ssh,
         "report": report.splitlines(),
     }
