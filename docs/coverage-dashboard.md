@@ -49,69 +49,100 @@ them.
 
 ## Dashboard
 
-Replace the example entity ids with yours. They come from your device names: look under
-**Settings → Devices & services → Wi-Fi Association Presence**, open a device, and click a
-sensor.
+You don't need to look up or type any entity ids. Home Assistant writes the dashboard for
+you with your own access points and devices:
 
-Add a new dashboard view, open the **⋮ menu → Edit dashboard → ⋮ → Raw configuration
-editor**, and paste this as a view:
+1. Go to **Developer tools → Template**, clear the editor and paste the template below. Don't
+   change anything in it.
+2. The **Result** pane on the right now shows a complete dashboard, with your access points
+   and devices filled in. Copy all of it.
+3. Go to **Settings → Dashboards → Add dashboard → New dashboard from scratch**, and name it
+   *Wi-Fi coverage*. Open it, click the pencil, then **⋮ → Raw configuration editor**.
+4. Select everything in the editor, paste the result over it, and click **Save**.
 
-```yaml
-title: Wi-Fi coverage
-path: wifi-coverage
-icon: mdi:wifi-check
-cards:
-  - type: entities
-    title: Access points now
-    entities:
-      - entity: sensor.hall_ap_average_client_signal
-        name: Hall – average signal
-      - entity: sensor.hall_ap_weak_clients
-        name: Hall – weak clients
-      - entity: sensor.studio_ap_average_client_signal
-        name: Studio – average signal
-      - entity: sensor.studio_ap_weak_clients
-        name: Studio – weak clients
+When you add an access point or a tracked device later, do the same again: run the
+template, then paste the new result over the old one.
 
-  - type: statistics-graph
-    title: Average client signal per access point
-    chart_type: line
-    period: hour
-    days_to_show: 7
-    stat_types:
-      - mean
-      - min
-    entities:
-      - sensor.hall_ap_average_client_signal
-      - sensor.studio_ap_average_client_signal
-
-  - type: glance
-    title: Today
-    columns: 3
-    entities:
-      - entity: sensor.phone_roams_today
-        name: Phone roams
-      - entity: sensor.phone_short_drops_today
-        name: Phone drops
-      - entity: sensor.phone_late_roams_today
-        name: Phone late
-      - entity: sensor.laptop_roams_today
-        name: Laptop roams
-      - entity: sensor.laptop_short_drops_today
-        name: Laptop drops
-      - entity: sensor.laptop_late_roams_today
-        name: Laptop late
-
-  - type: history-graph
-    title: Where the phone was and how strong
-    hours_to_show: 24
-    entities:
-      - entity: sensor.phone_access_point
-      - entity: sensor.phone_signal
+```jinja
+{% set ents = integration_entities('wifi_association_presence') | select('match', '^sensor[.]') | list %}
+{% set avg = ents | select('search', '_average_client_signal') | list %}
+{% set weak = ents | select('search', '_weak_clients') | list %}
+{% set roams = ents | select('search', '_roams_today') | reject('search', '_late_roams_today') | list %}
+{% set drops = ents | select('search', '_short_drops_today') | list %}
+{% set late = ents | select('search', '_late_roams_today') | list %}
+{% set signal = ents | select('search', '_signal(_[0-9]+)?$') | reject('search', '_average_client_signal') | list %}
+{% macro short(e, suffix) %}{{ (state_attr(e, 'friendly_name') or e) | replace(' ' ~ suffix, '') }}{% endmacro %}
+views:
+  - title: Wi-Fi coverage
+    path: wifi-coverage
+    icon: mdi:wifi-check
+    cards:
+      - type: entities
+        title: Access points – average client signal
+        entities:
+{%- for e in avg %}
+          - entity: {{ e }}
+            name: {{ short(e, 'Average client signal') | tojson }}
+{%- endfor %}
+      - type: entities
+        title: Access points – weak clients
+        entities:
+{%- for e in weak %}
+          - entity: {{ e }}
+            name: {{ short(e, 'Weak clients') | tojson }}
+{%- endfor %}
+      - type: statistics-graph
+        title: Average client signal, 7 days
+        chart_type: line
+        period: hour
+        days_to_show: 7
+        stat_types: [mean, min]
+        entities:
+{%- for e in avg %}
+          - {{ e }}
+{%- endfor %}
+      - type: entities
+        title: Roams today
+        entities:
+{%- for e in roams %}
+          - entity: {{ e }}
+            name: {{ short(e, 'Roams today') | tojson }}
+{%- endfor %}
+      - type: entities
+        title: Short drops today
+        entities:
+{%- for e in drops %}
+          - entity: {{ e }}
+            name: {{ short(e, 'Short drops today') | tojson }}
+{%- endfor %}
+      - type: entities
+        title: Late roams today
+        entities:
+{%- for e in late %}
+          - entity: {{ e }}
+            name: {{ short(e, 'Late roams today') | tojson }}
+{%- endfor %}
+      - type: history-graph
+        title: Device signal, 24 h
+        hours_to_show: 24
+        entities:
+{%- for e in signal %}
+          - entity: {{ e }}
+            name: {{ short(e, 'Signal') | tojson }}
+{%- endfor %}
 ```
 
-The *history graph* of a device's **Access point** and **Signal** shows each roam: the
-signal before and after it, and how long the device stayed on a weak access point.
+What you get:
+
+- **Access points:** the average client signal and the number of weak clients of each,
+  and a 7-day graph of the average and the lowest hourly value. The graph fills in over
+  time; the first point shows about an hour after installing.
+- **Roams, short drops and late roams today:** one line per tracked device.
+- **Device signal, 24 h:** each device's signal. A jump marks a roam, and a long low
+  stretch shows a device that stayed on a far access point.
+
+The coverage sensors exist from 0.7.0b3 on. If the result has empty card lists, update the
+integration, restart Home Assistant, and run the template again.
 
 ### All devices automatically (optional)
 
