@@ -55,16 +55,21 @@ class CoverageTracker:
 
     day: date | None = None
     counts: dict[str, DeviceCounts] = field(default_factory=dict)
-    # Per MAC: the access point and quality at the last poll it was seen.
-    _last: dict[str, tuple[str, int | None]] = field(default_factory=dict)
-    # Per MAC: since when it is missing from every access point (not yet gone).
-    _missing_since: dict[str, datetime] = field(default_factory=dict)
+    # Per MAC: the access point, quality and time of the last poll it was seen in.
+    _last: dict[str, tuple[str, int | None, datetime]] = field(default_factory=dict)
+    # MACs missing from every access point since then (not yet gone).
+    _missing: set[str] = field(default_factory=set)
 
     def reset_day(self, today: date) -> None:
         """Reset daily counts independently of whether access points can be read."""
         if today != self.day:
             self.day = today
             self.counts = {}
+
+    def _forget(self, mac: str) -> None:
+        """Drop what is known about a device: its next sighting starts afresh."""
+        self._last.pop(mac, None)
+        self._missing.discard(mac)
 
     def update(
         self,
@@ -74,25 +79,21 @@ class CoverageTracker:
         today: date,
         grace: timedelta,
     ) -> None:
-        """Feed one poll: who was seen where. Clients of an access point that couldn't
-        be read aren't missing, just unknown, so they don't count as drops."""
+        """Feed one poll: who was seen where.
+
+        A gap is measured from when the device was last seen, as presence does: shorter
+        than the grace period it was a drop (the tracker stayed home), otherwise the
+        device left, which is neither a drop nor, on its return, a roam.
+        """
         self.reset_day(today)
-        # An unreadable AP interrupts observation: neither a gap nor a roam across
-        # that interval can be established from these polls.
-        for mac, (access_point_id, _quality) in list(self._last.items()):
-            if access_point_id in failed_access_points:
-                self._last.pop(mac, None)
-                self._missing_since.pop(mac, None)
-        # Expire gaps before processing returning clients, including a return on
-        # the first poll beyond grace (there need not be an intervening empty poll).
-        for mac, since in list(self._missing_since.items()):
-            if now - since > grace:
-                self._last.pop(mac, None)
-                del self._missing_since[mac]
+        for mac, (access_point_id, _quality, last_seen) in list(self._last.items()):
+            # An unreadable AP interrupts observation: neither a gap nor a roam across
+            # that interval can be established from these polls.
+            if access_point_id in failed_access_points or now - last_seen >= grace:
+                self._forget(mac)
         for mac, sighting in seen.items():
             counts = self.counts.setdefault(mac, DeviceCounts())
-            missing_since = self._missing_since.pop(mac, None)
-            if missing_since is not None and now - missing_since <= grace:
+            if mac in self._missing:
                 counts.drops += 1
             previous = self._last.get(mac)
             if previous is not None and previous[0] != sighting.access_point_id:
@@ -104,15 +105,9 @@ class CoverageTracker:
                     and new_quality - old_quality >= LATE_ROAM_GAIN
                 ):
                     counts.late_roams += 1
-            self._last[mac] = (sighting.access_point_id, sighting.quality)
-        for mac, (access_point_id, _quality) in list(self._last.items()):
-            if mac in seen or access_point_id in failed_access_points:
-                continue
-            since = self._missing_since.setdefault(mac, now)
-            if now - since > grace:
-                # Gone for longer than the grace period: it left, that's not a drop.
-                del self._last[mac]
-                del self._missing_since[mac]
+            self._last[mac] = (sighting.access_point_id, sighting.quality, now)
+            self._missing.discard(mac)
+        self._missing.update(mac for mac in self._last if mac not in seen)
 
 
 def access_point_coverage(seen: Mapping[str, Sighting]) -> dict[str, AccessPointCoverage]:

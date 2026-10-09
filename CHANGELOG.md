@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0b4 — coverage counter fixes (beta)
+
+- A device coming back after more than the grace period isn't counted as a roam, even
+  when it returns on the first poll after the grace period ends.
+- A gap is measured from when the device was last seen, as presence does. So a short drop
+  is exactly a gap during which the tracker stayed home.
+- When a device's access point can't be read, that gap or switch isn't counted. Nobody can
+  tell what happened during it.
+- The daily counts start again at midnight even while no access point can be read.
+- Dashboard guide: the short-drops sensor is `sensor.<device>_short_drops_today`.
+
 ## 0.7.0b3 — Wi-Fi coverage sensors and dashboard (beta)
 
 - **New per access point** (D-Link, OpenWrt, MikroTik):

@@ -110,11 +110,12 @@ def test_counts_start_again_on_a_new_day() -> None:
     tracker = CoverageTracker()
     feed(tracker, [{PHONE: seen("hall")}, {PHONE: seen("kitchen")}])
     assert tracker.counts[PHONE].roams == 1
-    tracker.update({PHONE: seen("hall")}, (), START + timedelta(hours=12), date(2026, 10, 10), GRACE)
+    # The next poll (30 s later) is already the next day.
+    tracker.update({PHONE: seen("hall")}, (), START + 2 * POLL, date(2026, 10, 10), GRACE)
     assert tracker.day == date(2026, 10, 10)
     # The roam that happened across midnight counts for the new day.
     assert tracker.counts[PHONE].roams == 1
-    tracker.update({PHONE: seen("hall")}, (), START + timedelta(hours=13), date(2026, 10, 10), GRACE)
+    tracker.update({PHONE: seen("hall")}, (), START + 3 * POLL, date(2026, 10, 10), GRACE)
     assert tracker.counts[PHONE].roams == 1
 
 
@@ -173,3 +174,16 @@ def test_daily_reset_does_not_require_a_successful_poll() -> None:
     tracker.reset_day(date(2026, 10, 10))
     assert tracker.counts == {}
     assert tracker.day == date(2026, 10, 10)
+
+
+def test_gap_is_measured_from_last_seen_like_presence() -> None:
+    # Seen at 0 s, missing from 30 s, back at 180 s: presence already showed it away
+    # (180 s since last seen is not within the 3 minute grace period), so no drop.
+    tracker = CoverageTracker()
+    feed(tracker, [{PHONE: seen("hall")}, *[{}] * 5, {PHONE: seen("kitchen")}])
+    assert tracker.counts[PHONE].drops == 0
+    assert tracker.counts[PHONE].roams == 0
+    # Back at 150 s from the last sighting is still a drop.
+    tracker = CoverageTracker()
+    feed(tracker, [{PHONE: seen("hall")}, *[{}] * 4, {PHONE: seen("hall")}])
+    assert tracker.counts[PHONE].drops == 1
