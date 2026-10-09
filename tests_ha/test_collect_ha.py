@@ -79,6 +79,14 @@ def is_ready(result: dict[str, Any] | None) -> bool:
     )
 
 
+def close(hass: HomeAssistant, result: dict[str, Any]) -> None:
+    """Close a flow left open on a form, as a user closing the dialog does."""
+    try:
+        hass.config_entries.subentries.async_abort(result["flow_id"])
+    except UnknownFlow:
+        pass
+
+
 async def test_ssh_report_is_in_diagnostics(hass: HomeAssistant) -> None:
     entry = await setup_hub(hass)
     collector = AsyncMock(return_value=REPORT)
@@ -165,6 +173,7 @@ async def test_rejected_login_shows_error_and_is_recorded(hass: HomeAssistant) -
     stored = hass.data[DATA_AP_REPORT]
     assert stored["last_attempt"]["result"] == "failed: invalid_auth"
     assert "report" not in stored
+    close(hass, result)
 
 
 async def test_old_algorithms_suggest_legacy_ssh(hass: HomeAssistant) -> None:
@@ -174,6 +183,7 @@ async def test_old_algorithms_suggest_legacy_ssh(hass: HomeAssistant) -> None:
         result = await finish(hass, await start(hass, entry, "ssh", SSH_FORM))
 
     assert result is not None and result["errors"] == {"base": "legacy_ssh"}
+    close(hass, result)
 
 
 async def test_snmp_without_answer(hass: HomeAssistant) -> None:
@@ -186,6 +196,7 @@ async def test_snmp_without_answer(hass: HomeAssistant) -> None:
 
     assert result is not None and result["step_id"] == "snmp_v2c"
     assert result["errors"] == {"base": "snmp_no_answer"}
+    close(hass, result)
 
 
 async def test_closing_the_window_does_not_stop_the_collection(hass: HomeAssistant) -> None:
