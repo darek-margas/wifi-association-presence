@@ -16,8 +16,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Install test dependencies
-        run: pip install pytest ruff "wifi-ap-associations==0.2.0"
+      - name: Install test dependencies (waits for a just-released library on PyPI)
+        run: bash .github/scripts/install-requirements.sh pytest ruff
       - name: Lint (errors only)
         run: ruff check --select E9,F custom_components scripts tests
       - name: Run tests
@@ -33,7 +33,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Install Home Assistant test harness
-        run: pip install pytest-homeassistant-custom-component "wifi-ap-associations==0.2.0"
+        run: bash .github/scripts/install-requirements.sh pytest-homeassistant-custom-component
       - name: Install aiounifi as pinned by that Home Assistant's UniFi integration
         # The UniFi driver uses it at runtime, where it comes with the UniFi integration.
         # Read the pin from the manifest file: importing the UniFi integration itself

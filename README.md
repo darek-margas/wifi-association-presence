@@ -526,11 +526,14 @@ A version with a pre-release suffix (`0.6.0b1`, `0.6.0rc1`) is published as a Gi
 pre-release: HACS offers it only to users who turn on *Show beta versions* for this
 integration. Release the final version (`0.6.0`) once the beta is confirmed.
 
-When a release needs a driver change, release the library first (see its
-[README](https://github.com/darek-margas/wifi-ap-associations#development): TestPyPI by
-hand, then a tag for PyPI), then raise the pinned version in `manifest.json` here and
-release the integration. Home Assistant can only install a library version that is
-already on PyPI.
+When a release needs a driver change: bump the library's version and push it (its
+*publish* workflow releases it to PyPI, see its
+[README](https://github.com/darek-margas/wifi-ap-associations#development)), raise the
+pinned version in `manifest.json` here, and push this repo too. Both can be pushed at the
+same time: CI here installs the requirements from `manifest.json` and waits up to
+15 minutes for a just-released library version to appear on PyPI
+(`.github/scripts/install-requirements.sh`), so the integration is never released
+against a library version that isn't there.
 
 ### Adding a driver
 

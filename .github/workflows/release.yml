@@ -30,8 +30,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Install test dependencies
-        run: pip install pytest ruff "wifi-ap-associations==0.2.0"
+      - name: Install test dependencies (waits for a just-released library on PyPI)
+        run: bash .github/scripts/install-requirements.sh pytest ruff
       - name: Lint (errors only)
         run: ruff check --select E9,F custom_components scripts tests
       - name: Run tests
