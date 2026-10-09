@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install test dependencies
-        run: pip install pytest ruff "wifi-ap-associations==0.1.0"
+        run: pip install pytest ruff "wifi-ap-associations==0.2.0"
       - name: Lint (errors only)
         run: ruff check --select E9,F custom_components scripts tests
       - name: Run tests

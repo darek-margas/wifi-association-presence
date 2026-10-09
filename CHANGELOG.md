@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.0b2 — collector and probe are library commands (beta)
+
+### Changes
+- **The collector and the probe moved to the library** (wifi-ap-associations 0.2.0) as
+  the commands `wifi-ap-collect` and `wifi-ap-probe`. To send a report for a new access
+  point: `pip install wifi-ap-associations`, then `wifi-ap-collect --host <AP IP>
+  --username <user>` (SNMP also needs `pip install pysnmp`). They work as before; the
+  library adds tests for the collector's redaction and read-only rules.
+- `scripts/collect.py` and `scripts/probe.py` stay as small forwarders to the new
+  commands, so older instructions keep working once the library is installed.
+- README, the *New access point model* issue form and the OpenWrt VM guide use the new
+  commands.
+- Nothing changes in Home Assistant: the drivers are the same as in 0.6.0b1.
+
 ## 0.6.0b1 — access point drivers moved to a library (beta)
 
 ### Changes

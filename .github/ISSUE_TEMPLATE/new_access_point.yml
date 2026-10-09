@@ -6,20 +6,20 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping! The most useful thing is a report from `scripts/collect.py`:
+        Thanks for helping! The most useful thing is a report from `wifi-ap-collect`:
         it logs into your access point, runs read-only commands only, and redacts MAC
         and IP addresses and secret-looking settings.
 
         ```bash
-        pip install asyncssh
-        python3 scripts/collect.py --host <AP IP> --username <user>
+        pip install wifi-ap-associations
+        wifi-ap-collect --host <AP IP> --username <user>
         ```
         If the connection fails with an algorithm error, add `--legacy-ssh`.
         Add `--command "<cmd>"` (repeatable) for any command you know lists connected
         clients. UniFi APs: `--profile unifi`.
 
         **SNMP instead of SSH:** `pip install pysnmp`, then
-        `python3 scripts/collect.py --host <AP IP> --snmp` (v2c, use a read-only community)
+        `wifi-ap-collect --host <AP IP> --snmp` (v2c, use a read-only community)
         or add `--snmp-user <user>` for v3. It finds your vendor's private MIB and lists
         the tables that look like client tables.
 
@@ -61,7 +61,7 @@ body:
   - type: textarea
     id: report
     attributes:
-      label: collect.py report
+      label: wifi-ap-collect report
       description: Paste the report, or drag the file here. Read it first and redact by hand anything still private.
       render: text
     validations:

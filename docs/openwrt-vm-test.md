@@ -137,7 +137,7 @@ If `hostapd.phy0-ap0` is missing, `logread | grep hostapd` says why (an invalid
 From the repository on your computer (`pip install asyncssh`):
 
 ```sh
-python3 scripts/probe.py --type openwrt_ssh --host <VM address> --username root
+wifi-ap-probe --type openwrt_ssh --host <VM address> --username root   # pip install wifi-ap-associations
 ```
 
 Expected: `1 associated client(s)`, band `2.4GHz`, a signal in dBm and SSID `TestAP`.

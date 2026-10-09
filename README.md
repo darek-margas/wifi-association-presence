@@ -339,7 +339,7 @@ each AP keeps its own device and area, so room-level presence works the same.
   `hostapd.wlan0` naming and Dropbear 2022.82). Tested in VMs with simulated radios
   ([how](docs/openwrt-vm-test.md)); the radios are the only simulated part.
 - Please report how it works on your router, especially older releases (see
-  [Help add your access point](#help-add-your-access-point); `collect.py --profile openwrt`).
+  [Help add your access point](#help-add-your-access-point); `wifi-ap-collect --profile openwrt`).
 
 ### D-Link DAP setup notes
 
@@ -395,8 +395,9 @@ each AP keeps its own device and area, so room-level presence works the same.
 
 ## Help add your access point
 
-You don't need to write code to get an access point supported. Run the collector against
-it and attach the report to a
+You don't need to write code to get an access point supported. Run the collector,
+`wifi-ap-collect`, against it from any computer on the same network with Python 3.12 or
+newer (`pip install wifi-ap-associations`), and attach the report to a
 [New access point model](../../issues/new?template=new_access_point.yml) issue.
 
 > **Read the report before you submit it, and redact by hand what is still private.**
@@ -409,8 +410,8 @@ it and attach the report to a
 **SSH console**
 
 ```bash
-pip install asyncssh
-python3 scripts/collect.py --host <AP IP> --username <user>
+pip install wifi-ap-associations
+wifi-ap-collect --host <AP IP> --username <user>
 ```
 
 - It runs **read-only commands only** (anything that could change settings is refused)
@@ -430,10 +431,10 @@ python3 scripts/collect.py --host <AP IP> --username <user>
 **SNMP**
 
 ```bash
-pip install pysnmp
-python3 scripts/collect.py --host <AP IP> --snmp                    # v2c, asks for the community
-python3 scripts/collect.py --host <AP IP> --snmp --snmp-user <user> # v3 (SHA / AES-128)
-python3 scripts/collect.py --host <AP IP> --snmp --snmp-user <user> --snmp-auth sha256 --snmp-priv aes
+pip install wifi-ap-associations pysnmp
+wifi-ap-collect --host <AP IP> --snmp                    # v2c, asks for the community
+wifi-ap-collect --host <AP IP> --snmp --snmp-user <user> # v3 (SHA / AES-128)
+wifi-ap-collect --host <AP IP> --snmp --snmp-user <user> --snmp-auth sha256 --snmp-priv aes
 ```
 
 There is no standard SNMP table of associated Wi-Fi clients: every vendor keeps it in its
@@ -474,11 +475,11 @@ below needs an owner of that hardware to send data and test a build.
 
 | Next | How | What's needed |
 |---|---|---|
-| **UniFi APs without a controller in HA** | SSH to each AP, `mca-dump` (JSON with each radio's station table and dBm signal) | `collect.py --profile unifi` report |
-| **SNMP drivers** | One SNMP base driver plus a small table map per vendor (MikroTik registration table first; Cisco, Aruba, Ruckus as reports arrive) | `collect.py --snmp` report |
+| **UniFi APs without a controller in HA** | SSH to each AP, `mca-dump` (JSON with each radio's station table and dBm signal) | `wifi-ap-collect --profile unifi` report |
+| **SNMP drivers** | One SNMP base driver plus a small table map per vendor (MikroTik registration table first; Cisco, Aruba, Ruckus as reports arrive) | `wifi-ap-collect --snmp` report |
 | **OpenWrt over HTTP** | The same ubus calls through `/ubus` (JSON-RPC, as LuCI uses), for routers without SSH access; needs a small read-only rpcd ACL | interest |
 | **TP-Link Omada (controller)** | Like UniFi: through Home Assistant's [TP-Link Omada](https://www.home-assistant.io/integrations/tplink_omada/) integration, no extra login | that integration's **Download diagnostics** file (it lists the connected clients with the AP they are on, already anonymised) |
-| **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `collect.py` report (SSH or `--snmp`) |
+| **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `wifi-ap-collect` report (SSH or `--snmp`) |
 | **Other controllers** (Cisco WLC, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API | interest and a test setup |
 
 Done in 0.6.0 (beta 0.6.0b1): the access point code is now a standalone library on PyPI,
@@ -500,7 +501,7 @@ version. To work on a driver and the integration together, install your local co
 the library over the pinned one: `pip install -e ../wifi-ap-associations`.
 
 - Test an AP from the command line: `pip install wifi-ap-associations`, then
-  `python3 scripts/probe.py --host <ip> --username admin`
+  `wifi-ap-probe --host <ip> --username admin`
   (`--type openwrt_ssh --username root` for OpenWrt; `--list-types` shows all)
 - Testing the OpenWrt driver without hardware: [docs/openwrt-vm-test.md](docs/openwrt-vm-test.md)
 - Tests: `python3 -m pytest tests` (needs `pytest` and `wifi-ap-associations`; the driver
