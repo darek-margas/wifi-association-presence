@@ -20,6 +20,16 @@
 [Help add yours](#help-add-your-access-point) ·
 Early development, Home Assistant 2026.9+
 
+> **Your access points aren't supported yet?** Install the integration anyway. You don't
+> need to understand any of the technical parts below to help add them:
+> **Configure → Collect a report from an access point**, then **Download diagnostics**
+> and attach the file to a
+> [New access point model](../../issues/new?template=new_access_point.yml) issue. When a
+> release supports your model, update and add your access points.
+> [How it works, step by step](#help-add-your-access-point).
+>
+> Supported today: D-Link DAP, OpenWrt and UniFi.
+
 ## Why association, not ARP or MAC tables
 
 Most network-based presence trackers look at a router's **ARP table**, a switch's
