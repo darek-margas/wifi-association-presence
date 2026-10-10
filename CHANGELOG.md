@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.7.1 — coverage counter fixes
+
+Coverage statistics only; home / away is unchanged.
+
+### Fixes
+- **Roams were missed with a short grace period.** With the grace period at 60 s or less
+  (polls are 60 s apart), a device that moved to another access point between two polls
+  wasn't counted as a roam. Consecutive polls are now compared whatever the grace period.
+- **A total outage could count false roams.** When no access point could be read, the
+  coverage counters kept their last observations, so a device that came back on another
+  access point counted as a roam (and maybe a late roam) although nobody saw it move.
+  Observation now stops during such an outage.
+- Tests at the real 60 s poll interval, and an outage-and-recovery test in Home Assistant.
+  (Thanks to a review that reproduced both.)
+
 ## 0.7.0 — Wi-Fi coverage dashboard; MikroTik RouterOS (experimental)
 
 Everything from the 0.7.0 betas, for everyone:

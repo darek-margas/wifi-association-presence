@@ -317,3 +317,23 @@ async def test_coverage_day_resets_during_total_ap_failure(
     assert coordinator.coverage.day != previous_day
     assert coordinator.coverage.counts == {}
     assert hass.states.get("sensor.phone_roams_today").state == "0"
+
+
+async def test_total_ap_outage_creates_no_roam_on_recovery(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    # Weak on the hallway AP, then no AP can be read (ridden out within grace), then the
+    # phone shows up strong on the kitchen AP: nobody saw it move, so no (late) roam.
+    weak = PollResult([AssociatedClient(PHONE, "Home", "5GHz", 30)], GOOD.info)
+    strong = PollResult([AssociatedClient(PHONE, "Home", "5GHz", 90)], GOOD.info)
+    empty = PollResult([], GOOD.info)
+    FakeDriver.results = {"ap1": weak, "ap2": empty}
+    entry = await setup_entry(hass, ap("ap1", "Hallway AP"), ap("ap2", "Kitchen AP"), PHONE_SUB)
+    coordinator = entry.runtime_data
+    FakeDriver.results = {"ap1": AccessPointError("down"), "ap2": AccessPointError("down")}
+    await refresh_after(hass, freezer, coordinator, 61)
+    assert hass.states.get("device_tracker.phone").state == "home"  # ridden out
+    FakeDriver.results = {"ap1": empty, "ap2": strong}
+    await refresh_after(hass, freezer, coordinator, 61)
+    assert hass.states.get("sensor.phone_roams_today").state == "0"
+    assert hass.states.get("sensor.phone_late_roams_today").state == "0"
