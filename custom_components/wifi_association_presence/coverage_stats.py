@@ -71,6 +71,11 @@ class CoverageTracker:
         self._last.pop(mac, None)
         self._missing.discard(mac)
 
+    def interrupt(self) -> None:
+        """No access point could be read: observation stops, nothing carries over."""
+        self._last.clear()
+        self._missing.clear()
+
     def update(
         self,
         seen: Mapping[str, Sighting],
@@ -89,7 +94,13 @@ class CoverageTracker:
         for mac, (access_point_id, _quality, last_seen) in list(self._last.items()):
             # An unreadable AP interrupts observation: neither a gap nor a roam across
             # that interval can be established from these polls.
-            if access_point_id in failed_access_points or now - last_seen >= grace:
+            if access_point_id in failed_access_points:
+                self._forget(mac)
+            # Seen in the previous poll and again now: consecutive polls, so a change of
+            # AP is a roam however short the grace period (it can be under one poll).
+            elif mac in seen and mac not in self._missing:
+                continue
+            elif now - last_seen >= grace:
                 self._forget(mac)
         for mac, sighting in seen.items():
             counts = self.counts.setdefault(mac, DeviceCounts())

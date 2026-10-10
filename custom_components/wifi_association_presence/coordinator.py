@@ -221,6 +221,8 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
                 available=False, info=previous.info if previous else None
             )
         if len(merged.failed) == len(self.access_points):
+            # Nobody was observed: a device seen on another AP afterwards is no roam.
+            self.coverage.interrupt()
             # A short total outage (e.g. a controller restart) is ridden out on the
             # previous sightings, like a single failing AP; the first refresh still
             # fails, so setup is retried.

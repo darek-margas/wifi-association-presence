@@ -187,3 +187,23 @@ def test_gap_is_measured_from_last_seen_like_presence() -> None:
     tracker = CoverageTracker()
     feed(tracker, [{PHONE: seen("hall")}, *[{}] * 4, {PHONE: seen("hall")}])
     assert tracker.counts[PHONE].drops == 1
+
+
+def test_roam_counts_with_real_poll_interval_and_short_grace() -> None:
+    # 60 s polls with a grace period of 60 s or less (30 s is the minimum): consecutive
+    # polls on different APs are still a roam.
+    for grace in (timedelta(seconds=30), timedelta(seconds=60)):
+        tracker = CoverageTracker()
+        tracker.update({PHONE: seen("hall")}, (), START, TODAY, grace)
+        tracker.update({PHONE: seen("kitchen")}, (), START + timedelta(seconds=60), TODAY, grace)
+        assert tracker.counts[PHONE].roams == 1, grace
+
+
+def test_total_outage_interrupts_observation() -> None:
+    tracker = CoverageTracker()
+    tracker.update({PHONE: seen("hall", 30)}, (), START, TODAY, GRACE)
+    tracker.interrupt()  # no access point could be read
+    tracker.update({PHONE: seen("kitchen", 90)}, (), START + timedelta(seconds=120), TODAY, GRACE)
+    assert tracker.counts[PHONE].roams == 0
+    assert tracker.counts[PHONE].late_roams == 0
+    assert tracker.counts[PHONE].drops == 0
