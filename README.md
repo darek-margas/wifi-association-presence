@@ -575,6 +575,13 @@ below needs an owner of that hardware to send data and test a build.
 | **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `wifi-ap-collect` report (SSH or `--snmp`) |
 | **Other controllers** (Cisco WLC, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API | interest and a test setup |
 
+Also planned: **instant arrivals.** An event from the access point side (UniFi's connect
+events, OpenWrt's hostapd events, RADIUS accounting, syslog) triggers an immediate poll,
+so an arrival shows in seconds instead of up to a minute; departures still wait for the
+grace period. RADIUS accounting also identifies the 802.1X user, which would allow
+tracking a person even with rotating private MAC addresses. Design and test results:
+[docs/design/instant-arrivals.md](docs/design/instant-arrivals.md).
+
 Done in 0.6.0: the access point code is now a standalone library on PyPI,
 [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), tested and
 released on its own and usable by other tools.
