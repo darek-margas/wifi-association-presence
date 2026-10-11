@@ -44,7 +44,8 @@ Install it anyway; you can help get them supported without any technical knowled
    Read it first: it is redacted automatically, but check nothing private is left.
 3. **Wait for an update that supports your model**, then add your access points as above.
 
-Supported today: **D-Link DAP, OpenWrt and UniFi**, and MikroTik RouterOS as experimental.
+Supported today: **D-Link DAP, OpenWrt and UniFi**, and MikroTik RouterOS and Cisco Catalyst
+9800 as experimental.
 [More about reports](#help-add-your-access-point) · [What each type reads](#supported-access-points)
 
 ---
@@ -209,7 +210,8 @@ so there are no entity ids to look up.
 - **Independent trackers.** Trackers are keyed by MAC address only, so you can remove,
   replace or change the type of an access point without losing them.
 - **Pluggable drivers.** Each kind of AP is a small driver (so far D-Link, OpenWrt, UniFi
-  and, experimental, MikroTik); new ones can be added without touching the rest. The
+  and, experimental, MikroTik and Cisco 9800); new ones can be added without touching the
+  rest. The
   drivers are a separate library,
   [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), which other
   tools can use too.
@@ -320,22 +322,23 @@ Leaving an access point's password empty keeps the current one.
 | UniFi (via the UniFi Network integration) | **Confirmed** on a UniFi Network controller by a user. Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
 | OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
 | MikroTik RouterOS (SSH), **experimental** | RouterOS access points, routers with Wi-Fi and CAPsMAN controllers. **Confirmed:** connection and system details on RouterOS 7.20 (a CRS310 switch). **Not yet confirmed:** the client table, which follows MikroTik's documentation; a report from a real MikroTik access point is welcome | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) or `/interface wireless` (RouterOS 6) `registration-table print terse` and `print terse` |
+| Cisco Catalyst 9800 controller (SSH), **experimental** | Lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE); one access point here per Cisco AP, picked by its name on the controller. **Built from** a C9800-CL report (IOS-XE 17.15.5, C9120AXI, [#10](https://github.com/darek-margas/wifi-association-presence/issues/10)); **not yet confirmed** on a controller | SSH console of the controller, one login shared by its APs: `show ap summary`, `show wlan summary`, `show wireless client summary` |
 
 ### What each type reports
 
-| | D-Link DAP | OpenWrt | UniFi | MikroTik (experimental) |
-|---|---|---|---|---|
-| Clients, band, SSID name | ✓ | ✓ | ✓ | ✓ |
-| Signal | % | dBm | dBm | dBm |
-| AP device and sensors created here | ✓ | ✓ | — (uses the UniFi device) | ✓ |
-| Name | system name | host name | UniFi name | identity |
-| Model | — (enter it in the AP's settings) | ✓ | in UniFi | ✓ (board name) |
-| Firmware, hardware | ✓ | ✓ | in UniFi | firmware |
-| Last boot (uptime) | ✓ | ✓ | in UniFi | ✓ |
-| Location | ✓ | — (no such setting) | — | — |
-| CPU % | ✓ | — (only load averages) | in UniFi | ✓ |
-| Memory % | ✓ | ✓ | in UniFi | ✓ |
-| Login | SSH, password | SSH, password | none (the UniFi integration's session) | SSH, password |
+| | D-Link DAP | OpenWrt | UniFi | MikroTik (experimental) | Cisco 9800 (experimental) |
+|---|---|---|---|---|---|
+| Clients, band, SSID name | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Signal | % | dBm | dBm | dBm | — (not yet) |
+| AP device and sensors created here | ✓ | ✓ | — (uses the UniFi device) | ✓ | ✓ |
+| Name | system name | host name | UniFi name | identity | AP name |
+| Model | — (enter it in the AP's settings) | ✓ | in UniFi | ✓ (board name) | ✓ |
+| Firmware, hardware | ✓ | ✓ | in UniFi | firmware | — |
+| Last boot (uptime) | ✓ | ✓ | in UniFi | ✓ | — |
+| Location | ✓ | — (no such setting) | — | — | ✓ (if set on the controller) |
+| CPU % | ✓ | — (only load averages) | in UniFi | ✓ | — |
+| Memory % | ✓ | ✓ | in UniFi | ✓ | — |
+| Login | SSH, password | SSH, password | none (the UniFi integration's session) | SSH, password | SSH, password (the controller's) |
 
 Sensors for details a type can't report are not created. No type gives clients' IP
 addresses or host names to this integration, so trackers have no `ip` / `host_name`.
@@ -414,9 +417,9 @@ each AP keeps its own device and area, so room-level presence works the same.
 ## Limitations
 
 **Access point support**
-- **Four kinds of access point so far:** D-Link DAP, OpenWrt, UniFi (through Home
-  Assistant's UniFi Network integration) and MikroTik RouterOS (experimental). Support
-  for more depends on owners contributing data (see
+- **Five kinds of access point so far:** D-Link DAP, OpenWrt, UniFi (through Home
+  Assistant's UniFi Network integration), MikroTik RouterOS and Cisco Catalyst 9800
+  (both experimental). Support for more depends on owners contributing data (see
   [Help add your access point](#help-add-your-access-point) and the
   [Roadmap](#roadmap)); the driver interface is designed for it.
 - **Each type gives what its AP offers**, no more (see

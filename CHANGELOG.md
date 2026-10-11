@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.8.0b1 — Cisco Catalyst 9800 access points, experimental (beta)
+
+- **Add access point → "Cisco Catalyst 9800 controller (SSH)"**, shown as experimental:
+  lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE).
+  Add one access point per Cisco AP: the controller's host, username and password, and
+  the AP's name as the controller lists it (`show ap summary`, e.g. AP01). APs of the
+  same controller share one login per poll.
+- Clients with SSID and band; the AP's name, model and location (if set on the
+  controller). Only clients in the Run state count as connected. **No signal yet**, so
+  Average client signal and Weak clients stay empty for these APs.
+- An AP that isn't joined or isn't Registered, a command the controller refuses (e.g. a
+  user with too little privilege) and an incomplete client table make the AP unavailable
+  instead of sending everyone away.
+- **Experimental** because it's built from one controller's report
+  ([#10](https://github.com/darek-margas/wifi-association-presence/issues/10), a
+  C9800-CL on IOS-XE 17.15.5), not yet run against a controller. If you have one: add an
+  AP, and if clients don't show up as expected, send a **Collect access point report**
+  with the *Cisco WLC* command list.
+- Uses wifi-ap-associations 0.6.0.
+
 ## 0.7.1 — coverage counter fixes
 
 Coverage statistics only; home / away is unchanged.

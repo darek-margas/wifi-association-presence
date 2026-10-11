@@ -95,11 +95,13 @@
             "port": "Port",
             "username": "Username",
             "password": "Password",
-            "ap_mac": "Access point"
+            "ap_mac": "Access point",
+            "ap_name": "AP name on the controller"
           },
           "data_description": {
             "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name; for UniFi, its name in the UniFi Network application), or else its host.",
-            "ap_mac": "A UniFi access point known to the UniFi Network integration. Clients are read from its controller through that integration; no extra login is needed."
+            "ap_mac": "A UniFi access point known to the UniFi Network integration. Clients are read from its controller through that integration; no extra login is needed.",
+            "ap_name": "The access point's name as the Cisco controller lists it (show ap summary), e.g. AP01. Host, username and password are the controller's; add one access point per AP."
           }
         },
         "reconfigure": {
@@ -111,11 +113,13 @@
             "port": "Port",
             "username": "Username",
             "password": "Password",
-            "ap_mac": "Access point"
+            "ap_mac": "Access point",
+            "ap_name": "AP name on the controller"
           },
           "data_description": {
             "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name; for UniFi, its name in the UniFi Network application), or else its host.",
-            "ap_mac": "A UniFi access point known to the UniFi Network integration. Clients are read from its controller through that integration; no extra login is needed."
+            "ap_mac": "A UniFi access point known to the UniFi Network integration. Clients are read from its controller through that integration; no extra login is needed.",
+            "ap_name": "The access point's name as the Cisco controller lists it (show ap summary), e.g. AP01. Host, username and password are the controller's; add one access point per AP."
           }
         }
       },
