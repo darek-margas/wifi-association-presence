@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.0b4 — Cisco fixes from a review (beta)
+
+- **Two Cisco controllers may each have an AP01.** An access point is now identified by
+  what it points at: a host, a UniFi AP, or a controller's host plus the AP's name. The
+  same Cisco AP added both over SSH and over SNMP is refused as already configured: it
+  would count its clients twice.
+- **Cisco over SNMP has an SNMP version setting** (v2c or v3). It decides which
+  credentials are used, so switching from v3 to v2c (or back) in the access point's
+  settings just works; the other version's fields may stay filled in.
+- **Cisco over SNMP reads faster and steadier:** all columns at once, and a client caught
+  mid-roam keeps its access point for one more read instead of looking gone.
+- After a failed read, the next poll tries the controller again at once.
+- Uses wifi-ap-associations 0.7.1.
+
 ## 0.8.0b3 — Cisco Catalyst 9800 over SNMP, experimental (beta)
 
 - **Add access point → "Cisco Catalyst 9800 controller (SNMP)"**, shown as

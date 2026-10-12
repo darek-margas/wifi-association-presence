@@ -504,7 +504,7 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             name, data = _split_name(user_input, driver_cls)
-            if self._in_use(driver_cls, data.get(driver_cls.UNIQUE_FIELD)):
+            if self._in_use(driver_cls, data):
                 return self.async_abort(reason="already_configured")
             # The name is stored explicitly, so "user named it" isn't guessed later.
             data = {CONF_DRIVER: self._driver_type, **data, CONF_NAME: name or ""}
@@ -543,17 +543,13 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             name, changes = _split_name(user_input, driver_cls)
-            if self._in_use(
-                driver_cls,
-                changes.get(driver_cls.UNIQUE_FIELD),
-                except_id=subentry.subentry_id,
-            ):
-                return self.async_abort(reason="already_configured")
             data = {
                 **subentry.data,
                 **{k: v for k, v in changes.items() if v not in (None, "")},
                 CONF_NAME: name or "",
             }
+            if self._in_use(driver_cls, data, except_id=subentry.subentry_id):
+                return self.async_abort(reason="already_configured")
             errors, reported_name = await _async_build_and_test(self.hass, driver_cls, data)
             if not errors:
                 return self.async_update_and_abort(
@@ -586,13 +582,28 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
         )
 
     def _in_use(
-        self, driver_cls: type[AccessPointDriver], value: Any, except_id: str | None = None
+        self,
+        driver_cls: type[AccessPointDriver],
+        data: dict[str, Any],
+        except_id: str | None = None,
     ) -> bool:
-        """Whether another access point already uses this host (or AP MAC)."""
-        return bool(value) and any(
-            sub.data.get(driver_cls.UNIQUE_FIELD) == value and sub.subentry_id != except_id
-            for sub in self._get_entry().get_subentries_of_type(SUBENTRY_ACCESS_POINT)
-        )
+        """Whether another access point already is this AP.
+
+        Compared by the drivers' identities, across types: a host, a UniFi AP's MAC, or
+        a controller's host plus the AP's name. So two controllers can each have an
+        AP01, while the same AP added over SSH and SNMP would count its clients twice.
+        """
+        if (identity := driver_cls.identity(data)) is None:
+            return False
+        for sub in self._get_entry().get_subentries_of_type(SUBENTRY_ACCESS_POINT):
+            other = DRIVERS.get(sub.data.get(CONF_DRIVER, ""))
+            if (
+                sub.subentry_id != except_id
+                and other is not None
+                and other.identity(sub.data) == identity
+            ):
+                return True
+        return False
 
     def _field_choices(
         self, driver_cls: type[AccessPointDriver], except_id: str | None = None
