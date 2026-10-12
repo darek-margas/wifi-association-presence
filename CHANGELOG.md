@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.0b6 — Cisco over SSH: signal and connected time (beta)
+
+- **Cisco Catalyst 9800 over SSH now shows each client's signal (dBm) and connected
+  time**, so *Average client signal* and *Weak clients* work for these APs. They come
+  from each client's detail on the controller, read for up to 15 clients per poll, in
+  turns: new and roamed clients first, then the oldest readings. With a couple of dozen
+  clients, everyone has a signal after the second poll and is refreshed about every 2
+  minutes.
+- A signal is shown only while the client stays on the access point it was read on, so
+  after a roam it is empty until the next reading (usually the next poll).
+- If the controller doesn't allow the detail command for your user, signal stays empty
+  and presence works as before.
+- Over SNMP: no signal yet.
+- Uses wifi-ap-associations 0.8.0.
+
 ## 0.8.0b5 — Cisco controller reads can't get stuck (beta)
 
 - A controller read that hangs is stopped after 45 s, so the next poll tries again
