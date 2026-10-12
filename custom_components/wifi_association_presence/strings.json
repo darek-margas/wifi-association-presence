@@ -103,12 +103,19 @@
             "username": "Username",
             "password": "Password",
             "ap_mac": "Access point",
-            "ap_name": "AP name on the controller"
+            "ap_name": "AP name on the controller",
+            "community": "SNMP community (v2c)",
+            "auth_key": "SNMP v3 authentication key",
+            "auth_protocol": "SNMP v3 authentication algorithm",
+            "priv_key": "SNMP v3 privacy key",
+            "priv_protocol": "SNMP v3 privacy algorithm"
           },
           "data_description": {
             "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name; for UniFi, its name in the UniFi Network application), or else its host.",
             "ap_mac": "A UniFi access point known to the UniFi Network integration. Clients are read from its controller through that integration; no extra login is needed.",
-            "ap_name": "The access point's name as the Cisco controller lists it (show ap summary), e.g. AP01. Host, username and password are the controller's; add one access point per AP."
+            "ap_name": "The access point's name as the Cisco controller lists it (show ap summary), e.g. AP01. Host and login are the controller's; add one access point per AP.",
+            "community": "SNMP v2c: the controller's read-only community. For SNMP v3 leave it empty and fill in the user (Username) and keys instead.",
+            "priv_key": "SNMP v3: leave empty to use the authentication key."
           }
         },
         "reconfigure": {
@@ -121,12 +128,19 @@
             "username": "Username",
             "password": "Password",
             "ap_mac": "Access point",
-            "ap_name": "AP name on the controller"
+            "ap_name": "AP name on the controller",
+            "community": "SNMP community (v2c)",
+            "auth_key": "SNMP v3 authentication key",
+            "auth_protocol": "SNMP v3 authentication algorithm",
+            "priv_key": "SNMP v3 privacy key",
+            "priv_protocol": "SNMP v3 privacy algorithm"
           },
           "data_description": {
             "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name; for UniFi, its name in the UniFi Network application), or else its host.",
             "ap_mac": "A UniFi access point known to the UniFi Network integration. Clients are read from its controller through that integration; no extra login is needed.",
-            "ap_name": "The access point's name as the Cisco controller lists it (show ap summary), e.g. AP01. Host, username and password are the controller's; add one access point per AP."
+            "ap_name": "The access point's name as the Cisco controller lists it (show ap summary), e.g. AP01. Host and login are the controller's; add one access point per AP.",
+            "community": "SNMP v2c: the controller's read-only community. For SNMP v3 leave it empty and fill in the user (Username) and keys instead.",
+            "priv_key": "SNMP v3: leave empty to use the authentication key."
           }
         }
       },

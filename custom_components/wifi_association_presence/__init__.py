@@ -5,6 +5,7 @@ from __future__ import annotations
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.importlib import async_import_module
 
 from .const import DOMAIN, SUBENTRY_TRACKED_DEVICE
 from .coordinator import AssociationCoordinator, WifiAssociationConfigEntry
@@ -16,6 +17,11 @@ PLATFORMS = [Platform.DEVICE_TRACKER, Platform.SENSOR]
 async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEntry) -> bool:
     """Set up from a config entry."""
     coordinator = AssociationCoordinator(hass, entry)
+    # Modules that load files on import (pysnmp): off the event loop, before the first poll.
+    for module in sorted(
+        {m for ap in coordinator.access_points for m in ap.driver.BLOCKING_IMPORTS}
+    ):
+        await async_import_module(hass, module)
     await coordinator.async_restore_sightings()
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator

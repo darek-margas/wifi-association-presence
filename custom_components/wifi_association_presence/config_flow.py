@@ -626,8 +626,23 @@ def _access_point_schema(
     for field in driver_cls.FIELDS:
         if field.secret:
             # When editing, leaving the secret blank keeps the stored value.
-            key = vol.Optional(field.key) if editing else vol.Required(field.key)
+            key = (
+                vol.Optional(field.key)
+                if editing or field.optional
+                else vol.Required(field.key)
+            )
             schema[key] = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+            continue
+        if field.choices:
+            key = (
+                vol.Required(field.key, default=field.default)
+                if field.default is not None
+                else vol.Required(field.key)
+            )
+            schema[key] = _choice(dict.fromkeys(field.choices), field.key)
+            continue
+        if field.optional:
+            schema[vol.Optional(field.key)] = TextSelector()
             continue
         if choices and field.key in choices:
             schema[vol.Required(field.key)] = SelectSelector(
@@ -682,6 +697,8 @@ async def _async_build_and_test(
         driver = build_driver(hass, driver_cls, data)
     except (KeyError, ValueError):
         return {driver_cls.UNIQUE_FIELD: "invalid_value"}, None
+    for module in driver_cls.BLOCKING_IMPORTS:  # e.g. pysnmp, off the event loop
+        await async_import_module(hass, module)
     return await _async_test_access_point(driver)
 
 

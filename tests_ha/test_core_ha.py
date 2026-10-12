@@ -337,3 +337,21 @@ async def test_total_ap_outage_creates_no_roam_on_recovery(
     await refresh_after(hass, freezer, coordinator, 61)
     assert hass.states.get("sensor.phone_roams_today").state == "0"
     assert hass.states.get("sensor.phone_late_roams_today").state == "0"
+
+
+def test_snmp_driver_form_has_optional_credentials_and_lists() -> None:
+    import voluptuous as vol
+    from wifi_ap_associations.cisco_wlc_snmp import CiscoWlcSnmp
+
+    from custom_components.wifi_association_presence.config_flow import _access_point_schema
+
+    schema = _access_point_schema(CiscoWlcSnmp, editing=False)
+    markers = {str(marker): marker for marker in schema.schema}
+    # v2c needs only the community, v3 only the user and keys: none of them required.
+    for key in ("community", "username", "auth_key", "priv_key"):
+        assert isinstance(markers[key], vol.Optional), key
+    assert isinstance(markers["ap_name"], vol.Required)
+    data = schema({"host": "192.0.2.20", "port": 161, "ap_name": "AP01", "community": "ro"})
+    assert (data["auth_protocol"], data["priv_protocol"]) == ("sha", "aes")
+    with pytest.raises(vol.Invalid):
+        schema({"host": "h", "port": 161, "ap_name": "AP01", "auth_protocol": "sha999"})

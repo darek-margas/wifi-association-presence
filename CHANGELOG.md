@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.0b3 — Cisco Catalyst 9800 over SNMP, experimental (beta)
+
+- **Add access point → "Cisco Catalyst 9800 controller (SNMP)"**, shown as
+  experimental: the same Cisco APs, for controllers you can read over SNMP but not SSH.
+  One access point per Cisco AP: the controller's address, the AP's name, and either the
+  read-only community (SNMP v2c) or a user with keys and algorithms (SNMP v3; leave the
+  community empty).
+- Clients with SSID and band, the AP's name, model and location, as over SSH. Only
+  clients in the Run state count. No signal yet. An AP that isn't joined, wrong keys or
+  no answer make the AP unavailable instead of sending everyone away.
+- Experimental because it's built from one controller's SNMP report (#10). If you have a
+  9800 with SNMP: add an AP and compare with `show wireless client summary`.
+- The access point form can now leave settings empty and offer lists (the SNMP v3
+  algorithms).
+- Uses wifi-ap-associations 0.7.0.
+
 ## 0.8.0b2 — SNMP reports from Cisco controllers read the right tables (beta)
 
 - **Collect access point report → SNMP** has a **Host type**: *Generic* (as before),
