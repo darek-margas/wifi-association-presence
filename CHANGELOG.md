@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0b5 — Cisco controller reads can't get stuck (beta)
+
+- A controller read that hangs is stopped after 45 s, so the next poll tries again
+  instead of waiting on it; the APs of that controller recover on their own.
+- Less memory kept between Cisco SNMP reads.
+- Uses wifi-ap-associations 0.7.2.
+
 ## 0.8.0b4 — Cisco fixes from a review (beta)
 
 - **Two Cisco controllers may each have an AP01.** An access point is now identified by
