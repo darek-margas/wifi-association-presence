@@ -472,6 +472,11 @@ and attach it to a
    - **SNMP v2c**: address and a read-only community.
    - **SNMP v3**: address, user, keys and algorithms.
 
+   For SNMP, *Host type* picks what is read: *Generic* walks the vendor's whole MIB (up
+   to 5000 values per table). For a Cisco controller choose *Cisco Catalyst 9800* (only
+   the client, client signal and AP tables a 9800 needs) or *Cisco wireless controller*
+   (those plus Cisco's AP and WLAN MIBs): only those tables are read, complete.
+
    Passwords, communities and keys are used for this collection only and not stored.
 3. Wait for *Report collected* (SSH: up to a minute or two; SNMP: up to five). You can
    close the window meanwhile: the collection continues. Then open the menu (⋮) of the
@@ -531,6 +536,7 @@ pip install wifi-ap-associations
 wifi-ap-collect --host <AP IP> --snmp                    # v2c, asks for the community
 wifi-ap-collect --host <AP IP> --snmp --snmp-user <user> # v3 (SHA / AES-128)
 wifi-ap-collect --host <AP IP> --snmp --snmp-user <user> --snmp-auth sha256 --snmp-priv aes
+wifi-ap-collect --host <AP IP> --snmp --profile c9800     # Cisco Catalyst 9800 tables only
 ```
 
 There is no standard SNMP table of associated Wi-Fi clients: every vendor keeps it in its
@@ -550,6 +556,12 @@ the table layout are kept, which is what a driver needs. `--snmp-full-values` sh
 values (still with the redaction above): use it only if asked, and read the result
 carefully. `--snmp-root <OID>` adds a subtree, `--snmp-max` limits each walk (default
 20000 values).
+
+With a host type, `--profile` reads only that device's tables instead of the vendor
+subtree, each up to 50000 values, so nothing is cut off by the limit: `c9800` (Cisco
+Catalyst 9800: client table, client statistics with signal, AP table, Cisco's client
+MIB) or `cisco_wlc` (any Cisco wireless controller: those plus Cisco's AP and WLAN MIBs).
+`wifi-ap-collect --list-profiles` lists them.
 
 Not every AP lists clients over SNMP: the DAP-2610, for example, only reports client
 counts and its MAC filter lists there, which is why its driver uses SSH.

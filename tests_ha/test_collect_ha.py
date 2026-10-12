@@ -30,7 +30,7 @@ SSH_FORM = {
     "commands": "show station\n\n",
     "legacy_ssh": True,
 }
-V2C_FORM = {"host": "192.168.1.23", "port": 161, "community": "s3cret-ro"}
+V2C_FORM = {"host": "192.168.1.23", "port": 161, "community": "s3cret-ro", "profile": "c9800"}
 V3_FORM = {
     "host": "192.168.1.23",
     "port": 161,
@@ -39,6 +39,7 @@ V3_FORM = {
     "auth_protocol": "sha256",
     "priv_key": "",
     "priv_protocol": "aes",
+    "profile": "generic",
 }
 REPORT = "# READ THIS REPORT BEFORE SHARING IT\n# --- get clientinfo ---\n5C:AD:BA:XX:XX:01  -61"
 
@@ -130,12 +131,13 @@ async def test_snmp_v2c_report(hass: HomeAssistant) -> None:
 
     assert is_ready(result), result
     collector.assert_awaited_once_with(
-        "192.168.1.23", port=161, community="s3cret-ro", max_values=5000
+        "192.168.1.23", port=161, community="s3cret-ro", max_values=5000, profile="c9800"
     )
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
     report = diagnostics["access_point_report"]
     assert report["method"] == "snmp-v2c" and report["port"] == 161
     assert report["max_values_per_table"] == 5000
+    assert report["profile"] == "c9800"  # the host type walks only the 9800's tables
     assert "s3cret-ro" not in str(diagnostics)
 
 
@@ -158,6 +160,7 @@ async def test_snmp_v3_report_keeps_no_keys(hass: HomeAssistant) -> None:
         auth_protocol="sha256",
         priv_protocol="aes",
         max_values=5000,
+        profile="generic",
     )
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
     report = diagnostics["access_point_report"]

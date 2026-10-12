@@ -32,6 +32,13 @@
         "mikrotik": "MikroTik RouterOS"
       }
     },
+    "snmp_profile": {
+      "options": {
+        "generic": "Generic",
+        "cisco_wlc": "Cisco wireless controller",
+        "c9800": "Cisco Catalyst 9800"
+      }
+    },
     "auth_protocol": {
       "options": {
         "md5": "MD5",
@@ -203,7 +210,11 @@
           "data": {
             "host": "Host or IP address",
             "port": "SNMP port",
-            "community": "Community (read-only)"
+            "community": "Community (read-only)",
+            "profile": "Host type"
+          },
+          "data_description": {
+            "profile": "Generic walks the vendor's whole MIB, up to 5000 values per table. Choose your controller to walk only its client, signal and AP tables, complete: Cisco wireless controller (any model) or Cisco Catalyst 9800 (only the tables a 9800 needs)."
           }
         },
         "snmp_v3": {
@@ -216,10 +227,12 @@
             "auth_key": "Authentication key",
             "auth_protocol": "Authentication algorithm",
             "priv_key": "Privacy key (optional)",
-            "priv_protocol": "Privacy algorithm"
+            "priv_protocol": "Privacy algorithm",
+            "profile": "Host type"
           },
           "data_description": {
-            "priv_key": "Leave empty to use the authentication key."
+            "priv_key": "Leave empty to use the authentication key.",
+            "profile": "Generic walks the vendor's whole MIB, up to 5000 values per table. Choose your controller to walk only its client, signal and AP tables, complete: Cisco wireless controller (any model) or Cisco Catalyst 9800 (only the tables a 9800 needs)."
           }
         }
       },

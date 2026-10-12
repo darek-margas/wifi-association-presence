@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0b2 — SNMP reports from Cisco controllers read the right tables (beta)
+
+- **Collect access point report → SNMP** has a **Host type**: *Generic* (as before),
+  *Cisco Catalyst 9800* or *Cisco wireless controller*. With a Cisco host type only the
+  controller's client, client signal and AP tables are read, complete, instead of Cisco's
+  whole MIB, which ran out of its 5000-value limit before reaching them.
+- Cisco SNMP reports now include the client statistics table, where each client's signal
+  is, and Cisco's whole client MIB. A C9800 report had no signal because neither was read.
+- Uses wifi-ap-associations 0.6.1.
+
 ## 0.8.0b1 — Cisco Catalyst 9800 access points, experimental (beta)
 
 - **Add access point → "Cisco Catalyst 9800 controller (SSH)"**, shown as experimental:

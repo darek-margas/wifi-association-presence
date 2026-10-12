@@ -50,6 +50,7 @@ from wifi_ap_associations.collect import PROFILES as COLLECT_PROFILES
 from wifi_ap_associations.collect import (
     SNMP_AUTH,
     SNMP_PRIV,
+    SNMP_PROFILES,
     async_collect_snmp_report,
     async_collect_ssh_report,
 )
@@ -225,6 +226,9 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
                 vol.Required(CONF_HOST): TextSelector(),
                 vol.Required(CONF_PORT, default=161): _port_selector(),
                 vol.Required(CONF_COMMUNITY): _secret_selector(),
+                vol.Required(CONF_PROFILE, default="generic"): _choice(
+                    {"generic": "", **SNMP_PROFILES}, "snmp_profile"
+                ),
             },
         )
 
@@ -246,6 +250,9 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
                 vol.Optional(CONF_PRIV_KEY, default=""): _secret_selector(),
                 vol.Required(CONF_PRIV_PROTOCOL, default="aes"): _choice(
                     SNMP_PRIV, CONF_PRIV_PROTOCOL
+                ),
+                vol.Required(CONF_PROFILE, default="generic"): _choice(
+                    {"generic": "", **SNMP_PROFILES}, "snmp_profile"
                 ),
             },
         )
@@ -365,7 +372,8 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
                         legacy_ssh=data[CONF_LEGACY_SSH],
                     )
             else:
-                settings["max_values_per_table"] = SNMP_MAX_VALUES
+                profile = data.get(CONF_PROFILE, "generic")
+                settings |= {"profile": profile, "max_values_per_table": SNMP_MAX_VALUES}
                 if method == "snmp_v3":
                     settings |= {
                         "auth_protocol": data[CONF_AUTH_PROTOCOL],
@@ -381,6 +389,7 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
                             port=data[CONF_PORT],
                             community=data[CONF_COMMUNITY],
                             max_values=SNMP_MAX_VALUES,
+                            profile=profile,
                         )
                     else:
                         report = await async_collect_snmp_report(
@@ -392,6 +401,7 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
                             auth_protocol=data[CONF_AUTH_PROTOCOL],
                             priv_protocol=data[CONF_PRIV_PROTOCOL],
                             max_values=SNMP_MAX_VALUES,
+                            profile=profile,
                         )
         except AccessPointAuthError:
             error = "invalid_auth" if method == "ssh" else "invalid_snmp_auth"
@@ -442,7 +452,7 @@ def _secret_selector() -> TextSelector:
 
 
 def _choice(options: dict[str, str], translation_key: str) -> SelectSelector:
-    """A dropdown of the collector's SNMPv3 algorithm names."""
+    """A dropdown of the collector's names (SNMPv3 algorithms, SNMP host types)."""
     return SelectSelector(
         SelectSelectorConfig(
             options=list(options),
