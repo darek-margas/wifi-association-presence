@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0b7 — steadier Cisco signal readings (beta)
+
+- Cisco over SSH: signal readings of devices that stay put keep being refreshed even
+  while many new devices connect, so *Average client signal* and *Weak clients* don't
+  dip just because readings expired.
+- The time spent on reading client details each poll stays within its 10 s budget.
+- Uses wifi-ap-associations 0.8.1.
+
 ## 0.8.0b6 — Cisco over SSH: signal and connected time (beta)
 
 - **Cisco Catalyst 9800 over SSH now shows each client's signal (dBm) and connected
