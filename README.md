@@ -584,11 +584,11 @@ below needs an owner of that hardware to send data and test a build.
 | Next | How | What's needed |
 |---|---|---|
 | **UniFi APs without a controller in HA** | SSH to each AP, `mca-dump` (JSON with each radio's station table and dBm signal) | `wifi-ap-collect --profile unifi` report |
-| **SNMP drivers** | One SNMP base driver plus a small table map per vendor (MikroTik registration table first; Cisco, Aruba, Ruckus as reports arrive) | `wifi-ap-collect --snmp` report |
+| **SNMP drivers** | One SNMP base driver plus a small table map per vendor, from the Cisco 9800 one (MikroTik registration table next; Aruba, Ruckus as reports arrive) | `wifi-ap-collect --snmp` report |
 | **OpenWrt over HTTP** | The same ubus calls through `/ubus` (JSON-RPC, as LuCI uses), for routers without SSH access; needs a small read-only rpcd ACL | interest |
 | **TP-Link Omada (controller)** | Like UniFi: through Home Assistant's [TP-Link Omada](https://www.home-assistant.io/integrations/tplink_omada/) integration, no extra login | that integration's **Download diagnostics** file (it lists the connected clients with the AP they are on, already anonymised) |
 | **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `wifi-ap-collect` report (SSH or `--snmp`) |
-| **Other controllers** (Cisco WLC, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API | interest and a test setup |
+| **Other controllers** (older Cisco AireOS WLCs, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API or CLI, as for the Catalyst 9800 | interest and a test setup |
 
 Also planned: **instant arrivals.** An event from the access point side (UniFi's connect
 events, OpenWrt's hostapd events, RADIUS accounting, syslog) triggers an immediate poll,
@@ -596,6 +596,18 @@ so an arrival shows in seconds instead of up to a minute; departures still wait 
 grace period. RADIUS accounting also identifies the 802.1X user, which would allow
 tracking a person even with rotating private MAC addresses. Design and test results:
 [docs/design/instant-arrivals.md](docs/design/instant-arrivals.md).
+
+An idea: **an MQTT bridge**, for Node-RED, openHAB, ioBroker, Domoticz or anything else
+that speaks MQTT, without Home Assistant. A small service built on the same
+[wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/) library polls the
+access points and publishes, per access point, its associated clients (MAC, SSID, band,
+signal) and its health, and per device whether it is home and on which access point.
+Shipped as a container and configured through environment variables: the broker, and
+each access point's type and settings, with passwords from Docker secrets or an env file
+rather than the compose file. Optionally Home Assistant MQTT discovery, for installations
+that keep Home Assistant elsewhere. The presence rules (grace period, roams, arrival and
+departure times) live in this integration today and would move into the library first, so
+the bridge and the integration decide home and away the same way.
 
 Done in 0.6.0: the access point code is now a standalone library on PyPI,
 [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), tested and
