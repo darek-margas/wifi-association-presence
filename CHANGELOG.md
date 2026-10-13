@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0b9 — Cisco SNMP: no stale signal (beta)
+
+- Cisco over SNMP: when the controller stops reporting a client's signal or connected
+  time, the last measurement is shown for at most about two polls and then the value is
+  unknown, instead of the old reading staying on for good.
+- Uses wifi-ap-associations 0.8.3.
+
 ## 0.8.0b8 — Cisco: signal over SNMP; SSH no longer experimental (beta)
 
 - **Cisco Catalyst 9800 over SNMP now has signal and connected time**, for every client
