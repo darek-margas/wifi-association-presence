@@ -18,8 +18,8 @@
 [![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=darek-margas&repository=wifi-association-presence&category=integration)
 [![Open your Home Assistant instance and start setting up Wi-Fi Association Presence.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=wifi_association_presence)
 
-Guides and help: the [wiki](../../wiki), e.g. [Cisco Catalyst 9800](../../wiki/Cisco-Catalyst-9800)
-and [Troubleshooting](../../wiki/Troubleshooting).
+Guides and help: the [wiki](../../wiki): a setup guide for each type of access point, and
+[Troubleshooting](../../wiki/Troubleshooting).
 
 ## Setup in four steps
 
@@ -321,10 +321,10 @@ Leaving an access point's password empty keeps the current one.
 
 | Type | Models | Method |
 |---|---|---|
-| D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI | SSH: `config wlan 0/1` + `get clientinfo` |
-| UniFi (via the UniFi Network integration) | **Confirmed** on a UniFi Network controller by a user. Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
-| OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
-| MikroTik RouterOS (SSH), **experimental** | RouterOS access points, routers with Wi-Fi and CAPsMAN controllers. **Confirmed:** connection and system details on RouterOS 7.20 (a CRS310 switch). **Not yet confirmed:** the client table, which follows MikroTik's documentation; a report from a real MikroTik access point is welcome | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) or `/interface wireless` (RouterOS 6) `registration-table print terse` and `print terse` |
+| D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI Setup guide: [wiki](../../wiki/D-Link-DAP). | SSH: `config wlan 0/1` + `get clientinfo` |
+| UniFi (via the UniFi Network integration) | **Confirmed** on a UniFi Network controller by a user. Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to Setup guide: [wiki](../../wiki/UniFi). | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
+| OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome Setup guide: [wiki](../../wiki/OpenWrt). | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
+| MikroTik RouterOS (SSH), **experimental** | RouterOS access points, routers with Wi-Fi and CAPsMAN controllers. **Confirmed:** connection and system details on RouterOS 7.20 (a CRS310 switch). **Not yet confirmed:** the client table, which follows MikroTik's documentation; a report from a real MikroTik access point is welcome Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) or `/interface wireless` (RouterOS 6) `registration-table print terse` and `print terse` |
 | Cisco Catalyst 9800 controller (SSH or SNMP), **experimental** | Lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE); one access point here per Cisco AP, picked by its name on the controller. **Built from** a C9800-CL report (IOS-XE 17.15.5, C9120AXI, [#10](https://github.com/darek-margas/wifi-association-presence/issues/10)); **confirmed over SSH** on that controller (in Home Assistant, also with a privilege 1 user); SNMP built from its SNMPv3 report, not yet run against it Setup guide: [wiki](../../wiki/Cisco-Catalyst-9800). | SSH: the controller's console, one login shared by its APs: `show ap summary`, `show wlan summary`, `show wireless client summary`, and up to 15 clients' `show wireless client mac-address <mac> detail` per poll, in turns, for signal and connected time. SNMP (v2c or v3, chosen in the settings, for controllers without SSH): the Airespace client table (AP, SSID, state, protocol) and AP table (name, location, status, model), one read shared by its APs |
 
 ### What each type reports
@@ -364,6 +364,8 @@ each AP keeps its own device and area, so room-level presence works the same.
 
 ### UniFi setup notes
 
+The full guide is in the [wiki](../../wiki/UniFi).
+
 - Set up Home Assistant's **UniFi Network** integration first. No credentials are entered
   here: this integration reuses that one's connection to the controller.
 - **Add access point → UniFi (via the UniFi Network integration)**, then pick the AP from
@@ -381,6 +383,8 @@ each AP keeps its own device and area, so room-level presence works the same.
   independent of this integration's trackers.
 
 ### OpenWrt setup notes
+
+The full guide is in the [wiki](../../wiki/OpenWrt).
 
 - Works with OpenWrt's standard hostapd (`wpad-basic-*`, `wpad-*`), which exposes every
   radio on ubus. Log in as `root` (or a user allowed to run `ubus`) with a password.
@@ -405,6 +409,8 @@ each AP keeps its own device and area, so room-level presence works the same.
   [Help add your access point](#help-add-your-access-point); `wifi-ap-collect --profile openwrt`).
 
 ### D-Link DAP setup notes
+
+The full guide is in the [wiki](../../wiki/D-Link-DAP).
 
 - Enable SSH under **Maintenance → Administration → Console Settings** (protocol SSH).
 - The AP only supports password login. Limit management access with
