@@ -47,8 +47,8 @@ Install it anyway; you can help get them supported without any technical knowled
    Read it first: it is redacted automatically, but check nothing private is left.
 3. **Wait for an update that supports your model**, then add your access points as above.
 
-Supported today: **D-Link DAP, OpenWrt and UniFi**, and MikroTik RouterOS and Cisco Catalyst
-9800 as experimental.
+Supported today: **D-Link DAP, OpenWrt, UniFi and Cisco Catalyst 9800**, and MikroTik
+RouterOS as experimental.
 [More about reports](#help-add-your-access-point) · [What each type reads](#supported-access-points)
 
 ---
@@ -212,8 +212,8 @@ so there are no entity ids to look up.
   other APs keep updating. Unexpected replies are discarded, not shown as values.
 - **Independent trackers.** Trackers are keyed by MAC address only, so you can remove,
   replace or change the type of an access point without losing them.
-- **Pluggable drivers.** Each kind of AP is a small driver (so far D-Link, OpenWrt, UniFi
-  and, experimental, MikroTik and Cisco 9800); new ones can be added without touching the
+- **Pluggable drivers.** Each kind of AP is a small driver (so far D-Link, OpenWrt, UniFi,
+  Cisco 9800 and, experimental, MikroTik); new ones can be added without touching the
   rest. The
   drivers are a separate library,
   [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), which other
@@ -325,14 +325,14 @@ Leaving an access point's password empty keeps the current one.
 | UniFi (via the UniFi Network integration) | **Confirmed** on a UniFi Network controller by a user. Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to Setup guide: [wiki](../../wiki/UniFi). | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
 | OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome Setup guide: [wiki](../../wiki/OpenWrt). | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
 | MikroTik RouterOS (SSH), **experimental** | RouterOS access points, routers with Wi-Fi and CAPsMAN controllers. **Confirmed:** connection and system details on RouterOS 7.20 (a CRS310 switch). **Not yet confirmed:** the client table, which follows MikroTik's documentation; a report from a real MikroTik access point is welcome Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) or `/interface wireless` (RouterOS 6) `registration-table print terse` and `print terse` |
-| Cisco Catalyst 9800 controller (SSH or SNMP), **experimental** | Lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE); one access point here per Cisco AP, picked by its name on the controller. **Built from** a C9800-CL report (IOS-XE 17.15.5, C9120AXI, [#10](https://github.com/darek-margas/wifi-association-presence/issues/10)); **confirmed over SSH** on that controller (in Home Assistant, also with a privilege 1 user); SNMP built from its SNMPv3 report, not yet run against it Setup guide: [wiki](../../wiki/Cisco-Catalyst-9800). | SSH: the controller's console, one login shared by its APs: `show ap summary`, `show wlan summary`, `show wireless client summary`, and up to 15 clients' `show wireless client mac-address <mac> detail` per poll, in turns, for signal and connected time. SNMP (v2c or v3, chosen in the settings, for controllers without SSH): the Airespace client table (AP, SSID, state, protocol) and AP table (name, location, status, model), one read shared by its APs |
+| Cisco Catalyst 9800 controller (SSH; SNMP **experimental**) | Lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE); one access point here per Cisco AP, picked by its name on the controller. **Confirmed over SSH** on a C9800-CL (IOS-XE 17.15.5, C9120AXI, [#10](https://github.com/darek-margas/wifi-association-presence/issues/10)) in Home Assistant, with signal, using a restricted parser view; over SNMP its clients, SSIDs and bands matched SSH, and signal is built from its reports. Setup guide: [wiki](../../wiki/Cisco-Catalyst-9800). | SSH: the controller's console, one login shared by its APs: `show ap summary`, `show wlan summary`, `show wireless client summary`, and up to 15 clients' `show wireless client mac-address <mac> detail` per poll, in turns, for signal and connected time. SNMP (v2c or v3, chosen in the settings): the Airespace client table (AP, SSID, state, protocol), client statistics (signal) and AP table (name, location, status, model), plus Cisco's client table (connected time), one read shared by its APs |
 
 ### What each type reports
 
-| | D-Link DAP | OpenWrt | UniFi | MikroTik (experimental) | Cisco 9800 (experimental) |
+| | D-Link DAP | OpenWrt | UniFi | MikroTik (experimental) | Cisco 9800 |
 |---|---|---|---|---|---|
 | Clients, band, SSID name | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Signal | % | dBm | dBm | dBm | dBm over SSH, each client refreshed about every 2 minutes; not yet over SNMP |
+| Signal | % | dBm | dBm | dBm | dBm: over SNMP every poll, over SSH each client refreshed about every 2 minutes |
 | AP device and sensors created here | ✓ | ✓ | — (uses the UniFi device) | ✓ | ✓ |
 | Name | system name | host name | UniFi name | identity | AP name |
 | Model | — (enter it in the AP's settings) | ✓ | in UniFi | ✓ (board name) | ✓ |
@@ -341,7 +341,7 @@ Leaving an access point's password empty keeps the current one.
 | Location | ✓ | — (no such setting) | — | — | ✓ (if set on the controller) |
 | CPU % | ✓ | — (only load averages) | in UniFi | ✓ | — |
 | Memory % | ✓ | ✓ | in UniFi | ✓ | — |
-| Login | SSH, password | SSH, password | none (the UniFi integration's session) | SSH, password | the controller's: SSH (privilege 1 is enough), or SNMP v2c / v3 |
+| Login | SSH, password | SSH, password | none (the UniFi integration's session) | SSH, password | the controller's: SSH (a parser view with five commands, see the [wiki](../../wiki/Cisco-Catalyst-9800); privilege 1 gives presence only), or SNMP v2c / v3 |
 
 Sensors for details a type can't report are not created. No type gives clients' IP
 addresses or host names to this integration, so trackers have no `ip` / `host_name`.
@@ -427,8 +427,8 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
 
 **Access point support**
 - **Five kinds of access point so far:** D-Link DAP, OpenWrt, UniFi (through Home
-  Assistant's UniFi Network integration), MikroTik RouterOS and Cisco Catalyst 9800
-  (both experimental). Support for more depends on owners contributing data (see
+  Assistant's UniFi Network integration), Cisco Catalyst 9800 (over SNMP experimental)
+  and MikroTik RouterOS (experimental). Support for more depends on owners contributing data (see
   [Help add your access point](#help-add-your-access-point) and the
   [Roadmap](#roadmap)); the driver interface is designed for it.
 - **Each type gives what its AP offers**, no more (see

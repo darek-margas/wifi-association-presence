@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.0b8 — Cisco: signal over SNMP; SSH no longer experimental (beta)
+
+- **Cisco Catalyst 9800 over SNMP now has signal and connected time**, for every client
+  on every poll (no turns as over SSH), from the controller's client statistics and
+  Cisco's client table. The tester's two SNMP reports showed where they are.
+- **Cisco over SSH is no longer experimental:** confirmed on a C9800-CL in Home
+  Assistant, with every client, AP and band matching the controller and signal working.
+  A privilege 1 user gives presence only; signal needs the client detail command, which
+  a restricted parser view can allow without privilege 15. The tester's working setup
+  is in the [wiki](https://github.com/darek-margas/wifi-association-presence/wiki/Cisco-Catalyst-9800).
+- Over SNMP it stays experimental until it has run with signal in Home Assistant.
+- Uses wifi-ap-associations 0.8.2.
+
 ## 0.8.0b7 — steadier Cisco signal readings (beta)
 
 - Cisco over SSH: signal readings of devices that stay put keep being refreshed even
