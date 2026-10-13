@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0b11 — MikroTik: clients found again on recent RouterOS (beta)
+
+- **Fix: a MikroTik access point on recent RouterOS reported no clients**
+  ([#12](https://github.com/darek-margas/wifi-association-presence/issues/12)), so
+  everyone on it looked away. RouterOS 7 now has the new `wifi` package built in even
+  where every radio uses the older `wireless` package (e.g. a cAP lite on 7.24.4), and
+  the integration read the new package's empty client list instead of the old one. It
+  now reads both and combines them.
+- MikroTik: clients on an extra SSID (a virtual interface) now show their band.
+- Uses wifi-ap-associations 0.8.5.
+
 ## 0.8.0b10 — MikroTik CAPsMAN: reports with what's needed for per-CAP areas (beta)
 
 - **The groundwork for MikroTik CAPsMAN with one access point per CAP**
