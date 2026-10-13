@@ -18,6 +18,9 @@
 [![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=darek-margas&repository=wifi-association-presence&category=integration)
 [![Open your Home Assistant instance and start setting up Wi-Fi Association Presence.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=wifi_association_presence)
 
+Guides and help: the [wiki](../../wiki), e.g. [Cisco Catalyst 9800](../../wiki/Cisco-Catalyst-9800)
+and [Troubleshooting](../../wiki/Troubleshooting).
+
 ## Setup in four steps
 
 1. **Install** it from HACS (button above) and restart Home Assistant.
@@ -322,7 +325,7 @@ Leaving an access point's password empty keeps the current one.
 | UniFi (via the UniFi Network integration) | **Confirmed** on a UniFi Network controller by a user. Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
 | OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
 | MikroTik RouterOS (SSH), **experimental** | RouterOS access points, routers with Wi-Fi and CAPsMAN controllers. **Confirmed:** connection and system details on RouterOS 7.20 (a CRS310 switch). **Not yet confirmed:** the client table, which follows MikroTik's documentation; a report from a real MikroTik access point is welcome | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) or `/interface wireless` (RouterOS 6) `registration-table print terse` and `print terse` |
-| Cisco Catalyst 9800 controller (SSH or SNMP), **experimental** | Lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE); one access point here per Cisco AP, picked by its name on the controller. **Built from** a C9800-CL report (IOS-XE 17.15.5, C9120AXI, [#10](https://github.com/darek-margas/wifi-association-presence/issues/10)); **confirmed over SSH** on that controller (in Home Assistant, also with a privilege 1 user); SNMP built from its SNMPv3 report, not yet run against it | SSH: the controller's console, one login shared by its APs: `show ap summary`, `show wlan summary`, `show wireless client summary`, and up to 15 clients' `show wireless client mac-address <mac> detail` per poll, in turns, for signal and connected time. SNMP (v2c or v3, chosen in the settings, for controllers without SSH): the Airespace client table (AP, SSID, state, protocol) and AP table (name, location, status, model), one read shared by its APs |
+| Cisco Catalyst 9800 controller (SSH or SNMP), **experimental** | Lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE); one access point here per Cisco AP, picked by its name on the controller. **Built from** a C9800-CL report (IOS-XE 17.15.5, C9120AXI, [#10](https://github.com/darek-margas/wifi-association-presence/issues/10)); **confirmed over SSH** on that controller (in Home Assistant, also with a privilege 1 user); SNMP built from its SNMPv3 report, not yet run against it Setup guide: [wiki](../../wiki/Cisco-Catalyst-9800). | SSH: the controller's console, one login shared by its APs: `show ap summary`, `show wlan summary`, `show wireless client summary`, and up to 15 clients' `show wireless client mac-address <mac> detail` per poll, in turns, for signal and connected time. SNMP (v2c or v3, chosen in the settings, for controllers without SSH): the Airespace client table (AP, SSID, state, protocol) and AP table (name, location, status, model), one read shared by its APs |
 
 ### What each type reports
 
@@ -669,40 +672,23 @@ wifi-ap-associations==<version>` and keeps the old library. Another restart inst
 
 ### Adding a driver
 
-Drivers are added in the library
-([wifi-ap-associations](https://github.com/darek-margas/wifi-ap-associations),
-`src/wifi_ap_associations/`), released there, and picked up here by raising the version
-in `requirements` in `manifest.json`. Create a module with a class deriving from
-`AccessPointDriver`, decorate it with `@register`, and set:
+Drivers are written in the library
+([wifi-ap-associations](https://github.com/darek-margas/wifi-ap-associations)), released
+there, and picked up here by raising the version in `requirements` in `manifest.json`.
+The library wiki's [Writing a driver](https://github.com/darek-margas/wifi-ap-associations/wiki/Writing-a-driver)
+covers the driver interface, controller drivers, testing against a report and releasing.
 
-- `TYPE` (stable ID stored in configuration; never change it), `NAME` (shown in the type
-  list), `MANUFACTURER`, `FIELDS` (the settings it needs) and `SIGNAL_UNIT` (`"%"` or
-  `"dBm"`, the scale of `AssociatedClient.signal`);
-- `async_get_associated_clients()`, returning `AssociatedClient` objects and raising
-  `AccessPointAuthError` / `AccessPointError` on failure;
-- optionally `async_poll()` to return device details (`AccessPointInfo`) from the same
-  session;
-- optionally `UNIQUE_FIELD` (the setting that identifies the AP, default `"host"`),
-  `POLL_TIMEOUT` (seconds allowed for one poll, default 45) and, for an AP that another
-  integration already registers as a device, `OWN_DEVICE = False` with `device_mac()`
-  returning its MAC: that device's area is used and no device or sensors are created;
-- for a driver that reads through another Home Assistant integration instead of
-  talking to the AP (like UniFi), `SOURCE = "<name>"`: the integration passes that data
-  source as the constructor's second argument, and the access point setting
-  (`UNIQUE_FIELD`) becomes a list of what the source knows. Register the source once in
-  [`sources.py`](custom_components/wifi_association_presence/sources.py) (how to create
-  it, the options, the "nothing left to add" message); the driver module itself stays free
-  of Home Assistant imports;
-- `EXPERIMENTAL = True` until the driver is confirmed on real hardware or a real system
-  (shown as experimental in the type list; other drivers are unaffected);
-- `REPORTS`: the `AccessPointInfo` fields the driver can fill (default all); sensors for
-  the others are not created, so an AP doesn't show sensors that are always unknown;
-- for SSH consoles, an `SshPolicy` (algorithms and login method) for that model.
+What a new driver needs on this side:
 
-Treat every reply as untrusted: return `None` for anything you can't parse rather than
-passing error text through as a value. Import the module at the bottom of the library's
-`__init__.py`. New setting names need labels in this integration's `strings.json` and
-`translations/en.json`.
+- labels for new setting names in `strings.json` and `translations/en.json` (data and
+  data_description of the `details` and `reconfigure` steps, and `selector` options for
+  settings with choices); `tests/test_strings.py` fails if one is missing;
+- for a driver that reads through another Home Assistant integration (`SOURCE`, like
+  UniFi), the source registered once in
+  [`sources.py`](custom_components/wifi_association_presence/sources.py): how to create
+  it, the options for its access point setting, and the "nothing left to add" message.
+  The driver module itself stays free of Home Assistant imports;
+- a beta, pushed only once the library version it pins is on PyPI.
 
 ## License
 
