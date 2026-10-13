@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.0b10 — MikroTik CAPsMAN: reports with what's needed for per-CAP areas (beta)
+
+- **The groundwork for MikroTik CAPsMAN with one access point per CAP**
+  ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)). Today a
+  CAPsMAN router is one access point: every client of every CAP counts as connected to
+  the router, so presence works but everyone ends up in the router's area. To put each
+  client on its CAP, the integration needs to know which CAP each Wi-Fi interface
+  belongs to.
+- **Collect access point report → SSH → MikroTik RouterOS** now also reads the CAPsMAN
+  radios, CAP interfaces and remote CAPs (`/interface wifi radio`,
+  `/interface wifi capsman remote-cap`, `/caps-man interface`, `/caps-man remote-cap`,
+  each `print terse`). If you use CAPsMAN, a report from the controller is what's needed
+  to add per-CAP support; attach it to #11.
+- Nothing changes for MikroTik access points in use: presence, SSID, band and signal are
+  read as before.
+- Uses wifi-ap-associations 0.8.4.
+
 ## 0.8.0b9 — Cisco SNMP: no stale signal (beta)
 
 - Cisco over SNMP: when the controller stops reporting a client's signal or connected
