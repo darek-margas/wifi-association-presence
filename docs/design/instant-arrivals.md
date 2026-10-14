@@ -65,16 +65,24 @@ the router), any line naming a `mac-address=` means "the table changed": trigger
 For a CAPsMAN controller one watch covers all its CAPs, and the triggered poll reads them
 all. Both packages are watched where both answer, as the poll reads both.
 
-To confirm with a tester before building (RouterOS 7.24.4, `wifi` and `wireless`):
+What a tester saw on RouterOS 7.24.4 (#11, in a terminal):
 
-1. What `follow-only terse` prints when a client **joins**, **leaves** and **roams** between
-   CAPs: one line each? Are removed entries marked (e.g. a flag) or just absent?
-2. Does it keep streaming over an **SSH exec** request (no terminal), and does it ever end
-   on its own (idle timeout, table reset)?
-3. Does `stats` change it (the `wireless` package needs `stats` for signal, but the watch
-   only needs to know that something changed)?
-4. Can the same read-only user run it?
-5. How chatty is it with a few dozen clients: lines per minute while nothing joins?
+- **Joining** prints one line with the client, in the `wifi` package first without the
+  `A` (authorized) flag and a moment later with it (sometimes only the `A` line).
+- **Roaming** prints a line for the new interface.
+- **Leaving** prints nothing. Fine: departures never come from events.
+- **Re-authenticating** clients print a line each time, some every second or two, all on
+  the same interface.
+- The `wireless` package prints the same kind of line without any flags.
+- A footer ("-- Ctrl-C to quit ...") without a MAC.
+
+So the watcher (0.10.2) polls only for an **authorized** line (`wifi`; every line for
+`wireless`) of a client that is **new or on another interface**, or was last seen more
+than 60 s ago: an arrival or a roam polls once, a flapping client at most once a
+minute.
+
+Still to confirm in Home Assistant: that it keeps streaming over an SSH exec request (no
+terminal) and whether it ever ends on its own; the integration reconnects either way.
 
 ## RADIUS accounting
 

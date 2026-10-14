@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0b3 — instant arrivals: only arrivals and moves (beta)
+
+- MikroTik instant arrivals now poll only when a client **joins** (once it is
+  authorized) or **moves** to another CAP or radio. A device that keeps
+  re-authenticating no longer makes the integration poll the router every few seconds,
+  and an arrival is no longer polled for too early, before the client counts as
+  connected. Built from a tester's real capture.
+- Uses wifi-ap-associations 0.10.2.
+
 ## 0.10.0b2 — review fixes (beta)
 
 - Instant arrivals: a burst of changes from a busy controller now makes one refresh
