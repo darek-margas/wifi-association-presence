@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0b3 — MikroTik wireless signal fixed (beta)
+
+- **Fix: MikroTik access points on the `wireless` package still showed no signal in
+  0.9.0b2.** RouterOS spreads each client's statistics over several lines, and the
+  signal is on the second one; the integration now reads them as one. Signal and
+  connected time show for these clients now.
+- Uses wifi-ap-associations 0.9.2.
+
 ## 0.9.0b2 — coverage counts kept across a restart; MikroTik follow-ups (beta)
 
 - **"Roams today", "Short drops today" and "Late roams today" survive a restart** on
