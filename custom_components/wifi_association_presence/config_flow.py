@@ -56,9 +56,11 @@ from wifi_ap_associations.collect import (
 )
 from .const import (
     DATA_AP_REPORT_BUSY,
+    DEFAULT_INSTANT_ARRIVALS,
     COLLECT_METHODS,
     COLLECT_TIMEOUT,
     CONF_AUTH_KEY,
+    CONF_INSTANT_ARRIVALS,
     CONF_AUTH_PROTOCOL,
     CONF_COMMANDS,
     CONF_COMMUNITY,
@@ -126,7 +128,7 @@ class WifiAssociationPresenceConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class WifiAssociationPresenceOptionsFlow(OptionsFlow):
-    """Grace period before a device that disappeared counts as away."""
+    """Grace period before a device that disappeared counts as away; instant arrivals."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -150,13 +152,19 @@ class WifiAssociationPresenceOptionsFlow(OptionsFlow):
                                 )
                             ),
                             vol.Coerce(int),
-                        )
+                        ),
+                        vol.Required(
+                            CONF_INSTANT_ARRIVALS, default=DEFAULT_INSTANT_ARRIVALS
+                        ): BooleanSelector(),
                     }
                 ),
                 {
                     CONF_CONSIDER_HOME: self.config_entry.options.get(
                         CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME
-                    )
+                    ),
+                    CONF_INSTANT_ARRIVALS: self.config_entry.options.get(
+                        CONF_INSTANT_ARRIVALS, DEFAULT_INSTANT_ARRIVALS
+                    ),
                 },
             ),
         )

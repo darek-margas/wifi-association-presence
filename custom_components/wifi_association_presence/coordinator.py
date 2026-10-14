@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import area_registry as ar, device_registry as dr
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -18,12 +20,18 @@ from wifi_ap_associations import DRIVERS, AccessPointDriver, AccessPointError, A
 from .const import (
     CONF_CONSIDER_HOME,
     CONF_DRIVER,
+    CONF_INSTANT_ARRIVALS,
     CONF_NAME,
     DEFAULT_CONSIDER_HOME,
+    DEFAULT_INSTANT_ARRIVALS,
     DOMAIN,
     LOGGER,
     SCAN_INTERVAL,
     SUBENTRY_ACCESS_POINT,
+    TRIGGERED_POLL_COOLDOWN,
+    WATCH_RETRY_MAX,
+    WATCH_RETRY_MIN,
+    WATCH_STABLE,
 )
 from .coverage_stats import AccessPointCoverage, CoverageTracker, access_point_coverage
 from .presence import (
@@ -112,6 +120,11 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             config_entry=entry,
             name=DOMAIN,
             update_interval=SCAN_INTERVAL,
+            # Polls asked for by instant-arrival events: at once, then at most one per
+            # cooldown, so a burst of changes is one poll.
+            request_refresh_debouncer=Debouncer(
+                hass, LOGGER, cooldown=TRIGGERED_POLL_COOLDOWN, immediate=True
+            ),
         )
         self.access_points: list[ConfiguredAccessPoint] = []
         for subentry in entry.subentries.values():
@@ -261,6 +274,65 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             self._store.async_delay_save(self._storage_data)
             self._next_save = now + STORAGE_SAVE_INTERVAL
         return PresenceData(dict(self._sightings), dict(self._ap_states))
+
+    @callback
+    def async_start_watchers(self) -> None:
+        """Instant arrivals: watch each access point (or controller) that can report
+        changes, unless the option is off. One watch per watch key, so the CAPs of one
+        CAPsMAN controller share one. The tasks end with the entry."""
+        if not self.config_entry.options.get(CONF_INSTANT_ARRIVALS, DEFAULT_INSTANT_ARRIVALS):
+            return
+        watched: set[Any] = set()
+        for ap in self.access_points:
+            if not ap.driver.WATCHES or (key := ap.driver.watch_key()) in watched:
+                continue
+            watched.add(key)
+            self.config_entry.async_create_background_task(
+                self.hass, self._async_watch(ap), f"{DOMAIN} watch {ap.title}"
+            )
+
+    async def _async_watch(self, ap: ConfiguredAccessPoint) -> None:
+        """Keep one access point's change feed open, starting it again when it ends.
+
+        A change only asks for a poll; the poll decides who is there. A feed that fails
+        is retried after a growing wait, logged once when it stops and once when it
+        works again; polling every minute goes on regardless.
+        """
+        delay = WATCH_RETRY_MIN
+        paused = False
+        while True:
+            started = time.monotonic()
+            try:
+                await ap.driver.async_watch(self._on_change)
+                reason = "the feed ended"
+            except asyncio.CancelledError:
+                raise
+            except AccessPointError as err:
+                reason = str(err) or type(err).__name__
+            except Exception:  # a driver bug must not end the watching for good
+                LOGGER.exception("Unexpected error watching access point %s", ap.title)
+                reason = "unexpected error"
+            if time.monotonic() - started >= WATCH_STABLE:
+                delay = WATCH_RETRY_MIN
+                if paused:
+                    LOGGER.info("Instant arrivals for %s work again", ap.title)
+                    paused = False
+            if not paused:
+                LOGGER.info(
+                    "Instant arrivals for %s paused (%s); polling every minute goes on",
+                    ap.title,
+                    reason,
+                )
+                paused = True
+            else:
+                LOGGER.debug("Watching %s again failed: %s", ap.title, reason)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, WATCH_RETRY_MAX)
+
+    @callback
+    def _on_change(self) -> None:
+        """An access point reported a change: poll soon (debounced)."""
+        self.hass.async_create_task(self.async_request_refresh())
 
     def _log_read(self, ap: ConfiguredAccessPoint, result: object) -> None:
         """Log an AP going unreadable once, and coming back."""

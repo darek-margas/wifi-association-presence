@@ -18,6 +18,17 @@ CONF_MAC = "mac"
 CONF_NAME = "name"
 CONF_MODEL = "model"
 CONF_CONSIDER_HOME = "consider_home"
+# Instant arrivals (option, on by default): access points that can report changes as
+# they happen trigger a poll at once.
+CONF_INSTANT_ARRIVALS = "instant_arrivals"
+DEFAULT_INSTANT_ARRIVALS = True
+# A triggered poll at most this often (a burst of changes becomes one poll).
+TRIGGERED_POLL_COOLDOWN = 5
+# Waits before watching again after a watch ended or failed: doubling up to the maximum,
+# back to the minimum after a watch that ran this long.
+WATCH_RETRY_MIN = 5
+WATCH_RETRY_MAX = 300
+WATCH_STABLE = 600
 
 # Collect access point report (for adding support for an access point).
 CONF_PROFILE = "profile"

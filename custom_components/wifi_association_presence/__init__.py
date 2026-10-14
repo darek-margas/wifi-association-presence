@@ -67,6 +67,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEnt
             unsubscribe()
 
     entry.async_on_unload(_async_remove_stop_listener)
+    # Instant arrivals: access points that report changes trigger a poll at once.
+    coordinator.async_start_watchers()
     return True
 
 

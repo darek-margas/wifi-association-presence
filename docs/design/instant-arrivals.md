@@ -1,6 +1,8 @@
 # Design note: instant arrivals (events as a poll trigger)
 
-Status: **planned, not built.** Written 2026-10-10 from tests on a real network;
+Status: **the shared trigger and MikroTik `follow-only` are built** (library 0.10.0,
+integration 0.10.0b1, experimental); the other sources are planned. Written 2026-10-10
+from tests on a real network;
 MikroTik `follow-only` and the shared trigger added 2026-10-14, after a MikroTik user
 asked for it for arrival automations
 ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)).

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.10.0b1 — instant arrivals for MikroTik, experimental (beta)
+
+- **Instant arrivals.** MikroTik access points and CAPsMAN controllers now tell the
+  integration when a client joins: it keeps
+  `registration-table print follow-only` running over the SSH login it already has, and
+  every change makes it poll at once. An arrival shows in a few seconds instead of up to
+  a minute, for your arrival automations.
+- The poll still decides who is there; departures still wait for the grace period. A
+  burst of changes is one poll (at most one every 5 seconds), and the minute's regular
+  poll goes on regardless.
+- If the connection drops or the router ends it, the integration reconnects after a
+  growing wait (5 s up to 5 minutes) and logs once when it pauses and once when it works
+  again. Nothing else changes while it's paused.
+- **On by default**, with an **Instant arrivals** switch in **Configure**. It keeps one
+  SSH connection open per MikroTik access point or CAPsMAN controller.
+- Experimental: the exact output of `follow-only` hasn't been seen from a device yet.
+- Uses wifi-ap-associations 0.10.0.
+
 ## 0.9.0 — Cisco Catalyst 9800, MikroTik CAPsMAN, and a wiki
 
 Everything since 0.7.1 (the 0.8.0 and 0.9.0 betas below have the details), for everyone.

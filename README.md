@@ -114,6 +114,11 @@ Every tracker tells you **when** the device arrived or left, not just whether it
   arrival or departure, with the exact time in it.
 - **Survives restarts.** Arrival and departure times are stored, so a restart doesn't
   turn "home since 07:40" into "home since the restart".
+- **Instant arrivals** (MikroTik, experimental). Access points that report changes as
+  they happen make the integration poll at once, so an arrival shows in seconds instead
+  of up to a minute. Departures still wait for the grace period, and the poll, not the
+  event, decides who is there. On by default; switch it off in **Configure** (it keeps
+  one SSH connection open per MikroTik access point or CAPsMAN controller).
 - **Light on the database.** The attributes change only on arrival or departure, so the
   recorder writes a row per event, not per poll. The tracker's History and Logbook then
   list every arrival and departure.
@@ -312,7 +317,8 @@ it first loads the integration, so it needs internet access at that restart.
    a name. The list holds every device seen in the last 7 days, most recent first, labelled
    with AP, band, SSID and signal; devices not connected right now (a sleeping car or
    tablet) show when they were last seen. This memory survives restarts.
-5. Optional: **Configure** on the hub sets the grace period.
+5. Optional: **Configure** on the hub sets the grace period and turns instant arrivals
+   on or off.
 
 Access points and tracked devices can be edited from their **⋮** menu (**Reconfigure**).
 Leaving an access point's password empty keeps the current one.
@@ -601,9 +607,9 @@ below needs an owner of that hardware to send data and test a build.
 | **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `wifi-ap-collect` report (SSH or `--snmp`) |
 | **Other controllers** (older Cisco AireOS WLCs, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API or CLI, as for the Catalyst 9800 | interest and a test setup |
 
-Next: **instant arrivals.** An event from the access point side (MikroTik's
-`print follow-only` first, then UniFi's connect events, OpenWrt's hostapd events, RADIUS
-accounting, syslog) triggers an immediate poll,
+**Instant arrivals**, more sources: MikroTik's `print follow-only` is in (0.10.0b1,
+experimental); next, UniFi's connect events, OpenWrt's hostapd events, RADIUS
+accounting and syslog. An event triggers an immediate poll,
 so an arrival shows in seconds instead of up to a minute; departures still wait for the
 grace period. RADIUS accounting also identifies the 802.1X user, which would allow
 tracking a person even with rotating private MAC addresses. Design and test results:

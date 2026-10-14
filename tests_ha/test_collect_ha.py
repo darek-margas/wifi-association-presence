@@ -253,7 +253,8 @@ async def test_grace_period_is_the_options_form(hass: HomeAssistant) -> None:
         result["flow_id"], {"consider_home": 60}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"consider_home": 60}
+    # Instant arrivals stays on unless switched off.
+    assert entry.options == {"consider_home": 60, "instant_arrivals": True}
 
 
 async def test_diagnostics_without_report(hass: HomeAssistant) -> None:
