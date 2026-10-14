@@ -35,8 +35,9 @@ them.
 
 ### Good to know
 
-- The counts start again from 0 **at midnight** (local time) **and when Home Assistant
-  restarts**. They are kept in memory only.
+- The counts start again from 0 **at midnight** (local time). They are saved with the
+  tracked devices, so a restart during the day keeps them (from 0.9.0b2). A roam or drop
+  while Home Assistant was down isn't counted: nobody saw it.
 - Signal is what the **access point** hears from the device, and only from the AP it is
   connected to. Access points don't report how the other APs hear it, so this can't draw
   a map. It shows where clients struggle, not where the walls are.

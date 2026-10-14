@@ -355,3 +355,33 @@ def test_snmp_driver_form_has_optional_credentials_and_lists() -> None:
     assert (data["auth_protocol"], data["priv_protocol"]) == ("sha", "aes")
     with pytest.raises(vol.Invalid):
         schema({"host": "h", "port": 161, "ap_name": "AP01", "auth_protocol": "sha999"})
+
+
+async def test_coverage_counts_survive_a_same_day_restart(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, hass_storage: dict[str, Any]
+) -> None:
+    # Midday, so the restart stays on the same local day.
+    today = dt_util.as_local(dt_util.utcnow()).date()
+    freezer.move_to(dt_util.as_utc(datetime.combine(today, datetime.min.time(), dt_util.DEFAULT_TIME_ZONE)) + timedelta(hours=12))
+    on_hall = PollResult([AssociatedClient(PHONE, "Home", "5GHz", 70)], GOOD.info)
+    on_kitchen = PollResult([AssociatedClient(PHONE, "Home", "5GHz", 70)], GOOD.info)
+    empty = PollResult([], GOOD.info)
+    FakeDriver.results = {"ap1": on_hall, "ap2": empty}
+    entry = await setup_entry(hass, ap("ap1", "Hallway AP"), ap("ap2", "Kitchen AP"), PHONE_SUB)
+    FakeDriver.results = {"ap1": empty, "ap2": on_kitchen}
+    await refresh_after(hass, freezer, entry.runtime_data, 61)
+    assert hass.states.get("sensor.phone_roams_today").state == "1"
+    hass.bus.async_fire("homeassistant_stop")
+    await hass.async_block_till_done()
+    assert hass_storage[f"{DOMAIN}.{entry.entry_id}.sightings"]["data"]["coverage"]["counts"][PHONE]["roams"] == 1
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    freezer.tick(timedelta(minutes=5))
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.phone_roams_today").state == "1"
+    # The next day they start again, restart or not.
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    freezer.tick(timedelta(days=1))
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.phone_roams_today").state == "0"

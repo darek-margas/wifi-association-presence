@@ -176,13 +176,21 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         self._sightings = sightings_from_storage(stored, dt_util.utcnow(), SIGHTING_RETENTION)
         self._restored_at = stored_at(stored)
         self._restored_clean = stored_cleanly(stored)
+        # Today's coverage counts (roams, drops, late roams) survive a same-day restart.
+        self.coverage.restore(
+            (stored or {}).get("coverage"), dt_util.as_local(dt_util.utcnow()).date()
+        )
 
     async def async_save_sightings(self) -> None:
         """Save now (on unload and on stop, so the next setup starts from current data)."""
         self._final_save_done = True
-        await self._store.async_save(
-            sightings_to_storage(self._sightings, dt_util.utcnow(), clean=True)
-        )
+        await self._store.async_save(self._storage_data(clean=True))
+
+    def _storage_data(self, clean: bool = False) -> dict[str, Any]:
+        """What is saved: the sightings and today's coverage counts."""
+        data = sightings_to_storage(self._sightings, dt_util.utcnow(), clean=clean)
+        data["coverage"] = self.coverage.to_storage()
+        return data
 
     async def _async_update_data(self) -> PresenceData:
         """Read every AP in parallel; keep previous sightings for APs that fail."""
@@ -250,9 +258,7 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         seen = carry_visits(merged.sightings, self._sightings, now, visit_gap)
         self._sightings = prune({**self._sightings, **seen}, now, SIGHTING_RETENTION)
         if not self._final_save_done and (self._next_save is None or now >= self._next_save):
-            self._store.async_delay_save(
-                lambda: sightings_to_storage(self._sightings, dt_util.utcnow())
-            )
+            self._store.async_delay_save(self._storage_data)
             self._next_save = now + STORAGE_SAVE_INTERVAL
         return PresenceData(dict(self._sightings), dict(self._ap_states))
 

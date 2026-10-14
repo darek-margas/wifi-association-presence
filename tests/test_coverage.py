@@ -9,6 +9,8 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 import sys
 
+import pytest
+
 sys.path.insert(
     0,
     str(Path(__file__).resolve().parent.parent / "custom_components" / "wifi_association_presence"),
@@ -207,3 +209,55 @@ def test_total_outage_interrupts_observation() -> None:
     assert tracker.counts[PHONE].roams == 0
     assert tracker.counts[PHONE].late_roams == 0
     assert tracker.counts[PHONE].drops == 0
+
+
+# --- kept across a restart on the same day -------------------------------------------
+
+
+def _counted() -> CoverageTracker:
+    tracker = CoverageTracker()
+    feed(tracker, [{PHONE: seen("ap1")}, {PHONE: seen("ap2")}, {PHONE: seen("ap1")}])
+    return tracker
+
+
+def test_counts_survive_a_restart_on_the_same_day() -> None:
+    before = _counted()
+    assert before.counts[PHONE].roams == 2
+    stored = before.to_storage()
+    after = CoverageTracker()
+    after.restore(stored, TODAY)
+    assert after.counts[PHONE].roams == 2
+    # Observation starts afresh: the next sighting on another AP isn't a roam.
+    feed(after, [{PHONE: seen("ap2")}])
+    assert after.counts[PHONE].roams == 2
+
+
+def test_counts_from_another_day_are_not_restored() -> None:
+    stored = _counted().to_storage()
+    after = CoverageTracker()
+    after.restore(stored, TODAY + timedelta(days=1))
+    assert after.counts == {}
+    assert after.day == TODAY + timedelta(days=1)
+
+
+@pytest.mark.parametrize(
+    "stored",
+    [
+        None,
+        {},
+        {"day": TODAY.isoformat(), "counts": "nope"},
+        {"day": TODAY.isoformat(), "counts": {PHONE: {"roams": "x", "drops": 0, "late_roams": 0}}},
+        {"day": TODAY.isoformat(), "counts": {PHONE: {"roams": -1, "drops": 0, "late_roams": 0}}},
+        {"day": TODAY.isoformat(), "counts": {PHONE: {"roams": 1}}},
+    ],
+)
+def test_malformed_stored_counts_are_ignored(stored) -> None:
+    tracker = CoverageTracker()
+    tracker.restore(stored, TODAY)
+    assert tracker.counts == {}
+
+
+def test_only_devices_with_counts_are_stored() -> None:
+    tracker = _counted()
+    feed(tracker, [{CAR: seen("ap1")}])  # seen, but nothing to count
+    assert set(tracker.to_storage()["counts"]) == {PHONE}

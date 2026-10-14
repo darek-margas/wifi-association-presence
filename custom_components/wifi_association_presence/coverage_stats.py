@@ -11,8 +11,10 @@ it is tested on its own (like presence.py):
 - per access point: the **average signal** of its clients and how many are **weak**.
 
 Signal is compared as quality (0-100, the same for every driver: -100 dBm is 0,
--50 dBm is 100). Counts live in memory and start again at local midnight and after a
-restart.
+-50 dBm is 100). Counts start again at local midnight. They are saved with the
+sightings (at stop and every 10 minutes) and restored after a restart on the same day;
+what each device was doing just before the restart isn't, so a roam or drop across
+the downtime isn't counted, as with any gap in observation.
 """
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .presence import Sighting
@@ -65,6 +67,41 @@ class CoverageTracker:
         if today != self.day:
             self.day = today
             self.counts = {}
+
+    def to_storage(self) -> dict[str, Any]:
+        """Today's counts, JSON-friendly, so a restart later today keeps them."""
+        return {
+            "day": self.day.isoformat() if self.day else None,
+            "counts": {
+                mac: {"roams": c.roams, "drops": c.drops, "late_roams": c.late_roams}
+                for mac, c in self.counts.items()
+                if c.roams or c.drops or c.late_roams
+            },
+        }
+
+    def restore(self, stored: Mapping[str, Any] | None, today: date) -> None:
+        """Counts saved earlier today; from another day, malformed or missing: none.
+
+        Only the counts come back. Observation itself starts afresh: nobody knows where
+        a device was while Home Assistant was down.
+        """
+        self.reset_day(today)
+        if not isinstance(stored, Mapping) or stored.get("day") != today.isoformat():
+            return
+        counts = stored.get("counts")
+        if not isinstance(counts, Mapping):
+            return
+        for mac, item in counts.items():
+            try:
+                restored = DeviceCounts(
+                    roams=int(item["roams"]),
+                    drops=int(item["drops"]),
+                    late_roams=int(item["late_roams"]),
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+            if min(restored.roams, restored.drops, restored.late_roams) >= 0:
+                self.counts[str(mac)] = restored
 
     def _forget(self, mac: str) -> None:
         """Drop what is known about a device: its next sighting starts afresh."""

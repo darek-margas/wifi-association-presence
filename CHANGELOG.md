@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.0b2 — coverage counts kept across a restart; MikroTik follow-ups (beta)
+
+- **"Roams today", "Short drops today" and "Late roams today" survive a restart** on
+  the same day. They are saved with the tracked devices (when Home Assistant stops and
+  every 10 minutes) and restored at start if it's still the same day; at midnight they
+  start again as before. A roam or drop across the downtime itself isn't counted:
+  nobody saw where the device was meanwhile.
+- **The CAPsMAN type is now "MikroTik CAP via CAPsMAN (SSH)"**, since you add it once
+  per CAP. Access points already added keep working; only the name in the list changes.
+- **MikroTik with the `wireless` package now shows signal and connected time.** RouterOS
+  leaves them out of the client list the integration read; they now come from the same
+  list with statistics (`print stats terse`). Presence doesn't depend on it.
+- Uses wifi-ap-associations 0.9.1.
+
 ## 0.9.0b1 — MikroTik CAPsMAN: one access point per CAP, experimental (beta)
 
 - **Add access point → "MikroTik CAPsMAN controller (SSH)"**, shown as experimental
