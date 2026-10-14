@@ -47,8 +47,8 @@ Install it anyway; you can help get them supported without any technical knowled
    Read it first: it is redacted automatically, but check nothing private is left.
 3. **Wait for an update that supports your model**, then add your access points as above.
 
-Supported today: **D-Link DAP, OpenWrt, UniFi and Cisco Catalyst 9800**, and MikroTik
-RouterOS as experimental.
+Supported today: **D-Link DAP, OpenWrt, UniFi, MikroTik RouterOS (also CAPsMAN) and Cisco
+Catalyst 9800**.
 [More about reports](#help-add-your-access-point) · [What each type reads](#supported-access-points)
 
 ---
@@ -213,7 +213,7 @@ so there are no entity ids to look up.
 - **Independent trackers.** Trackers are keyed by MAC address only, so you can remove,
   replace or change the type of an access point without losing them.
 - **Pluggable drivers.** Each kind of AP is a small driver (so far D-Link, OpenWrt, UniFi,
-  Cisco 9800 and, experimental, MikroTik); new ones can be added without touching the
+  MikroTik and Cisco 9800); new ones can be added without touching the
   rest. The
   drivers are a separate library,
   [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), which other
@@ -324,13 +324,13 @@ Leaving an access point's password empty keeps the current one.
 | D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI Setup guide: [wiki](../../wiki/D-Link-DAP). | SSH: `config wlan 0/1` + `get clientinfo` |
 | UniFi (via the UniFi Network integration) | **Confirmed** on a UniFi Network controller by a user. Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to Setup guide: [wiki](../../wiki/UniFi). | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
 | OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome Setup guide: [wiki](../../wiki/OpenWrt). | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
-| MikroTik RouterOS (SSH), **experimental** | RouterOS access points, routers with Wi-Fi and CAPsMAN controllers. **Confirmed:** connection and system details on RouterOS 7.20 (a CRS310 switch). **Client table:** its format matches real output from a CAPsMAN controller ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)); not yet run against a MikroTik access point. For CAPsMAN with one access point per CAP, use the MikroTik CAPsMAN type below. Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) and `/interface wireless` (RouterOS 6, and RouterOS 7 radios still on it) `registration-table print terse` and `print terse`, both read and combined (signal and uptime of `wireless` from `registration-table print stats terse`) |
-| MikroTik CAP via CAPsMAN (SSH), **experimental** | CAPs managed by a CAPsMAN controller on RouterOS 7 (`wifi` package); one access point here per CAP, picked by its identity on the controller. **Built from** a CAPsMAN router with two cAP ax on RouterOS 7.24.4 ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)). Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH exec on the controller, one login shared by its CAPs: `/interface wifi capsman remote-cap`, `/interface wifi` and its `registration-table`, each `print terse`; each client put on the CAP its interface (or its master interface) belongs to |
+| MikroTik RouterOS (SSH) | RouterOS access points and routers with Wi-Fi. **Confirmed** in Home Assistant on a cAP lite with the `wireless` package, RouterOS 7.24.4 ([#12](https://github.com/darek-margas/wifi-association-presence/issues/12)), with signal; system details also on RouterOS 7.20 (a CRS310 switch). For CAPsMAN with one access point per CAP, use the MikroTik CAPsMAN type below. Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) and `/interface wireless` (RouterOS 6, and RouterOS 7 radios still on it) `registration-table print terse` and `print terse`, both read and combined (signal and uptime of `wireless` from `registration-table print stats terse`) |
+| MikroTik CAP via CAPsMAN (SSH) | CAPs managed by a CAPsMAN controller on RouterOS 7 (`wifi` package); one access point here per CAP, picked by its identity on the controller. **Confirmed** in Home Assistant on a CAPsMAN router with two cAP ax on RouterOS 7.24.4 ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)). Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH exec on the controller, one login shared by its CAPs: `/interface wifi capsman remote-cap`, `/interface wifi` and its `registration-table`, each `print terse`; each client put on the CAP its interface (or its master interface) belongs to |
 | Cisco Catalyst 9800 controller (SSH; SNMP **experimental**) | Lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE); one access point here per Cisco AP, picked by its name on the controller. **Confirmed over SSH** on a C9800-CL (IOS-XE 17.15.5, C9120AXI, [#10](https://github.com/darek-margas/wifi-association-presence/issues/10)) in Home Assistant, with signal, using a restricted parser view; over SNMP its clients, SSIDs and bands matched SSH, and signal is built from its reports. Setup guide: [wiki](../../wiki/Cisco-Catalyst-9800). | SSH: the controller's console, one login shared by its APs: `show ap summary`, `show wlan summary`, `show wireless client summary`, and up to 15 clients' `show wireless client mac-address <mac> detail` per poll, in turns, for signal and connected time. SNMP (v2c or v3, chosen in the settings): the Airespace client table (AP, SSID, state, protocol), client statistics (signal) and AP table (name, location, status, model), plus Cisco's client table (connected time), one read shared by its APs |
 
 ### What each type reports
 
-| | D-Link DAP | OpenWrt | UniFi | MikroTik (experimental) | MikroTik CAPsMAN (experimental) | Cisco 9800 |
+| | D-Link DAP | OpenWrt | UniFi | MikroTik | MikroTik CAP via CAPsMAN | Cisco 9800 |
 |---|---|---|---|---|---|---|
 | Clients, band, SSID name | ✓ | ✓ | ✓ | ✓ | ✓ (per CAP) | ✓ |
 | Signal | % | dBm | dBm | dBm | dBm | dBm: over SNMP every poll, over SSH each client refreshed about every 2 minutes |
@@ -428,8 +428,8 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
 
 **Access point support**
 - **Five kinds of access point so far:** D-Link DAP, OpenWrt, UniFi (through Home
-  Assistant's UniFi Network integration), Cisco Catalyst 9800 (over SNMP experimental)
-  and MikroTik RouterOS (experimental). Support for more depends on owners contributing data (see
+  Assistant's UniFi Network integration), MikroTik RouterOS (also CAPsMAN) and Cisco
+  Catalyst 9800 (over SNMP experimental). Support for more depends on owners contributing data (see
   [Help add your access point](#help-add-your-access-point) and the
   [Roadmap](#roadmap)); the driver interface is designed for it.
 - **Each type gives what its AP offers**, no more (see
@@ -601,8 +601,9 @@ below needs an owner of that hardware to send data and test a build.
 | **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `wifi-ap-collect` report (SSH or `--snmp`) |
 | **Other controllers** (older Cisco AireOS WLCs, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API or CLI, as for the Catalyst 9800 | interest and a test setup |
 
-Also planned: **instant arrivals.** An event from the access point side (UniFi's connect
-events, OpenWrt's hostapd events, RADIUS accounting, syslog) triggers an immediate poll,
+Next: **instant arrivals.** An event from the access point side (MikroTik's
+`print follow-only` first, then UniFi's connect events, OpenWrt's hostapd events, RADIUS
+accounting, syslog) triggers an immediate poll,
 so an arrival shows in seconds instead of up to a minute; departures still wait for the
 grace period. RADIUS accounting also identifies the 802.1X user, which would allow
 tracking a person even with rotating private MAC addresses. Design and test results:

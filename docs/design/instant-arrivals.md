@@ -1,6 +1,9 @@
 # Design note: instant arrivals (events as a poll trigger)
 
-Status: **planned, not built.** Written 2026-10-10 from tests on a real network.
+Status: **planned, not built.** Written 2026-10-10 from tests on a real network;
+MikroTik `follow-only` and the shared trigger added 2026-10-14, after a MikroTik user
+asked for it for arrival automations
+([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)).
 
 Today an arrival shows within one poll (up to 60 s). Most access points can also tell
 someone that a client just joined. The idea: use such an event only to **poll that access
@@ -22,8 +25,54 @@ point now**, not as the source of truth.
 | UniFi integration events | UniFi | none | Home Assistant's UniFi integration already receives the controller's connect and roam events over its websocket (its own trackers use them). |
 | hostapd ubus events | OpenWrt | none | One long-lived SSH session subscribed to hostapd's association events on ubus. |
 | **RADIUS accounting** | any AP on 802.1X (WPA-Enterprise), or set up to send accounting for PSK too | depends, see below | Standard across vendors, authenticated with a shared secret. Details below. |
+| **RouterOS `print follow-only`** | MikroTik, also CAPsMAN controllers | none (the SSH login the integration already has) | One long-lived SSH command per device that prints each change of the registration table. See below; first candidate to build. |
 | Syslog | D-Link DAP (documented: log type *Wireless Activity* includes associate / disassociate), MikroTik | point the AP's log server at Home Assistant | Unauthenticated UDP on port 514; needs a listener in Home Assistant. |
 | SNMP traps | Cisco WLC (association traps in its wireless MIBs) | trap receiver | Mainly for a future Cisco driver. D-Link has a trap server setting, but which traps it sends isn't documented. |
+
+## The shared trigger (all sources)
+
+Whatever the source, an event does one thing: ask for a poll now.
+
+- **Library:** a driver that can watch for changes says so (`WATCHES = True`) and offers
+  `async_watch(on_change)`, which runs until cancelled, calls `on_change()` for every
+  change it sees (no arguments: nothing in the event is trusted) and raises
+  `AccessPointError` when the session breaks. Drivers that share a controller read
+  (Cisco, MikroTik CAPsMAN) share one watch per controller, keyed like their reads.
+- **Integration:** for each driver that watches, a background task runs `async_watch` and
+  restarts it after a failure with a growing delay (5 s, 10 s, ... up to 5 min), logging
+  once when it stops and once when it recovers. `on_change` calls the coordinator's
+  `async_request_refresh()`, whose debouncer turns a burst into one poll; on top, at most
+  one triggered poll every 5 seconds. The minute's regular poll goes on regardless.
+- **What it changes:** arrivals show in a few seconds. Nothing else: the poll decides who
+  is there, departures wait for the grace period, and a watch that stops working leaves
+  everything as it is today.
+- **Option:** "Instant arrivals" on by default for drivers that watch, with a switch to
+  turn it off (it keeps one SSH session open per device or controller).
+
+## MikroTik: `print follow-only`
+
+RouterOS can keep a `print` running and print changes as they happen:
+
+```
+/interface wifi registration-table print follow-only terse
+/interface wireless registration-table print follow-only terse
+```
+
+Run as a long-lived SSH exec request on the login the driver already uses (no setup on
+the router), any line naming a `mac-address=` means "the table changed": trigger a poll.
+For a CAPsMAN controller one watch covers all its CAPs, and the triggered poll reads them
+all. Both packages are watched where both answer, as the poll reads both.
+
+To confirm with a tester before building (RouterOS 7.24.4, `wifi` and `wireless`):
+
+1. What `follow-only terse` prints when a client **joins**, **leaves** and **roams** between
+   CAPs: one line each? Are removed entries marked (e.g. a flag) or just absent?
+2. Does it keep streaming over an **SSH exec** request (no terminal), and does it ever end
+   on its own (idle timeout, table reset)?
+3. Does `stats` change it (the `wireless` package needs `stats` for signal, but the watch
+   only needs to know that something changed)?
+4. Can the same read-only user run it?
+5. How chatty is it with a few dozen clients: lines per minute while nothing joins?
 
 ## RADIUS accounting
 
@@ -86,6 +135,9 @@ failover target, not a copy; that needs testing before relying on it.
 
 ### Plan
 
+0. **First: the shared trigger and MikroTik `follow-only`** (above), since a tester is
+   ready and it needs no setup on the router. UniFi's websocket events and OpenWrt's
+   hostapd events then plug into the same trigger.
 1. **Library:** a parser for FreeRADIUS detail records (vendor-neutral), with tests built
    from real records.
 2. **Integration:** an optional "RADIUS accounting log" source (host, SSH user, path).

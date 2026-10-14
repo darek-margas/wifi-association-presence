@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.9.0 — Cisco Catalyst 9800, MikroTik CAPsMAN, and a wiki
+
+Everything since 0.7.1 (the 0.8.0 and 0.9.0 betas below have the details), for everyone.
+Update from HACS and restart; nothing to change in your setup.
+
+- **Cisco Catalyst 9800 access points**, through their controller: add one access point
+  per Cisco AP, with the controller's address and login and the AP's name.
+  - **Over SSH:** clients with SSID, band, signal and connected time, and the AP's name,
+    model and location. Confirmed on a C9800-CL. A restricted parser view is enough;
+    the [wiki](https://github.com/darek-margas/wifi-association-presence/wiki/Cisco-Catalyst-9800)
+    has the controller setup.
+  - **Over SNMP** (v2c or v3), for controllers without SSH: the same, with signal for
+    every client on every poll. Still **experimental**.
+- **MikroTik, no longer experimental.**
+  - **MikroTik CAP via CAPsMAN:** add one access point per CAP, with the CAPsMAN
+    router's login and the CAP's name; each client lands on the CAP it is connected to,
+    so each CAP can have its own area.
+  - **Single MikroTik access points:** clients are found again on recent RouterOS where
+    the built-in `wifi` package is unused; signal and connected time now show for the
+    `wireless` package; clients on an extra SSID get their band.
+- **Coverage counts survive a restart:** Roams, Short drops and Late roams today are kept
+  across a restart during the day.
+- **Access point settings:** two controllers may each have an AP of the same name; the
+  same AP added twice (e.g. over SSH and SNMP) is refused; SNMP has a version setting,
+  so switching between v2c and v3 needs no clearing of fields.
+- **Access point reports:** SNMP reports have a *Host type* (Cisco Catalyst 9800, Cisco
+  wireless controller) that reads just the controller's client, signal and AP tables;
+  MikroTik reports include CAPsMAN radios and CAPs.
+- **A [wiki](https://github.com/darek-margas/wifi-association-presence/wiki)** with a
+  setup guide for every type of access point and a troubleshooting page.
+- Uses wifi-ap-associations 0.9.3.
+
 ## 0.9.0b3 — MikroTik wireless signal fixed (beta)
 
 - **Fix: MikroTik access points on the `wireless` package still showed no signal in
