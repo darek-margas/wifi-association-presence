@@ -81,6 +81,21 @@ So the watcher (0.10.2) polls only for an **authorized** line (`wifi`; every lin
 than 60 s ago: an arrival or a roam polls once, a flapping client at most once a
 minute.
 
+Review of 0.10.2: since leaving prints nothing, the lines alone can't tell a phone that
+left and came back on the same interface within a minute from one re-authenticating;
+the first was suppressed until the next regular poll. From 0.10.3 the filter asks the
+driver whether its **last poll saw the client**: one it didn't see always counts (until
+a poll sees it), one it saw counts again only on another interface or after 60 s. A
+reconnect noticed by no poll in between (both within one poll interval) is still taken
+as re-authentication; the regular poll catches it.
+
+Instrumentation (0.10.3 / 0.10.0b4), all at debug: each line received, the filter's
+decision and reason, a refresh request (or one queued behind a running refresh), each
+poll's duration, and each SSH command's duration. `wifi-ap-probe --watch --debug` shows
+the same with timestamps outside Home Assistant. A test runs a real AsyncSSH server
+streaming lines 0.5 s apart and checks each arrives on its own, so any buffering would
+be the router's.
+
 Still to confirm in Home Assistant: that it keeps streaming over an SSH exec request (no
 terminal) and whether it ever ends on its own; the integration reconnects either way.
 

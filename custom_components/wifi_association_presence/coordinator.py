@@ -215,12 +215,16 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         if not self.access_points:
             return PresenceData(dict(self._sightings), {})
 
+        started = time.monotonic()
         results = await asyncio.gather(
             *(
                 asyncio.wait_for(ap.driver.async_poll(), ap.driver.POLL_TIMEOUT)
                 for ap in self.access_points
             ),
             return_exceptions=True,
+        )
+        LOGGER.debug(
+            "Polled %d access point(s) in %.2f s", len(self.access_points), time.monotonic() - started
         )
         reads: list[AccessPointRead] = []
         for ap, result in zip(self.access_points, results, strict=True):
@@ -342,8 +346,10 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         during a refresh is still picked up.
         """
         if self._trigger_task is not None and not self._trigger_task.done():
+            LOGGER.debug("Change reported during a triggered refresh: one more to follow")
             self._trigger_again = True
             return
+        LOGGER.debug("Change reported: asking for a refresh")
         self._trigger_task = self.hass.async_create_task(self._async_triggered_refresh())
 
     async def _async_triggered_refresh(self) -> None:

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0b4 — instant arrivals: reconnects, and logs to time them (beta)
+
+- A phone that leaves and comes back within a minute, on the same CAP or radio, now
+  counts as an arrival at once. Before, it was taken for a client re-authenticating and
+  waited for the regular poll.
+- Debug logging for instant arrivals: each line the router sends, whether it asked for
+  a refresh and why, and how long each poll took. **Enable debug logging** on the
+  integration's page now includes the library's logs.
+- Uses wifi-ap-associations 0.10.3.
+
 ## 0.10.0b3 — instant arrivals: only arrivals and moves (beta)
 
 - MikroTik instant arrivals now poll only when a client **joins** (once it is
