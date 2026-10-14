@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.0b1 — MikroTik CAPsMAN: one access point per CAP, experimental (beta)
+
+- **Add access point → "MikroTik CAPsMAN controller (SSH)"**, shown as experimental
+  ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)). With
+  CAPsMAN the controller lists the clients of all CAPs, so until now the router was one
+  access point and everyone ended up in its area. Now you add **one access point per
+  CAP**: the controller's address and login, and the CAP's identity as the controller
+  lists it (e.g. `ap_upstairs`). Each client is put on the CAP it is connected to, with
+  SSID, band, signal and connected time, so each CAP can have its own area. All CAPs
+  share one login per poll.
+- Each CAP shows its model, RouterOS version and uptime. A CAP the controller doesn't
+  list or that is disconnected shows as unavailable; nobody is sent away because of it.
+- For RouterOS 7 with the `wifi` package (CAPsMAN v2). The older `/caps-man` isn't
+  covered yet.
+- **If you had the CAPsMAN router added as a plain MikroTik access point**, remove it
+  once its CAPs are added: it lists the same clients and would count them twice.
+- Uses wifi-ap-associations 0.9.0.
+
 ## 0.8.0b11 — MikroTik: clients found again on recent RouterOS (beta)
 
 - **Fix: a MikroTik access point on recent RouterOS reported no clients**

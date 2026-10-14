@@ -324,24 +324,25 @@ Leaving an access point's password empty keeps the current one.
 | D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI Setup guide: [wiki](../../wiki/D-Link-DAP). | SSH: `config wlan 0/1` + `get clientinfo` |
 | UniFi (via the UniFi Network integration) | **Confirmed** on a UniFi Network controller by a user. Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to Setup guide: [wiki](../../wiki/UniFi). | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
 | OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome Setup guide: [wiki](../../wiki/OpenWrt). | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
-| MikroTik RouterOS (SSH), **experimental** | RouterOS access points, routers with Wi-Fi and CAPsMAN controllers. **Confirmed:** connection and system details on RouterOS 7.20 (a CRS310 switch). **Client table:** its format matches real output from a CAPsMAN controller ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)); not yet run against a MikroTik access point. A CAPsMAN controller is one access point for now (all its CAPs' clients in one area); per-CAP support needs a report from a controller. Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) and `/interface wireless` (RouterOS 6, and RouterOS 7 radios still on it) `registration-table print terse` and `print terse`, both read and combined |
+| MikroTik RouterOS (SSH), **experimental** | RouterOS access points, routers with Wi-Fi and CAPsMAN controllers. **Confirmed:** connection and system details on RouterOS 7.20 (a CRS310 switch). **Client table:** its format matches real output from a CAPsMAN controller ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)); not yet run against a MikroTik access point. For CAPsMAN with one access point per CAP, use the MikroTik CAPsMAN type below. Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) and `/interface wireless` (RouterOS 6, and RouterOS 7 radios still on it) `registration-table print terse` and `print terse`, both read and combined |
+| MikroTik CAPsMAN controller (SSH), **experimental** | CAPs managed by a CAPsMAN controller on RouterOS 7 (`wifi` package); one access point here per CAP, picked by its identity on the controller. **Built from** a CAPsMAN router with two cAP ax on RouterOS 7.24.4 ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)). Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH exec on the controller, one login shared by its CAPs: `/interface wifi capsman remote-cap`, `/interface wifi` and its `registration-table`, each `print terse`; each client put on the CAP its interface (or its master interface) belongs to |
 | Cisco Catalyst 9800 controller (SSH; SNMP **experimental**) | Lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE); one access point here per Cisco AP, picked by its name on the controller. **Confirmed over SSH** on a C9800-CL (IOS-XE 17.15.5, C9120AXI, [#10](https://github.com/darek-margas/wifi-association-presence/issues/10)) in Home Assistant, with signal, using a restricted parser view; over SNMP its clients, SSIDs and bands matched SSH, and signal is built from its reports. Setup guide: [wiki](../../wiki/Cisco-Catalyst-9800). | SSH: the controller's console, one login shared by its APs: `show ap summary`, `show wlan summary`, `show wireless client summary`, and up to 15 clients' `show wireless client mac-address <mac> detail` per poll, in turns, for signal and connected time. SNMP (v2c or v3, chosen in the settings): the Airespace client table (AP, SSID, state, protocol), client statistics (signal) and AP table (name, location, status, model), plus Cisco's client table (connected time), one read shared by its APs |
 
 ### What each type reports
 
-| | D-Link DAP | OpenWrt | UniFi | MikroTik (experimental) | Cisco 9800 |
-|---|---|---|---|---|---|
-| Clients, band, SSID name | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Signal | % | dBm | dBm | dBm | dBm: over SNMP every poll, over SSH each client refreshed about every 2 minutes |
-| AP device and sensors created here | ✓ | ✓ | — (uses the UniFi device) | ✓ | ✓ |
-| Name | system name | host name | UniFi name | identity | AP name |
-| Model | — (enter it in the AP's settings) | ✓ | in UniFi | ✓ (board name) | ✓ |
-| Firmware, hardware | ✓ | ✓ | in UniFi | firmware | — |
-| Last boot (uptime) | ✓ | ✓ | in UniFi | ✓ | — |
-| Location | ✓ | — (no such setting) | — | — | ✓ (if set on the controller) |
-| CPU % | ✓ | — (only load averages) | in UniFi | ✓ | — |
-| Memory % | ✓ | ✓ | in UniFi | ✓ | — |
-| Login | SSH, password | SSH, password | none (the UniFi integration's session) | SSH, password | the controller's: SSH (a parser view with five commands, see the [wiki](../../wiki/Cisco-Catalyst-9800); privilege 1 gives presence only), or SNMP v2c / v3 |
+| | D-Link DAP | OpenWrt | UniFi | MikroTik (experimental) | MikroTik CAPsMAN (experimental) | Cisco 9800 |
+|---|---|---|---|---|---|---|
+| Clients, band, SSID name | ✓ | ✓ | ✓ | ✓ | ✓ (per CAP) | ✓ |
+| Signal | % | dBm | dBm | dBm | dBm | dBm: over SNMP every poll, over SSH each client refreshed about every 2 minutes |
+| AP device and sensors created here | ✓ | ✓ | — (uses the UniFi device) | ✓ | ✓ (one per CAP) | ✓ |
+| Name | system name | host name | UniFi name | identity | CAP identity | AP name |
+| Model | — (enter it in the AP's settings) | ✓ | in UniFi | ✓ (board name) | ✓ (board name) | ✓ |
+| Firmware, hardware | ✓ | ✓ | in UniFi | firmware | firmware | — |
+| Last boot (uptime) | ✓ | ✓ | in UniFi | ✓ | ✓ | — |
+| Location | ✓ | — (no such setting) | — | — | — | ✓ (if set on the controller) |
+| CPU % | ✓ | — (only load averages) | in UniFi | ✓ | — | — |
+| Memory % | ✓ | ✓ | in UniFi | ✓ | — | — |
+| Login | SSH, password | SSH, password | none (the UniFi integration's session) | SSH, password | SSH, the controller's | the controller's: SSH (a parser view with five commands, see the [wiki](../../wiki/Cisco-Catalyst-9800); privilege 1 gives presence only), or SNMP v2c / v3 |
 
 Sensors for details a type can't report are not created. No type gives clients' IP
 addresses or host names to this integration, so trackers have no `ip` / `host_name`.
