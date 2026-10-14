@@ -177,6 +177,10 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         # Coverage sensors: per-device counts of the day, per-AP client signal.
         self.coverage = CoverageTracker()
         self.access_point_coverage: dict[str, AccessPointCoverage] = {}
+        # Instant arrivals: at most one task asking for a refresh at a time; changes
+        # reported meanwhile only mark that it should ask once more.
+        self._trigger_task: asyncio.Task[None] | None = None
+        self._trigger_again = False
 
     @property
     def has_access_points(self) -> bool:
@@ -331,8 +335,23 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
 
     @callback
     def _on_change(self) -> None:
-        """An access point reported a change: poll soon (debounced)."""
-        self.hass.async_create_task(self.async_request_refresh())
+        """An access point reported a change: poll soon (debounced).
+
+        A burst of changes makes one task, not one per change: while it runs, further
+        changes only ask it to request once more when done, so a client that joins
+        during a refresh is still picked up.
+        """
+        if self._trigger_task is not None and not self._trigger_task.done():
+            self._trigger_again = True
+            return
+        self._trigger_task = self.hass.async_create_task(self._async_triggered_refresh())
+
+    async def _async_triggered_refresh(self) -> None:
+        while True:
+            self._trigger_again = False
+            await self.async_request_refresh()
+            if not self._trigger_again:
+                return
 
     def _log_read(self, ap: ConfiguredAccessPoint, result: object) -> None:
         """Log an AP going unreadable once, and coming back."""

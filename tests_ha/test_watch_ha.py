@@ -43,11 +43,14 @@ class WatchingDriver(AccessPointDriver):
         WatchingDriver.polls += 1
         return PollResult([AssociatedClient(PHONE, "Home", "5GHz", -50)], AccessPointInfo(name="AP"))
 
+    burst = 1
+
     async def async_watch(self, on_change: Callable[[], None]) -> None:
         WatchingDriver.watches += 1
         if WatchingDriver.fail and WatchingDriver.watches == 1:
             raise AccessPointError("feed lost")  # only the first try fails
-        on_change()
+        for _ in range(WatchingDriver.burst):
+            on_change()
         await asyncio.Event().wait()
 
 
@@ -56,6 +59,7 @@ def watching_driver():
     DRIVERS["fake_watch"] = WatchingDriver
     WatchingDriver.polls = WatchingDriver.watches = 0
     WatchingDriver.fail = False
+    WatchingDriver.burst = 1
     yield WatchingDriver
     DRIVERS.pop("fake_watch")
 
@@ -110,4 +114,14 @@ async def test_a_failing_feed_is_tried_again_later(
     # The first watch failed (polling went on: the setup poll), the retry reported a change.
     assert WatchingDriver.watches == 2
     assert WatchingDriver.polls == 2
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_a_burst_of_changes_is_one_task_and_one_poll(hass: HomeAssistant) -> None:
+    WatchingDriver.burst = 20
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    # The setup poll, then one for the whole burst (the rest fall in the cooldown).
+    assert WatchingDriver.polls == 2
+    assert coordinator._trigger_task is not None
     assert await hass.config_entries.async_unload(entry.entry_id)

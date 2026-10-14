@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0b2 — review fixes (beta)
+
+- Instant arrivals: a burst of changes from a busy controller now makes one refresh
+  request instead of one per change; a client joining during a refresh is still picked
+  up.
+- Cisco over SNMP: signal and connected time each keep their last value on their own
+  when a read misses one of them, and a failing signal column no longer makes the
+  access point unavailable.
+- Uses wifi-ap-associations 0.10.1.
+
 ## 0.10.0b1 — instant arrivals for MikroTik, experimental (beta)
 
 - **Instant arrivals.** MikroTik access points and CAPsMAN controllers now tell the
