@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.0b5 — instant arrivals stay connected (beta)
+
+- MikroTik instant arrivals were down much of the time: RouterOS doesn't answer the SSH
+  keepalive, so the change feed was dropped every two minutes ("Instant arrivals …
+  paused" in the log) and arrivals waited for the regular poll until it reconnected.
+  The integration now checks the connection with a small command once a minute
+  instead.
+- No more "Task exception was never retrieved" error when the feed drops.
+- **Enable debug logging** no longer turns on the SSH library's own debug output, which
+  flooded the log ("Module asyncssh is logging too frequently").
+- Uses wifi-ap-associations 0.10.4.
+
 ## 0.10.0b4 — instant arrivals: reconnects, and logs to time them (beta)
 
 - A phone that leaves and comes back within a minute, on the same CAP or radio, now

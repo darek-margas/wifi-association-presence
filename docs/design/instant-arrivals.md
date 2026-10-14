@@ -89,6 +89,15 @@ a poll sees it), one it saw counts again only on another interface or after 60 s
 reconnect noticed by no poll in between (both within one poll interval) is still taken
 as re-authentication; the regular poll catches it.
 
+In HA (#11, b3 log): the feed did stream (a triggered poll 48 s after the previous
+one), but every watch connection dropped two minutes after it opened with "Server not
+responding to keepalive": RouterOS (ROSSSH) doesn't answer asyncssh's
+keepalive@openssh.com request, and three missed replies close the connection. From
+0.10.4 the watch has the SSH keepalive off and runs `/system identity print` on the same
+connection every 60 s instead; no answer within 20 s is a dead connection. A dropped
+connection also failed both feeds at once and only one exception was read ("Task
+exception was never retrieved"); all are read now.
+
 Instrumentation (0.10.3 / 0.10.0b4), all at debug: each line received, the filter's
 decision and reason, a refresh request (or one queued behind a running refresh), each
 poll's duration, and each SSH command's duration. `wifi-ap-probe --watch --debug` shows

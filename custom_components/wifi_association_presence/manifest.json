@@ -8,9 +8,9 @@
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/darek-margas/wifi-association-presence/issues",
-  "loggers": ["asyncssh", "wifi_ap_associations"],
-  "requirements": ["wifi-ap-associations==0.10.3"],
+  "loggers": ["wifi_ap_associations"],
+  "requirements": ["wifi-ap-associations==0.10.4"],
   "single_config_entry": true,
-  "version": "0.10.0b4"
+  "version": "0.10.0b5"
 }
 
