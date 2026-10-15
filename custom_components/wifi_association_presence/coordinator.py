@@ -233,7 +233,7 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             reads.append(
                 AccessPointRead(
                     ap.subentry_id,
-                    ap.display_name(None if isinstance(result, Exception) else result.info),
+                    self.sighting_name(ap, None if isinstance(result, Exception) else result.info),
                     ap.driver.SIGNAL_UNIT,
                     result,
                 )
@@ -380,6 +380,15 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         """Name to show for an access point (see ConfiguredAccessPoint.display_name)."""
         state = self.data.access_points.get(ap.subentry_id) if self.data else None
         return ap.display_name(state.info if state else None)
+
+    def sighting_name(self, ap: ConfiguredAccessPoint, info: AccessPointInfo | None) -> str:
+        """The access point's name on the devices it sees: the name the user gave its
+        device in Home Assistant if they renamed it, else its display name (#11: a CAP
+        showed its RouterOS identity, which the user had renamed in Home Assistant)."""
+        device = self.access_point_device(ap)
+        if device is not None and device.name_by_user:
+            return device.name_by_user
+        return ap.display_name(info)
 
     def access_point_device(self, ap: ConfiguredAccessPoint) -> dr.DeviceEntry | None:
         """The device that carries the access point's area.

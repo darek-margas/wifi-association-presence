@@ -11,6 +11,6 @@
   "loggers": ["wifi_ap_associations"],
   "requirements": ["wifi-ap-associations==0.10.4"],
   "single_config_entry": true,
-  "version": "0.10.0b5"
+  "version": "0.10.0b6"
 }
 

@@ -385,3 +385,18 @@ async def test_coverage_counts_survive_a_same_day_restart(
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     assert hass.states.get("sensor.phone_roams_today").state == "0"
+
+
+async def test_access_point_sensor_uses_the_name_the_user_gave_its_device(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    entry = await setup_entry(hass, ap("ap1"), PHONE_SUB)
+    coordinator = entry.runtime_data
+    registry = dr.async_get(hass)
+    ap_device = registry.async_get_device_by_identifier(
+        (DOMAIN, coordinator.access_points[0].subentry_id), entry.entry_id
+    )
+    assert hass.states.get("sensor.phone_access_point").state == "Hallway AP"
+    registry.async_update_device(ap_device.id, name_by_user="Landing")
+    await refresh_after(hass, freezer, coordinator, 61)
+    assert hass.states.get("sensor.phone_access_point").state == "Landing"

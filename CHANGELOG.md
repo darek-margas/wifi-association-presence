@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0b6 — access point names (beta)
+
+- A tracked device's **Access point** shows the name you gave the access point's device
+  in Home Assistant, if you renamed it. Before, it showed the access point's own name,
+  for a CAP via CAPsMAN its RouterOS identity, which appears nowhere else in Home
+  Assistant.
+- The **Host** field explains that for a CAP via CAPsMAN or an AP on a Cisco controller
+  it is the controller's address, not the AP's.
+
 ## 0.10.0b5 — instant arrivals stay connected (beta)
 
 - MikroTik instant arrivals were down much of the time: RouterOS doesn't answer the SSH

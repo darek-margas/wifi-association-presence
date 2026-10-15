@@ -174,7 +174,7 @@ Each tracked device is a Home Assistant device with:
 - **Tracker** with attributes `access_point`, `area`, `ssid` and `band` (kept after the
   device leaves, as "last seen at"), plus `arrived_at` / `departed_at`
   ([see above](#arrival-and-departure-times)).
-- **Access point** sensor: the AP's name (yours, or the name the AP reports, e.g. *Studio*).
+- **Access point** sensor: the AP's name (the name you gave its device in Home Assistant, else yours, else the name the AP reports, e.g. *Studio*).
 - **Signal** sensor: signal quality 0-100 %, comparable across access points and vendors
   (APs that report dBm, like OpenWrt and UniFi, are converted; D-Link reports a
   percentage), with a matching Wi-Fi strength icon. Its attributes hold the raw value and
