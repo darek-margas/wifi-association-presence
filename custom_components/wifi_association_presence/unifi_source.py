@@ -4,21 +4,30 @@ The UniFi integration keeps its devices current over the controller's websocket,
 access point details are read from memory. Its client list, however, keeps clients
 after they disconnect, so the controller's active client list is requested instead:
 once per controller per poll round, shared by all its access points.
+
+Instant arrivals come from the controller's events, which the UniFi integration
+receives over the same websocket; subscribing to them adds no connection.
 """
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 import time
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import SelectOptionDict
 
 from wifi_ap_associations import AccessPointError, normalize_mac
-from wifi_ap_associations.unifi_network import DEVICE_STATES, STATE_CONNECTED, is_access_point
+from wifi_ap_associations.unifi_network import (
+    ARRIVAL_EVENTS,
+    DEVICE_STATES,
+    STATE_CONNECTED,
+    is_access_point,
+)
 from .const import DOMAIN
 
 UNIFI_DOMAIN = "unifi"
@@ -26,6 +35,9 @@ UNIFI_DOMAIN = "unifi"
 # request serves them all. Well under SCAN_INTERVAL, so every round fetches anew.
 CLIENTS_TTL = 20
 DATA_CLIENT_CACHE = f"{DOMAIN}_unifi_clients"
+# How often a watch checks that the UniFi integration it subscribed to is still the
+# loaded one; after a reload its events come from a new object.
+WATCH_CHECK_SECONDS = 30
 
 
 @dataclass(slots=True)
@@ -113,14 +125,55 @@ class HassUnifiSource:
         found = self._find(mac)
         return found[1] if found else None
 
+    def _cache(self, unifi: _UnifiHub) -> _ClientCache:
+        caches: dict[str, _ClientCache] = self.hass.data.setdefault(DATA_CLIENT_CACHE, {})
+        return caches.setdefault(unifi.entry_id, _ClientCache())
+
+    async def async_watch_events(
+        self, mac: str, callback: Callable[[Mapping[str, Any]], None]
+    ) -> None:
+        """Hand the controller's events to callback until cancelled, or until the
+        UniFi integration is reloaded or unloaded (AccessPointError: subscribe again)."""
+        found = self._find(mac)
+        if found is None:
+            raise AccessPointError(f"{mac} is not managed by a loaded UniFi integration")
+        unifi = found[0]
+        events = getattr(unifi.hub.api, "events", None)
+        if events is None:
+            raise AccessPointError(f"UniFi integration {unifi.title} offers no events")
+        cache = self._cache(unifi)
+
+        def handle(event: Any) -> None:
+            raw = event.raw
+            if raw.get("key") in ARRIVAL_EVENTS:
+                # The poll this asks for must ask the controller anew, not reuse a
+                # client list from before the client joined.
+                cache.fetched = None
+            callback(raw)
+
+        unsubscribe = events.subscribe(handle)
+        try:
+            while True:
+                await asyncio.sleep(WATCH_CHECK_SECONDS)
+                entry = self.hass.config_entries.async_get_entry(unifi.entry_id)
+                if (
+                    entry is None
+                    or entry.state is not ConfigEntryState.LOADED
+                    or getattr(entry, "runtime_data", None) is not unifi.hub
+                ):
+                    raise AccessPointError(
+                        f"UniFi integration {unifi.title} was reloaded or unloaded"
+                    )
+        finally:
+            unsubscribe()
+
     async def async_get_clients(self, mac: str) -> list[Mapping[str, Any]]:
         """The active clients of the controller managing this access point."""
         found = self._find(mac)
         if found is None:
             raise AccessPointError(f"{mac} is not managed by a loaded UniFi integration")
         unifi = found[0]
-        caches: dict[str, _ClientCache] = self.hass.data.setdefault(DATA_CLIENT_CACHE, {})
-        cache = caches.setdefault(unifi.entry_id, _ClientCache())
+        cache = self._cache(unifi)
         async with cache.lock:
             if cache.fetched is None or time.monotonic() - cache.fetched > CLIENTS_TTL:
                 cache.fetched = time.monotonic()

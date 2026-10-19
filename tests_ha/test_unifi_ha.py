@@ -28,10 +28,26 @@ CLIENTS = [
 ]
 
 
+class FakeEvents:
+    """aiounifi's api.events: subscribe(callback) and the websocket's handler."""
+
+    def __init__(self):
+        self.subscribers = []
+
+    def subscribe(self, callback, event_filter=None):
+        self.subscribers.append(callback)
+        return lambda: self.subscribers.remove(callback)
+
+    def fire(self, raw):
+        for callback in list(self.subscribers):
+            callback(SimpleNamespace(raw=raw))
+
+
 class FakeApi:
     def __init__(self):
         self.devices = {k: SimpleNamespace(raw=dict(v)) for k, v in DEVICES.items()}
         self.requests = 0
+        self.events = FakeEvents()
     async def request(self, req):
         assert req.path == "/stat/sta"
         self.requests += 1
@@ -249,3 +265,33 @@ async def test_stale_own_device_removed_on_upgrade(hass, unifi):
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     assert reg.async_get(stale.id) is None
+
+
+async def test_a_join_event_polls_the_controller_at_once(hass, unifi):
+    import asyncio
+
+    entry = MockConfigEntry(domain=DOMAIN, title="Wi-Fi", data={}, subentries_data=[
+        ConfigSubentryData(subentry_type="access_point", title="Hallway AP", unique_id=None,
+            data={"driver": "unifi_network", "ap_mac": AP, "name": ""}),
+    ])
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    await asyncio.sleep(0)  # let the watch subscribe
+    await hass.async_block_till_done()
+    api = unifi.runtime_data.api
+    assert len(api.events.subscribers) == 1
+    assert api.requests == 1
+    # Another AP's join and a disconnect ask for nothing.
+    api.events.fire({"key": "EVT_WU_Connected", "user": "5c:ad:ba:00:00:02", "ap": "78:8a:20:00:00:20"})
+    api.events.fire({"key": "EVT_WU_Disconnected", "user": "5c:ad:ba:00:00:01", "ap": "78:8a:20:00:00:10"})
+    await hass.async_block_till_done()
+    assert api.requests == 1
+    # A join on this AP polls at once, asking the controller anew (within the 20 s
+    # the client list is otherwise shared).
+    api.events.fire({"key": "EVT_WU_Connected", "user": "5c:ad:ba:00:00:02", "ap": "78:8a:20:00:00:10"})
+    await hass.async_block_till_done()
+    assert api.requests == 2
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert api.events.subscribers == []

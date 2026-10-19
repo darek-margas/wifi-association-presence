@@ -20,6 +20,20 @@ point now**, not as the source of truth.
 - Triggered polls are rate-limited per access point (at most one every few seconds), so a
   burst of events can't turn into a poll storm.
 
+## UniFi: the UniFi Network integration's events (0.11.0b1)
+
+The UniFi driver reads through Home Assistant's UniFi Network integration, whose aiounifi
+connection receives the controller's events over its websocket (`api.events`). The
+integration subscribes once per UniFi access point and the library decides: a client
+joining (`EVT_WU_Connected`, field `ap`), roaming to it (`EVT_WU_Roam`, field `ap_to`),
+or changing radio on it (`EVT_WU_RoamRadio`), and the guest `EVT_WG_` equivalents, ask
+for a poll; disconnects don't. The integration shares one active-client request per
+controller for 20 s; an arrival event clears it, so the triggered poll asks the
+controller anew instead of reusing a list from before the join. Every 30 s the watch
+checks the UniFi config entry is still loaded with the same hub; after a reload it ends
+and the coordinator subscribes again. Not yet confirmed on a real controller: whether
+the active client list (stat/sta) already shows the client when the event arrives.
+
 ## Event sources, cheapest first
 
 | Source | Access points | Setup for users | Notes |

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.0b1 — instant arrivals for UniFi (beta)
+
+- **Instant arrivals for UniFi access points.** Home Assistant's UniFi Network
+  integration already receives the controller's events over its websocket; the
+  integration now listens to them, and a client joining one of your UniFi access points,
+  roaming to it or changing radio makes it poll at once, asking the controller for its
+  clients anew. No extra connection or setup; switched by the same **Instant arrivals**
+  option. Disconnects change nothing: departures still wait for the grace period.
+- If the UniFi Network integration is reloaded, the integration subscribes again within
+  a minute.
+- Uses wifi-ap-associations 0.11.0.
+
 ## 0.10.0 — instant arrivals for MikroTik, Cisco over SNMP confirmed
 
 Everything since 0.9.0 (the 0.10.0 betas below have the details), for everyone. Update
