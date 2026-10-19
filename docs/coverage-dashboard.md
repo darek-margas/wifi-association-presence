@@ -17,8 +17,8 @@ It answers questions like:
 ### Per access point
 
 You get these for access points that have their own device in the integration (D-Link,
-OpenWrt, MikroTik). UniFi access points belong to the UniFi integration, so they don't get
-them.
+OpenWrt, MikroTik, Cisco 9800). UniFi and TP-Link Omada access points belong to those
+integrations, so they don't get them.
 
 | Sensor | What it shows |
 |---|---|

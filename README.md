@@ -48,7 +48,7 @@ Install it anyway; you can help get them supported without any technical knowled
 3. **Wait for an update that supports your model**, then add your access points as above.
 
 Supported today: **D-Link DAP, OpenWrt, UniFi, MikroTik RouterOS (also CAPsMAN) and Cisco
-Catalyst 9800**.
+Catalyst 9800**, and **TP-Link Omada** as experimental.
 [More about reports](#help-add-your-access-point) · [What each type reads](#supported-access-points)
 
 ---
@@ -192,7 +192,7 @@ its web UI, the details it reports about itself (model, firmware, hardware) and 
   disabled by default: they change every poll, so each would be a recorder row per minute.
 - Real SSID names, also where the AP itself only shows an index (D-Link's "SSID index 3").
 
-An access point read through a controller (UniFi) gets no device of its own: it uses the
+An access point read through another integration (UniFi, TP-Link Omada) gets no device of its own: it uses the
 AP's existing device from that controller's integration, which already has these details.
 
 ### Wi-Fi coverage
@@ -202,7 +202,7 @@ has a template that builds the whole dashboard from your own access points and d
 so there are no entity ids to look up.
 - **Per access point:** **Average client signal** (0-100 %) and **Weak clients** (how
   many are below 50 %, about -75 dBm). These come only for access points with their own
-  device (not UniFi).
+  device (not UniFi or Omada).
 - **Per tracked device:** **Roams today**, **Short drops today** and **Late roams today**.
   A short drop means the device vanished and came back within the grace period, which
   presence hides. A late roam means the device switched AP and gained 15 dB or more,
@@ -220,7 +220,7 @@ so there are no entity ids to look up.
 - **Independent trackers.** Trackers are keyed by MAC address only, so you can remove,
   replace or change the type of an access point without losing them.
 - **Pluggable drivers.** Each kind of AP is a small driver (so far D-Link, OpenWrt, UniFi,
-  MikroTik and Cisco 9800); new ones can be added without touching the
+  MikroTik, Cisco 9800 and TP-Link Omada); new ones can be added without touching the
   rest. The
   drivers are a separate library,
   [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), which other
@@ -311,8 +311,8 @@ it first loads the integration, so it needs internet access at that restart.
    (after installing and restarting).
 2. On the integration page, **Add access point**: choose the type, then its settings.
    The settings are tested by reading the AP once. Leave the name empty to use the name
-   the AP reports about itself (D-Link's system name, OpenWrt's host name; a UniFi AP uses
-   its name in UniFi).
+   the AP reports about itself (D-Link's system name, OpenWrt's host name; a UniFi or
+   Omada AP uses its name on the controller).
 3. Open each access point's device and set its **Area** (✏️ → Area). This is what the
    trackers' *Area* sensor reports.
 4. **Add tracked device**: pick a device from the list or type its MAC address, and give it
@@ -393,6 +393,24 @@ The full guide is in the [wiki](../../wiki/UniFi).
 - The UniFi integration's own device trackers can stay enabled or be disabled; they are
   independent of this integration's trackers.
 
+### TP-Link Omada setup notes (experimental)
+
+The full guide is in the [wiki](../../wiki/TP-Link-Omada).
+
+- Set up Home Assistant's **TP-Link Omada** integration first. No credentials are
+  entered here: this integration reuses that one's connection to the controller.
+- **Add access point → TP-Link Omada (via the TP-Link Omada integration)**, then pick
+  the EAP from the list (one access point entry per EAP). The list comes from the Omada
+  integration's device list, which it refreshes every 5 minutes.
+- No new device or AP sensors are created: the entry attaches to the EAP's **existing
+  Omada device**, and the area you set on that device is what the tracked devices' Area
+  sensor reports.
+- Each poll asks the controller for its connected clients and devices once, shared by
+  all its EAPs (the Omada integration's own client list is only refreshed every 5
+  minutes). Signal is in dBm. An EAP the controller doesn't show as connected counts as
+  unreadable.
+- No instant arrivals: the Omada controller has no event feed for them.
+
 ### OpenWrt setup notes
 
 The full guide is in the [wiki](../../wiki/OpenWrt).
@@ -470,7 +488,8 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
   restricted to the Home Assistant host, preferably on a trusted network segment. D-Link
   also needs old SSH algorithms ([D-Link notes](#d-link-dap-setup-notes)).
 - The AP password is stored in Home Assistant's configuration storage, like other
-  integrations' credentials. UniFi needs none here: it uses the UniFi integration's login.
+  integrations' credentials. UniFi and Omada need none here: they use the UniFi or Omada
+  integration's login.
 - Each poll of an SSH type is a login; the AP may log every one (syslog noise).
 
 **Project state**
@@ -643,7 +662,7 @@ The code is in two repos:
 | Repo | Holds | Released as |
 |---|---|---|
 | [wifi-ap-associations](https://github.com/darek-margas/wifi-ap-associations) | The access point drivers: logging in, reading the association table and the AP's own details. No Home Assistant imports. Driver tests and AP fixtures. | PyPI package `wifi-ap-associations` (tag `v<version>` in that repo) |
-| this repo | The integration: presence rules, trackers and sensors, configuration flow, the Home Assistant data sources (UniFi), `scripts/` | HACS release (version in `manifest.json`) |
+| this repo | The integration: presence rules, trackers and sensors, configuration flow, the Home Assistant data sources (UniFi, TP-Link Omada), `scripts/` | HACS release (version in `manifest.json`) |
 
 The integration pins the library exactly in `manifest.json`
 (`"requirements": ["wifi-ap-associations==<version>"]`), and Home Assistant installs that
@@ -659,7 +678,8 @@ the library over the pinned one: `pip install -e ../wifi-ap-associations`.
   (merging AP reads, roaming, grace period, visits, retention, storage) live in
   [`presence.py`](custom_components/wifi_association_presence/presence.py) without Home
   Assistant imports and are tested directly. `tests_ha/` runs the integration inside Home
-  Assistant (setup, restarts, outages, UniFi through the real UniFi integration); CI runs
+  Assistant (setup, restarts, outages, UniFi and Omada through stand-ins for their
+  integrations); CI runs
   both, ruff, hassfest and the HACS validation on every push.
 - The icon's source is [`docs/images/icon.svg`](docs/images/icon.svg); the PNGs in
   `custom_components/wifi_association_presence/brand/` (256 and 512 px) are rendered from
@@ -704,7 +724,7 @@ What a new driver needs on this side:
   data_description of the `details` and `reconfigure` steps, and `selector` options for
   settings with choices); `tests/test_strings.py` fails if one is missing;
 - for a driver that reads through another Home Assistant integration (`SOURCE`, like
-  UniFi), the source registered once in
+  UniFi or TP-Link Omada), the source registered once in
   [`sources.py`](custom_components/wifi_association_presence/sources.py): how to create
   it, the options for its access point setting, and the "nothing left to add" message.
   The driver module itself stays free of Home Assistant imports;
