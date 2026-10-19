@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.0b6 — OpenWrt review fixes (beta)
+
+- **OpenWrt: a Wi-Fi reload on the router no longer looks like everyone leaving.** For
+  the few seconds hostapd restarts, a poll found no Wi-Fi interface and reported no
+  clients; it now counts as the AP being unreadable for that poll, so its clients stay
+  home and the coverage counts don't record a short drop for everyone. An AP whose
+  Wi-Fi is turned off shows as unavailable instead of empty.
+- OpenWrt: only clients hostapd reports as associated and authorized count.
+- OpenWrt instant arrivals on 22.03: no extra poll for a client that associated and left
+  again within 2 seconds, or after the watch has stopped.
+- Uses wifi-ap-associations 0.12.2.
+
 ## 0.11.0b5 — access point reports: why a connection failed (beta)
 
 - **Collect access point report** now says why it couldn't connect: the form shows the
