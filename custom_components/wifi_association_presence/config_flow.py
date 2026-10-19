@@ -189,6 +189,7 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
         self._work: asyncio.Task[str | None] | None = None
         self._wait: asyncio.Task[None] | None = None
         self._collect_error: str | None = None
+        self._collect_reason = ""
         self._elapsed = ""
 
     async def async_step_user(
@@ -278,6 +279,7 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
             else:
                 self._method = method
                 self._collect_error = None
+                self._collect_reason = ""
                 # Set the guard before creating an eager task. Closing the flow only
                 # cancels its waiter; the guard belongs to the actual collection.
                 self.hass.data[DATA_AP_REPORT_BUSY] = True
@@ -288,6 +290,9 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
                 self._wait = self.hass.async_create_task(_async_wait_for(self._work))
                 return await self.async_step_collecting()
         errors = {"base": self._collect_error} if self._collect_error else {}
+        # The connection error itself, so "could not connect" says why (e.g. no common
+        # host key algorithm) without a trip to the debug log.
+        reason = self._collect_reason or "no details"
         suggested = {
             key: value
             for key, value in self._collect_input.items()
@@ -297,6 +302,7 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
             step_id=method,
             data_schema=self.add_suggested_values_to_schema(vol.Schema(fields), suggested),
             errors=errors,
+            description_placeholders={"reason": reason},
         )
 
     async def async_step_collecting(
@@ -415,6 +421,7 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
             error = "invalid_auth" if method == "ssh" else "invalid_snmp_auth"
         except AccessPointError as err:
             LOGGER.debug("Collecting a report from %s failed: %s", host, err)
+            self._collect_reason = str(err)
             if method != "ssh":
                 error = "snmp_no_answer"
             else:
@@ -434,7 +441,10 @@ class CollectReportSubentryFlow(ConfigSubentryFlow):
                 self.hass, host=host, method=method, settings=settings, report=report
             )
             return None
-        store_failed_attempt(self.hass, host=host, method=method, error=error)
+        reason = self._collect_reason
+        store_failed_attempt(
+            self.hass, host=host, method=method, error=f"{error} ({reason})" if reason else error
+        )
         return error
 
 

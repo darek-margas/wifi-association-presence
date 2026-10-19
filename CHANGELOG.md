@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0b5 — access point reports: why a connection failed (beta)
+
+- **Collect access point report** now says why it couldn't connect: the form shows the
+  actual error after "Reason:" (e.g. no common host key algorithm), and Download
+  diagnostics keeps it with the failed attempt. Before, it only said to check the
+  address, port and login.
+- **"Allow old SSH algorithms" no longer drops the modern ones**, so access points that
+  offer only an ECDSA host key (e.g. TP-Link EAP670) can be reached with it on too.
+- Uses wifi-ap-associations 0.12.1.
+
 ## 0.11.0b4 — presence rules moved into the library (beta)
 
 - **Nothing changes in how presence works**: the rules that decide home and away (grace

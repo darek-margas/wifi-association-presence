@@ -275,10 +275,10 @@
       "error": {
         "collection_in_progress": "Another access point report is still being collected. Wait for it to finish, then try again.",
         "invalid_auth": "The access point rejected the username or password.",
-        "cannot_connect": "Could not connect to the access point over SSH. Check the address, port and that SSH is enabled.",
-        "legacy_ssh": "The access point only offers old SSH algorithms. Turn on \"Allow old SSH algorithms\" and try again.",
+        "cannot_connect": "Could not connect to the access point over SSH. Check the address, port and that SSH is enabled. Reason: {reason}",
+        "legacy_ssh": "The access point only offers old SSH algorithms. Turn on \"Allow old SSH algorithms\" and try again. Reason: {reason}",
         "invalid_snmp_auth": "The access point rejected the SNMPv3 user, keys or algorithms.",
-        "snmp_no_answer": "No SNMP answer. Check the address and port, the community (v2c) or user (v3), and that SNMP is enabled on the access point.",
+        "snmp_no_answer": "No SNMP answer. Check the address and port, the community (v2c) or user (v3), and that SNMP is enabled on the access point. Reason: {reason}",
         "timeout": "The access point did not finish answering in time.",
         "unknown": "Unexpected error, see the Home Assistant log."
       },

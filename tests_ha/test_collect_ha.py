@@ -208,6 +208,9 @@ async def test_old_algorithms_suggest_legacy_ssh(hass: HomeAssistant) -> None:
         result = await finish(hass, await start(hass, entry, "ssh", SSH_FORM))
 
     assert result is not None and result["errors"] == {"base": "legacy_ssh"}
+    # The form and the diagnostics say why, not only "could not connect".
+    assert result["description_placeholders"]["reason"] == str(error)
+    assert hass.data[DATA_AP_REPORT]["last_attempt"]["result"] == f"failed: legacy_ssh ({error})"
     close(hass, result)
 
 
@@ -221,6 +224,7 @@ async def test_snmp_without_answer(hass: HomeAssistant) -> None:
 
     assert result is not None and result["step_id"] == "snmp_v2c"
     assert result["errors"] == {"base": "snmp_no_answer"}
+    assert result["description_placeholders"]["reason"] == "no"
     close(hass, result)
 
 
