@@ -1,6 +1,7 @@
 # Design note: an MQTT bridge (Wi-Fi presence without Home Assistant)
 
-Status: **agreed** (2026-10-20), see *Decisions* at the end; building 0.1.0b1 next.
+Status: **agreed** (2026-10-20), see *Decisions* at the end; **0.1.0b1 built** in
+[wifi-presence-mqtt](https://github.com/darek-margas/wifi-presence-mqtt).
 Written 2026-10-20. The first step is
 done: the presence rules live in the library since wifi-ap-associations 0.12.0
 (`presence`, `coverage`, `tracker`), so the bridge and the integration decide home and
