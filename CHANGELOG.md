@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0b7 — Cisco over SNMP confirmed (beta)
+
+- **Cisco Catalyst 9800 over SNMP is no longer experimental.** A tester ran it in Home
+  Assistant on a C9800-CL with SNMPv3: presence, bands and signal match SSH, and
+  switching an AP from SSH to SNMP kept its entity IDs
+  ([#10](https://github.com/darek-margas/wifi-association-presence/issues/10)).
+- Uses wifi-ap-associations 0.10.5.
+
 ## 0.10.0b6 — access point names (beta)
 
 - A tracked device's **Access point** shows the name you gave the access point's device
