@@ -649,7 +649,8 @@ each access point's type and settings, with passwords from Docker secrets or an 
 rather than the compose file. Optionally Home Assistant MQTT discovery, for installations
 that keep Home Assistant elsewhere. First step done in 0.11.0b4: the presence rules (grace
 period, roams, arrival and departure times, coverage) are now in the library, so the
-bridge and the integration decide home and away the same way.
+bridge and the integration decide home and away the same way. Proposed configuration,
+topics and container: [docs/design/mqtt-bridge.md](docs/design/mqtt-bridge.md).
 
 Done in 0.6.0: the access point code is now a standalone library on PyPI,
 [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), tested and
