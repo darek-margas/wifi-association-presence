@@ -1,8 +1,7 @@
 # Design note: an MQTT bridge (Wi-Fi presence without Home Assistant)
 
-Status: **proposal, mostly agreed** (2026-10-20): name, Node-RED friendly topics and
-the configuration split are decided (see *Decisions* at the end); topics by id or by MAC
-is still open. Written 2026-10-20. The first step is
+Status: **agreed** (2026-10-20), see *Decisions* at the end; building 0.1.0b1 next.
+Written 2026-10-20. The first step is
 done: the presence rules live in the library since wifi-ap-associations 0.12.0
 (`presence`, `coverage`, `tracker`), so the bridge and the integration decide home and
 away the same way.
@@ -263,12 +262,8 @@ with a warning in the README. The bridge publishes MAC addresses of tracked devi
 3. Configuration from both from the start: environment for the static basics and
    credentials, YAML for access points, controllers and devices; strict parsing that
    logs every exact fault and exits.
-
-## Open
-
-- **Topics by configured id (proposed) or by MAC.** By id, a device keeps its topic when
-  its MAC changes (new phone, private / rotating Wi-Fi addresses, now the default on
-  phones): only the config line changes, flows don't. Ids are readable in flows and keep
-  MACs out of the topic tree (the MAC is still in the attributes). By MAC, nothing needs
-  naming, but every MAC change is a new topic, old retained topics pile up, and flows
-  must be edited each time.
+4. Topics by configured id, not by MAC. A device keeps its topic when its MAC changes
+   (new phone, private / rotating Wi-Fi addresses, now the default on phones): only the
+   config line changes, flows don't. Ids read well in flows and keep MACs out of the
+   topic tree; the MAC is in the attributes. The opt-in all-clients topic carries MACs
+   in its payload, since those clients have no ids.
