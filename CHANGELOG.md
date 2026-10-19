@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.11.0b8 — instant arrivals for D-Link DAP; fast departure (beta)
+
+- **Instant arrivals for D-Link DAP access points.** Set the DAP's SNMP trap server to
+  Home Assistant's address: when a client joins, the DAP sends a trap and the integration
+  polls it 3 seconds later, so an arrival shows in seconds instead of up to a minute. It
+  listens on UDP port 162; nothing to set up on Home Assistant OS or Supervised; Container
+  and Core in the [wiki](https://github.com/darek-margas/wifi-association-presence/wiki/D-Link-DAP#instant-arrivals-snmp-traps-0110-beta).
+  With debug logging, every trap received is logged in full.
+- **Fast departure** (option, off by default): when an access point reports a client
+  leaving (OpenWrt, D-Link DAP, UniFi), a device missing from it is away after the time
+  you set instead of after the grace period. Faster, but a device that drops off Wi-Fi
+  for longer than that and comes back shows away meanwhile. Details in the
+  [wiki](https://github.com/darek-margas/wifi-association-presence/wiki/Troubleshooting#fast-departure).
+- New option **SNMP trap port**, for installations that can't use 162.
+- Uses wifi-ap-associations 0.13.0.
+
 ## 0.11.0b7 — access point reports: TP-Link details (beta)
 
 - **Collect access point report (SNMP)** now recognises MAC addresses that an access

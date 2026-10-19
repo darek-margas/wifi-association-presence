@@ -18,11 +18,13 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import area_registry as ar, device_registry as dr
 from homeassistant.helpers.debounce import Debouncer
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from wifi_ap_associations import DRIVERS, AccessPointDriver, AccessPointError, AccessPointInfo
+from wifi_ap_associations import snmp_trap
 from wifi_ap_associations.coverage import AccessPointCoverage, CoverageTracker
 from wifi_ap_associations.presence import AccessPointRead, AccessPointState, Sighting
 from wifi_ap_associations.tracker import (
@@ -35,10 +37,14 @@ from wifi_ap_associations.tracker import (
 from .const import (
     CONF_CONSIDER_HOME,
     CONF_DRIVER,
+    CONF_FAST_DEPARTURE,
     CONF_INSTANT_ARRIVALS,
+    CONF_SNMP_TRAP_PORT,
     CONF_NAME,
     DEFAULT_CONSIDER_HOME,
+    DEFAULT_FAST_DEPARTURE,
     DEFAULT_INSTANT_ARRIVALS,
+    DEFAULT_SNMP_TRAP_PORT,
     DOMAIN,
     LOGGER,
     SCAN_INTERVAL,
@@ -147,10 +153,19 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.sightings"
         )
         # Sightings, visits, AP states and coverage across polls (the library's rules).
+        fast = entry.options.get(CONF_FAST_DEPARTURE, DEFAULT_FAST_DEPARTURE)
         self.tracker = PresenceTracker(
             timedelta(seconds=entry.options.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)),
             poll_interval=SCAN_INTERVAL,
+            fast_departure=timedelta(seconds=fast) if fast else None,
         )
+        # D-Link DAPs report joins as SNMP traps to this port (one listener for all).
+        snmp_trap.LISTENER.configure(
+            port=int(entry.options.get(CONF_SNMP_TRAP_PORT, DEFAULT_SNMP_TRAP_PORT))
+        )
+        # Fast departure: the poll due at each access point's deadline after a leave.
+        self._departure_polls: dict[str, Any] = {}
+        entry.async_on_unload(self._cancel_departure_polls)
         # Instant arrivals: at most one task asking for a refresh at a time; changes
         # reported meanwhile only mark that it should ask once more.
         self._trigger_task: asyncio.Task[None] | None = None
@@ -259,6 +274,7 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         await watch_forever(
             ap.driver,
             self._on_change,
+            on_leave=(lambda: self._on_leave(ap)) if self.tracker.fast_departure else None,
             on_paused=lambda reason: LOGGER.info(
                 "Instant arrivals for %s paused (%s); polling every minute goes on",
                 ap.title,
@@ -272,6 +288,33 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             retry_max=WATCH_RETRY_MAX,
             stable=WATCH_STABLE,
         )
+
+    @callback
+    def _on_leave(self, ap: ConfiguredAccessPoint) -> None:
+        """An access point reported a client leaving (fast departure is on): note it,
+        and poll at the deadline so a device still missing then turns away on time."""
+        fast = self.tracker.fast_departure
+        if fast is None:
+            return
+        LOGGER.debug("Client left %s: devices missing from it are away in %s", ap.title, fast)
+        self.tracker.note_leave(ap.subentry_id, dt_util.utcnow())
+        if (cancel := self._departure_polls.pop(ap.subentry_id, None)) is not None:
+            cancel()
+
+        @callback
+        def _due(_now: datetime) -> None:
+            self._departure_polls.pop(ap.subentry_id, None)
+            self._on_change()
+
+        self._departure_polls[ap.subentry_id] = async_call_later(
+            self.hass, fast.total_seconds() + 1, _due
+        )
+
+    @callback
+    def _cancel_departure_polls(self) -> None:
+        for cancel in self._departure_polls.values():
+            cancel()
+        self._departure_polls.clear()
 
     @callback
     def _on_change(self) -> None:

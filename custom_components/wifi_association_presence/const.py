@@ -22,6 +22,15 @@ CONF_CONSIDER_HOME = "consider_home"
 # they happen trigger a poll at once.
 CONF_INSTANT_ARRIVALS = "instant_arrivals"
 DEFAULT_INSTANT_ARRIVALS = True
+# Fast departure (option, off = 0 s): after an access point reports a client leaving, a
+# device missing from it is away this long after the report instead of after the grace
+# period. Faster, but a device that drops off for longer and comes back shows away.
+CONF_FAST_DEPARTURE = "fast_departure"
+DEFAULT_FAST_DEPARTURE = 0
+# UDP port the SNMP trap listener uses (D-Link DAP instant arrivals). The access point
+# sends to 162; another port needs the traffic forwarded to it.
+CONF_SNMP_TRAP_PORT = "snmp_trap_port"
+DEFAULT_SNMP_TRAP_PORT = 162
 # A triggered poll at most this often (a burst of changes becomes one poll).
 TRIGGERED_POLL_COOLDOWN = 5
 # Waits before watching again after a watch ended or failed: doubling up to the maximum,

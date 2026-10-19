@@ -57,6 +57,40 @@ Two surprises, both handled:
 
 Dropbear answers the SSH keepalive (RouterOS doesn't), so OpenWrt keeps it.
 
+## D-Link DAP: SNMP traps (0.11.0b8)
+
+The DAP CLI has nothing to follow (no monitor or log command; `get syslog` shows only
+the settings), so the events have to be pushed by the AP. Tested on a DAP-2610 with a
+trap receiver and a syslog receiver on one machine, timestamps from one clock:
+
+- **Traps** (SNMPv1, community `dmpublic`, enterprise
+  `1.3.6.1.4.1.171.10.37.59.5.7.2`) arrive within the same second as the event:
+  specific **14** = a client associated, **20** = a client left (deauth, disassociate,
+  aging out). The only variable is the AP's own MAC; no client. Confirmed by an iPhone
+  switched off and on and moved between SSIDs (every switch gave a 20 and a 14 in the
+  same second), against syslog lines that went out immediately when its queue was empty.
+- **Syslog** (Wireless Activity) names the client, but leaves the AP one line about every
+  21.5 s from a queue (a join's five lines took 90 s) and drops lines (four SSID
+  switches, one "Association Success" logged). Not usable.
+- The EU-directive syslog sends client IP bindings (DHCP), not associations.
+
+So a trap 14 asks for a poll of the sender 3 s later (the trap comes at association,
+before the key handshake). One UDP listener (port 162, configurable) serves all DAPs and
+passes on traps only from configured DAPs' addresses; every trap is logged at debug with
+all its fields, from any sender. Trap 20 feeds fast departure.
+
+## Fast departure (opt-in, 0.11.0b8)
+
+Leave events are now passed on too (`async_watch(on_change, on_leave)`: OpenWrt
+deauth/disassoc, UniFi disconnects and roams away, D-Link trap 20; MikroTik prints
+nothing on leave). With the option set, a device that was on an access point which then
+reported a leave, and which the next successful poll of that access point didn't see,
+is away that many seconds after the report instead of after the grace period (never
+under 10 s); a poll is booked at the deadline. Trade-off, documented for users: the
+leave doesn't name the client, and a device that drops off longer than that and comes
+back shows away meanwhile (seen in the DAP-2610's log: clients that disassociate every
+~10 minutes and return ~70 s later, and idle clients aged out by the AP).
+
 ## Event sources, cheapest first
 
 | Source | Access points | Setup for users | Notes |

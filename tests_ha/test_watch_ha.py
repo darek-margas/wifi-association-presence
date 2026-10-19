@@ -45,7 +45,10 @@ class WatchingDriver(AccessPointDriver):
 
     burst = 1
 
-    async def async_watch(self, on_change: Callable[[], None]) -> None:
+    leave_given: list[bool] = []
+
+    async def async_watch(self, on_change: Callable[[], None], on_leave=None) -> None:
+        WatchingDriver.leave_given.append(on_leave is not None)
         WatchingDriver.watches += 1
         if WatchingDriver.fail and WatchingDriver.watches == 1:
             raise AccessPointError("feed lost")  # only the first try fails
@@ -58,6 +61,7 @@ class WatchingDriver(AccessPointDriver):
 def watching_driver():
     DRIVERS["fake_watch"] = WatchingDriver
     WatchingDriver.polls = WatchingDriver.watches = 0
+    WatchingDriver.leave_given = []
     WatchingDriver.fail = False
     WatchingDriver.burst = 1
     yield WatchingDriver
@@ -125,3 +129,22 @@ async def test_a_burst_of_changes_is_one_task_and_one_poll(hass: HomeAssistant) 
     assert WatchingDriver.polls == 2
     assert coordinator._trigger_task is not None
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_leaves_are_asked_for_only_with_fast_departure(hass: HomeAssistant) -> None:
+    entry = await setup(hass)
+    assert WatchingDriver.leave_given == [False]
+    assert entry.runtime_data.tracker.fast_departure is None
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+    WatchingDriver.leave_given = []
+    entry = await setup(hass, {"fast_departure": 30})
+    assert WatchingDriver.leave_given == [True]
+    coordinator = entry.runtime_data
+    assert coordinator.tracker.fast_departure.total_seconds() == 30
+    # A leave notes it in the tracker and schedules the poll at the deadline.
+    ap = coordinator.access_points[0]
+    coordinator._on_leave(ap)
+    assert ap.subentry_id in coordinator._departure_polls
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    assert coordinator._departure_polls == {}

@@ -57,6 +57,10 @@ from wifi_ap_associations.collect import (
 from .const import (
     DATA_AP_REPORT_BUSY,
     DEFAULT_INSTANT_ARRIVALS,
+    CONF_FAST_DEPARTURE,
+    CONF_SNMP_TRAP_PORT,
+    DEFAULT_FAST_DEPARTURE,
+    DEFAULT_SNMP_TRAP_PORT,
     COLLECT_METHODS,
     COLLECT_TIMEOUT,
     CONF_AUTH_KEY,
@@ -156,6 +160,30 @@ class WifiAssociationPresenceOptionsFlow(OptionsFlow):
                         vol.Required(
                             CONF_INSTANT_ARRIVALS, default=DEFAULT_INSTANT_ARRIVALS
                         ): BooleanSelector(),
+                        vol.Required(
+                            CONF_FAST_DEPARTURE, default=DEFAULT_FAST_DEPARTURE
+                        ): vol.All(
+                            NumberSelector(
+                                NumberSelectorConfig(
+                                    min=0,
+                                    max=600,
+                                    step=5,
+                                    unit_of_measurement="s",
+                                    mode=NumberSelectorMode.BOX,
+                                )
+                            ),
+                            vol.Coerce(int),
+                        ),
+                        vol.Required(
+                            CONF_SNMP_TRAP_PORT, default=DEFAULT_SNMP_TRAP_PORT
+                        ): vol.All(
+                            NumberSelector(
+                                NumberSelectorConfig(
+                                    min=1, max=65535, step=1, mode=NumberSelectorMode.BOX
+                                )
+                            ),
+                            vol.Coerce(int),
+                        ),
                     }
                 ),
                 {
@@ -164,6 +192,12 @@ class WifiAssociationPresenceOptionsFlow(OptionsFlow):
                     ),
                     CONF_INSTANT_ARRIVALS: self.config_entry.options.get(
                         CONF_INSTANT_ARRIVALS, DEFAULT_INSTANT_ARRIVALS
+                    ),
+                    CONF_FAST_DEPARTURE: self.config_entry.options.get(
+                        CONF_FAST_DEPARTURE, DEFAULT_FAST_DEPARTURE
+                    ),
+                    CONF_SNMP_TRAP_PORT: self.config_entry.options.get(
+                        CONF_SNMP_TRAP_PORT, DEFAULT_SNMP_TRAP_PORT
                     ),
                 },
             ),

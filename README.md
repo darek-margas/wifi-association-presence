@@ -114,13 +114,18 @@ Every tracker tells you **when** the device arrived or left, not just whether it
   arrival or departure, with the exact time in it.
 - **Survives restarts.** Arrival and departure times are stored, so a restart doesn't
   turn "home since 07:40" into "home since the restart".
-- **Instant arrivals** (MikroTik; UniFi and OpenWrt in the 0.11.0 betas). Access points
+- **Instant arrivals** (MikroTik; UniFi, OpenWrt and D-Link DAP in the 0.11.0 betas). Access points
   that report changes as they happen make the integration poll at once, so an arrival
   shows in seconds instead of up to a minute. Departures still wait for the grace period,
   and the poll, not the event, decides who is there. On by default; switch it off in
   **Configure** (for MikroTik and OpenWrt it keeps one SSH connection open per access
   point or CAPsMAN controller; UniFi uses the events the UniFi Network integration
-  already receives).
+  already receives; D-Link DAPs send SNMP traps to Home Assistant, see the
+  [wiki](../../wiki/D-Link-DAP#instant-arrivals-snmp-traps-0110-beta)).
+- **Fast departure** (optional, off by default). When an access point reports a client
+  leaving, a device missing from it is away after a short time you choose instead of the
+  grace period. Faster departures, at the cost of devices that drop off Wi-Fi briefly
+  showing away; see the [wiki](../../wiki/Troubleshooting#fast-departure).
 - **Light on the database.** The attributes change only on arrival or departure, so the
   recorder writes a row per event, not per poll. The tracker's History and Logbook then
   list every arrival and departure.
@@ -319,8 +324,8 @@ it first loads the integration, so it needs internet access at that restart.
    a name. The list holds every device seen in the last 7 days, most recent first, labelled
    with AP, band, SSID and signal; devices not connected right now (a sleeping car or
    tablet) show when they were last seen. This memory survives restarts.
-5. Optional: **Configure** on the hub sets the grace period and turns instant arrivals
-   on or off.
+5. Optional: **Configure** on the hub sets the grace period, turns instant arrivals on
+   or off, sets fast departure, and the port for D-Link SNMP traps.
 
 Access points and tracked devices can be edited from their **⋮** menu (**Reconfigure**).
 Leaving an access point's password empty keeps the current one.
@@ -451,6 +456,9 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
 - These units only offer old SSH algorithms (`diffie-hellman-group14-sha1`,
   `diffie-hellman-group1-sha1`, `ssh-rsa`, CBC ciphers). The driver allows them for D-Link
   only; other types use current algorithms.
+- Instant arrivals: set the DAP's **SNMP trap server** to Home Assistant's address. The
+  integration listens on UDP 162 (nothing to do on Home Assistant OS and Supervised; see
+  the [wiki](../../wiki/D-Link-DAP#port-162-on-your-installation) for Container and Core).
 
 ## Limitations
 
@@ -632,8 +640,8 @@ below needs an owner of that hardware to send data and test a build.
 
 **Instant arrivals**, more sources: MikroTik's `print follow-only` is in (0.10.0,
 confirmed on RouterOS 7.24), UniFi's connect and roam events and OpenWrt's hostapd
-events are in the 0.11.0 betas; next, RADIUS
-accounting and syslog. An event triggers an immediate poll,
+events and D-Link's SNMP traps are in the 0.11.0 betas; next, RADIUS accounting (a
+DAP's syslog turned out to be queued and lossy, so not syslog). An event triggers an immediate poll,
 so an arrival shows in seconds instead of up to a minute; departures still wait for the
 grace period. RADIUS accounting also identifies the 802.1X user, which would allow
 tracking a person even with rotating private MAC addresses. Design and test results:
