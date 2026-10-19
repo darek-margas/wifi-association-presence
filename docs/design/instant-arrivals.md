@@ -34,6 +34,29 @@ checks the UniFi config entry is still loaded with the same hub; after a reload 
 and the coordinator subscribes again. Not yet confirmed on a real controller: whether
 the active client list (stat/sta) already shows the client when the event arrives.
 
+## OpenWrt: hostapd's ubus notifications (0.11.0b2)
+
+Captured over plain SSH exec on OpenWrt 25.12.5 and 22.03.7 (VMs, `mac80211_hwsim`):
+`ubus subscribe hostapd.<if>` prints one JSON line per event within ~60 ms: `probe`
+(any scanning device: ignored), `auth`, `assoc`, `sta-authorized` (25.12 only), and
+`deauth` / `disassoc` on leaving. The driver counts only authorized clients, so the
+watch polls on `sta-authorized`, or 2 s after `assoc` where that event doesn't exist.
+
+Two surprises, both handled:
+
+- **A Wi-Fi reload silences the feed without ending it.** hostapd's objects get new
+  ids; the old subscribe keeps running, printing nothing. `ubus listen ubus.object.add
+  ubus.object.remove` reports the remove and add at once, so the watch follows that too,
+  subscribes again after it settles, and asks for one poll (clients rejoin after a
+  reload).
+- **Ubus commands outlive their SSH session.** Dropbear doesn't stop a command when its
+  channel closes, and a silent `ubus subscribe` never writes, so it never notices: each
+  test run left processes behind. Each command now runs in a shell that writes an empty
+  line every 15 s and kills it when that write fails; nothing remains ~15 s after a
+  session ends, checked on both VMs.
+
+Dropbear answers the SSH keepalive (RouterOS doesn't), so OpenWrt keeps it.
+
 ## Event sources, cheapest first
 
 | Source | Access points | Setup for users | Notes |

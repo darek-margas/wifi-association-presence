@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.0b2 — instant arrivals for OpenWrt (beta)
+
+- **Instant arrivals for OpenWrt access points.** The integration keeps hostapd's event
+  feed open over the SSH login it already has, and a client joining any radio or SSID
+  makes it poll at once. Nothing to install or set up on the router; switched by the
+  same **Instant arrivals** option. Departures still wait for the grace period.
+- Survives a Wi-Fi reload on the router (it subscribes again by itself), and leaves
+  nothing running on the router when the connection drops.
+- Tested on OpenWrt 25.12.5 and 22.03.7 in VMs with simulated radios; on 22.03, whose
+  hostapd doesn't report the client as authorized, it polls 2 s after the client
+  associates.
+- Uses wifi-ap-associations 0.11.1.
+
 ## 0.11.0b1 — instant arrivals for UniFi (beta)
 
 - **Instant arrivals for UniFi access points.** Home Assistant's UniFi Network
