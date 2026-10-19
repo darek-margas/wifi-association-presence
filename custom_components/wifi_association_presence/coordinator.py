@@ -214,6 +214,8 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             return self.tracker.update([], now, dt_util.as_local(now).date())
 
         started = time.monotonic()
+        # The reads happen between this and the end of the round (fast departure).
+        round_started = dt_util.utcnow()
         results = await poll_all([ap.driver for ap in self.access_points])
         LOGGER.debug(
             "Polled %d access point(s) in %.2f s", len(self.access_points), time.monotonic() - started
@@ -237,7 +239,9 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             # A short total outage (e.g. a controller restart) is ridden out on the
             # previous sightings, like a single failing AP; past the grace period (and
             # at the first refresh, so setup is retried) it fails.
-            data = self.tracker.update(reads, now, dt_util.as_local(now).date())
+            data = self.tracker.update(
+                reads, now, dt_util.as_local(now).date(), started=round_started
+            )
         except AllAccessPointsFailed as err:
             raise UpdateFailed(str(err)) from err
         if self.tracker.last_success != now:
