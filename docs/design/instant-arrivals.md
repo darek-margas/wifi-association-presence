@@ -86,12 +86,16 @@ deauth/disassoc, UniFi disconnects and roams away, D-Link trap 20; MikroTik prin
 nothing on leave). With the option set, a device that was on an access point which then
 reported a leave, and which the next successful poll of that access point didn't see,
 is away that many seconds after the report instead of after the grace period (never
-under 10 s); a poll is booked at the deadline. From a review, the edges: a departure a
-round settled stays until the device is seen again (a later leave by another client, or
-the access point failing to read, used to undo it); a return after it is a new visit;
-sightings are dated by when their round started, so a leave reported during a slow round
-isn't taken for older than the read that saw the device; all recent leaves per access
-point are kept, so a second client's leave can't push a pending departure back. Trade-off, documented for users: the
+under 10 s); a poll is booked at each leave's deadline, and a later leave never moves an
+earlier one. From two reviews, the edges: the evidence is taken at the end of the round
+that read the access point after the leave, with that round's own access point states,
+and kept until the device is seen again (a later leave by another client, or the access
+point failing or recovering, changes nothing; mixing a round's evidence with the next
+round's states used to miss departures or invent visits); back before the deadline is
+the same visit, after it a new one; sightings are dated by when their round started, so
+a leave reported during a slow round isn't taken for older than the read that saw the
+device; all recent leaves per access point are kept, so a second client's leave can't
+push a pending departure back. Trade-off, documented for users: the
 leave doesn't name the client, and a device that drops off longer than that and comes
 back shows away meanwhile (seen in the DAP-2610's log: clients that disassociate every
 ~10 minutes and return ~70 s later, and idle clients aged out by the AP).

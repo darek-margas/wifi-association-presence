@@ -9,7 +9,10 @@ from typing import Any
 import pytest
 from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 from wifi_ap_associations import (
     DRIVERS,
     AccessPointDriver,
@@ -145,6 +148,31 @@ async def test_leaves_are_asked_for_only_with_fast_departure(hass: HomeAssistant
     # A leave notes it in the tracker and schedules the poll at the deadline.
     ap = coordinator.access_points[0]
     coordinator._on_leave(ap)
-    assert ap.subentry_id in coordinator._departure_polls
+    assert len(coordinator._departure_polls) == 1
     assert await hass.config_entries.async_unload(entry.entry_id)
-    assert coordinator._departure_polls == {}
+    assert coordinator._departure_polls == set()
+
+
+async def test_a_later_leave_never_postpones_an_earlier_deadline(
+    hass: HomeAssistant, freezer
+) -> None:
+    entry = await setup(hass, {"fast_departure": 30})
+    coordinator = entry.runtime_data
+    polls: list[str] = []
+    coordinator._on_change = lambda: polls.append("poll")
+    ap = coordinator.access_points[0]
+    coordinator._on_leave(ap)
+    freezer.tick(20)
+    coordinator._on_leave(ap)  # another client leaves before the first deadline
+    assert len(coordinator._departure_polls) == 2
+    freezer.tick(11)  # 31 s after the first leave: its poll is due
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert polls == ["poll"]
+    assert len(coordinator._departure_polls) == 1
+    freezer.tick(20)  # and the second one's
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert polls == ["poll", "poll"]
+    assert coordinator._departure_polls == set()
+    assert await hass.config_entries.async_unload(entry.entry_id)

@@ -163,8 +163,9 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         snmp_trap.LISTENER.configure(
             port=int(entry.options.get(CONF_SNMP_TRAP_PORT, DEFAULT_SNMP_TRAP_PORT))
         )
-        # Fast departure: the poll due at each access point's deadline after a leave.
-        self._departure_polls: dict[str, Any] = {}
+        # Fast departure: the polls due at the deadlines after leaves, one per leave (a
+        # later leave never moves an earlier deadline).
+        self._departure_polls: set[Any] = set()
         entry.async_on_unload(self._cancel_departure_polls)
         # Instant arrivals: at most one task asking for a refresh at a time; changes
         # reported meanwhile only mark that it should ask once more.
@@ -302,21 +303,18 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             return
         LOGGER.debug("Client left %s: devices missing from it are away in %s", ap.title, fast)
         self.tracker.note_leave(ap.subentry_id, dt_util.utcnow())
-        if (cancel := self._departure_polls.pop(ap.subentry_id, None)) is not None:
-            cancel()
 
         @callback
         def _due(_now: datetime) -> None:
-            self._departure_polls.pop(ap.subentry_id, None)
+            self._departure_polls.discard(cancel)
             self._on_change()
 
-        self._departure_polls[ap.subentry_id] = async_call_later(
-            self.hass, fast.total_seconds() + 1, _due
-        )
+        cancel = async_call_later(self.hass, fast.total_seconds() + 1, _due)
+        self._departure_polls.add(cancel)
 
     @callback
     def _cancel_departure_polls(self) -> None:
-        for cancel in self._departure_polls.values():
+        for cancel in self._departure_polls:
             cancel()
         self._departure_polls.clear()
 
