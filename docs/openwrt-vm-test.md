@@ -57,8 +57,11 @@ works the same way with `opkg` instead of `apk`. Repeat with **22.03** for the o
 ## 2. First boot (VM console)
 
 **Do this before anything else.** A fresh OpenWrt takes **192.168.1.1** on its LAN port
-and runs a **DHCP server** there. Bridged to your network, that can clash with your router
-(which is often 192.168.1.1 too) and hand out wrong addresses to other devices.
+and runs a **DHCP server** there, plus IPv6 router advertisements with its own private
+prefix. Bridged to your network, that can clash with your router (which is often
+192.168.1.1 too), hand out wrong addresses, and make other devices pick up a new IPv6
+address each time the VM's Wi-Fi is reloaded (a network UPS card was seen reconnecting
+its accessories every time).
 
 ```sh
 passwd                                   # set a root password (needed for SSH)
@@ -66,7 +69,12 @@ uci set network.lan.proto='dhcp'         # become a normal DHCP client on your L
 uci delete network.lan.ipaddr
 uci delete network.lan.netmask           # "Entry not found" is fine
 uci set dhcp.lan.ignore='1'              # no DHCP server on your LAN
+uci set dhcp.lan.ra='disabled'           # no IPv6 router advertisements either
+uci set dhcp.lan.dhcpv6='disabled'
+uci delete network.globals.ula_prefix    # no private IPv6 prefix of its own
+uci delete network.lan.ip6assign
 uci commit
+service odhcpd stop; service odhcpd disable
 service dnsmasq restart
 service network restart
 sleep 10; ip -4 addr show br-lan         # note the address (run again if still empty)
