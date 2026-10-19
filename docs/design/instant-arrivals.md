@@ -1,7 +1,7 @@
 # Design note: instant arrivals (events as a poll trigger)
 
-Status: **the shared trigger and MikroTik `follow-only` are built** (library 0.10.0,
-integration 0.10.0b1, experimental); the other sources are planned. Written 2026-10-10
+Status: **the shared trigger and MikroTik `follow-only` are built** and confirmed on
+RouterOS 7.24 (library 0.10.4, integration 0.10.0); the other sources are planned. Written 2026-10-10
 from tests on a real network;
 MikroTik `follow-only` and the shared trigger added 2026-10-14, after a MikroTik user
 asked for it for arrival automations

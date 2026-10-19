@@ -18,7 +18,7 @@
         },
         "data_description": {
           "consider_home": "How long a device stays home after it was last seen associated to any access point. Covers roaming between access points, coverage gaps and a failing access point. Values under 30 s act as 30 s (away after one missed poll).",
-          "instant_arrivals": "Access points that can report changes as they happen (MikroTik, experimental) make the integration poll at once, so arrivals show in seconds instead of up to a minute. Keeps one SSH connection open to each such access point or CAPsMAN controller. Departures still wait for the grace period."
+          "instant_arrivals": "Access points that can report changes as they happen (MikroTik) make the integration poll at once, so arrivals show in seconds instead of up to a minute. Keeps one SSH connection open to each such access point or CAPsMAN controller. Departures still wait for the grace period."
         }
       }
     }

@@ -114,7 +114,7 @@ Every tracker tells you **when** the device arrived or left, not just whether it
   arrival or departure, with the exact time in it.
 - **Survives restarts.** Arrival and departure times are stored, so a restart doesn't
   turn "home since 07:40" into "home since the restart".
-- **Instant arrivals** (MikroTik, experimental). Access points that report changes as
+- **Instant arrivals** (MikroTik). Access points that report changes as
   they happen make the integration poll at once, so an arrival shows in seconds instead
   of up to a minute. Departures still wait for the grace period, and the poll, not the
   event, decides who is there. On by default; switch it off in **Configure** (it keeps
@@ -607,8 +607,8 @@ below needs an owner of that hardware to send data and test a build.
 | **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `wifi-ap-collect` report (SSH or `--snmp`) |
 | **Other controllers** (older Cisco AireOS WLCs, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API or CLI, as for the Catalyst 9800 | interest and a test setup |
 
-**Instant arrivals**, more sources: MikroTik's `print follow-only` is in (0.10.0b1,
-experimental); next, UniFi's connect events, OpenWrt's hostapd events, RADIUS
+**Instant arrivals**, more sources: MikroTik's `print follow-only` is in (0.10.0,
+confirmed on RouterOS 7.24); next, UniFi's connect events, OpenWrt's hostapd events, RADIUS
 accounting and syslog. An event triggers an immediate poll,
 so an arrival shows in seconds instead of up to a minute; departures still wait for the
 grace period. RADIUS accounting also identifies the 802.1X user, which would allow

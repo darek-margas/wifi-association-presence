@@ -1,11 +1,29 @@
 # Changelog
 
-## 0.10.0b7 — Cisco over SNMP confirmed (beta)
+## 0.10.0 — instant arrivals for MikroTik, Cisco over SNMP confirmed
 
-- **Cisco Catalyst 9800 over SNMP is no longer experimental.** A tester ran it in Home
+Everything since 0.9.0 (the 0.10.0 betas below have the details), for everyone. Update
+from HACS and restart; nothing to change in your setup.
+
+- **Instant arrivals for MikroTik.** Access points and CAPsMAN controllers report a
+  client joining or moving to another CAP or radio as it happens
+  (`registration-table print follow-only` over the same SSH login), and the integration
+  polls at once: an arrival shows in a couple of seconds instead of up to a minute.
+  Departures still wait for the grace period, and the poll still decides who is there.
+  On by default; switch it off under **Configure** → **Instant arrivals**. Confirmed on
+  RouterOS 7.24 ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)).
+- **Cisco Catalyst 9800 over SNMP is no longer experimental.** Confirmed in Home
   Assistant on a C9800-CL with SNMPv3: presence, bands and signal match SSH, and
   switching an AP from SSH to SNMP kept its entity IDs
-  ([#10](https://github.com/darek-margas/wifi-association-presence/issues/10)).
+  ([#10](https://github.com/darek-margas/wifi-association-presence/issues/10)). Signal
+  and connected time each keep their last value on their own when a read misses one,
+  and a failing signal column no longer makes the AP unavailable.
+- **Access point names:** a tracked device's **Access point** shows the name you gave
+  the AP's device in Home Assistant, if you renamed it. The **Host** field says that for
+  a CAP via CAPsMAN or a Cisco AP it is the controller's address.
+- **Debug logging:** **Enable debug logging** on the integration's page covers the
+  library too: each change the access point reports, whether it asked for a refresh,
+  and how long each poll took.
 - Uses wifi-ap-associations 0.10.5.
 
 ## 0.10.0b6 — access point names (beta)
