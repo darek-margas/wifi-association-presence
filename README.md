@@ -335,22 +335,23 @@ Leaving an access point's password empty keeps the current one.
 | MikroTik RouterOS (SSH) | RouterOS access points and routers with Wi-Fi. **Confirmed** in Home Assistant on a cAP lite with the `wireless` package, RouterOS 7.24.4 ([#12](https://github.com/darek-margas/wifi-association-presence/issues/12)), with signal; system details also on RouterOS 7.20 (a CRS310 switch). For CAPsMAN with one access point per CAP, use the MikroTik CAPsMAN type below. Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) and `/interface wireless` (RouterOS 6, and RouterOS 7 radios still on it) `registration-table print terse` and `print terse`, both read and combined (signal and uptime of `wireless` from `registration-table print stats terse`) |
 | MikroTik CAP via CAPsMAN (SSH) | CAPs managed by a CAPsMAN controller on RouterOS 7 (`wifi` package); one access point here per CAP, picked by its identity on the controller. **Confirmed** in Home Assistant on a CAPsMAN router with two cAP ax on RouterOS 7.24.4 ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)). Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH exec on the controller, one login shared by its CAPs: `/interface wifi capsman remote-cap`, `/interface wifi` and its `registration-table`, each `print terse`; each client put on the CAP its interface (or its master interface) belongs to |
 | Cisco Catalyst 9800 controller (SSH or SNMP) | Lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE); one access point here per Cisco AP, picked by its name on the controller. **Confirmed over SSH** on a C9800-CL (IOS-XE 17.15.5, C9120AXI, [#10](https://github.com/darek-margas/wifi-association-presence/issues/10)) in Home Assistant, with signal, using a restricted parser view, and **over SNMP** (v3) in Home Assistant, with signal on every client; its clients, SSIDs and bands matched SSH. Setup guide: [wiki](../../wiki/Cisco-Catalyst-9800). | SSH: the controller's console, one login shared by its APs: `show ap summary`, `show wlan summary`, `show wireless client summary`, and up to 15 clients' `show wireless client mac-address <mac> detail` per poll, in turns, for signal and connected time. SNMP (v2c or v3, chosen in the settings): the Airespace client table (AP, SSID, state, protocol), client statistics (signal) and AP table (name, location, status, model), plus Cisco's client table (connected time), one read shared by its APs |
+| TP-Link Omada (via the TP-Link Omada integration), **experimental** | Omada access points (EAP) managed by an Omada controller (software, OC200/OC300, or a router with a built-in controller) that Home Assistant's [TP-Link Omada](https://www.home-assistant.io/integrations/tplink_omada/) integration is connected to. Written from the data that integration is tested with; testers wanted in the [Omada discussion](https://github.com/darek-margas/wifi-association-presence/discussions/4). Setup guide: [wiki](../../wiki/TP-Link-Omada). | The controller's connected client list and device list, over the Omada integration's existing session, once a minute for all its APs |
 
 ### What each type reports
 
-| | D-Link DAP | OpenWrt | UniFi | MikroTik | MikroTik CAP via CAPsMAN | Cisco 9800 |
-|---|---|---|---|---|---|---|
-| Clients, band, SSID name | ✓ | ✓ | ✓ | ✓ | ✓ (per CAP) | ✓ |
-| Signal | % | dBm | dBm | dBm | dBm | dBm: over SNMP every poll, over SSH each client refreshed about every 2 minutes |
-| AP device and sensors created here | ✓ | ✓ | — (uses the UniFi device) | ✓ | ✓ (one per CAP) | ✓ |
-| Name | system name | host name | UniFi name | identity | CAP identity | AP name |
-| Model | — (enter it in the AP's settings) | ✓ | in UniFi | ✓ (board name) | ✓ (board name) | ✓ |
-| Firmware, hardware | ✓ | ✓ | in UniFi | firmware | firmware | — |
-| Last boot (uptime) | ✓ | ✓ | in UniFi | ✓ | ✓ | — |
-| Location | ✓ | — (no such setting) | — | — | — | ✓ (if set on the controller) |
-| CPU % | ✓ | — (only load averages) | in UniFi | ✓ | — | — |
-| Memory % | ✓ | ✓ | in UniFi | ✓ | — | — |
-| Login | SSH, password | SSH, password | none (the UniFi integration's session) | SSH, password | SSH, the controller's | the controller's: SSH (a parser view with five commands, see the [wiki](../../wiki/Cisco-Catalyst-9800); privilege 1 gives presence only), or SNMP v2c / v3 |
+| | D-Link DAP | OpenWrt | UniFi | MikroTik | MikroTik CAP via CAPsMAN | Cisco 9800 | TP-Link Omada |
+|---|---|---|---|---|---|---|---|
+| Clients, band, SSID name | ✓ | ✓ | ✓ | ✓ | ✓ (per CAP) | ✓ | ✓ |
+| Signal | % | dBm | dBm | dBm | dBm | dBm: over SNMP every poll, over SSH each client refreshed about every 2 minutes | dBm |
+| AP device and sensors created here | ✓ | ✓ | — (uses the UniFi device) | ✓ | ✓ (one per CAP) | ✓ | — (uses the Omada device) |
+| Name | system name | host name | UniFi name | identity | CAP identity | AP name | Omada name |
+| Model | — (enter it in the AP's settings) | ✓ | in UniFi | ✓ (board name) | ✓ (board name) | ✓ | in Omada |
+| Firmware, hardware | ✓ | ✓ | in UniFi | firmware | firmware | — | in Omada |
+| Last boot (uptime) | ✓ | ✓ | in UniFi | ✓ | ✓ | — | in Omada |
+| Location | ✓ | — (no such setting) | — | — | — | ✓ (if set on the controller) | — |
+| CPU % | ✓ | — (only load averages) | in UniFi | ✓ | — | — | in Omada |
+| Memory % | ✓ | ✓ | in UniFi | ✓ | — | — | in Omada |
+| Login | SSH, password | SSH, password | none (the UniFi integration's session) | SSH, password | SSH, the controller's | the controller's: SSH (a parser view with five commands, see the [wiki](../../wiki/Cisco-Catalyst-9800); privilege 1 gives presence only), or SNMP v2c / v3 | none (the Omada integration's session) |
 
 Sensors for details a type can't report are not created. No type gives clients' IP
 addresses or host names to this integration, so trackers have no `ip` / `host_name`.
@@ -361,7 +362,8 @@ Each type of access point is a driver, and there are two kinds:
 
 - **Directly from the AP** (D-Link and OpenWrt, over SSH). Works without any controller,
   and with only the APs you are allowed to log in to.
-- **Through a controller** (UniFi, via Home Assistant's UniFi Network integration). No
+- **Through a controller** (UniFi and TP-Link Omada, via Home Assistant's own
+  integrations for them; Cisco 9800, over SSH or SNMP). No
   login per AP and one request for all of them, but you need access to the controller.
 
 Both can exist for the same vendor and can be mixed in one installation, because every
@@ -435,9 +437,10 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
 ## Limitations
 
 **Access point support**
-- **Five kinds of access point so far:** D-Link DAP, OpenWrt, UniFi (through Home
-  Assistant's UniFi Network integration), MikroTik RouterOS (also CAPsMAN) and Cisco
-  Catalyst 9800 (over SSH or SNMP). Support for more depends on owners contributing data (see
+- **Six kinds of access point so far:** D-Link DAP, OpenWrt, UniFi (through Home
+  Assistant's UniFi Network integration), MikroTik RouterOS (also CAPsMAN), Cisco
+  Catalyst 9800 (over SSH or SNMP) and TP-Link Omada (through Home Assistant's Omada
+  integration, experimental). Support for more depends on owners contributing data (see
   [Help add your access point](#help-add-your-access-point) and the
   [Roadmap](#roadmap)); the driver interface is designed for it.
 - **Each type gives what its AP offers**, no more (see
@@ -605,7 +608,6 @@ below needs an owner of that hardware to send data and test a build.
 | **UniFi APs without a controller in HA** | SSH to each AP, `mca-dump` (JSON with each radio's station table and dBm signal) | `wifi-ap-collect --profile unifi` report |
 | **SNMP drivers** | One SNMP base driver plus a small table map per vendor, from the Cisco 9800 one (MikroTik registration table next; Aruba, Ruckus as reports arrive) | `wifi-ap-collect --snmp` report |
 | **OpenWrt over HTTP** | The same ubus calls through `/ubus` (JSON-RPC, as LuCI uses), for routers without SSH access; needs a small read-only rpcd ACL | interest |
-| **TP-Link Omada (controller)** | Like UniFi: through Home Assistant's [TP-Link Omada](https://www.home-assistant.io/integrations/tplink_omada/) integration, no extra login | that integration's **Download diagnostics** file (it lists the connected clients with the AP they are on, already anonymised) |
 | **TP-Link Omada EAP (direct)** | SSH or SNMP to each EAP, if the EAP lists its clients | `wifi-ap-collect` report (SSH or `--snmp`) |
 | **Other controllers** (older Cisco AireOS WLCs, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API or CLI, as for the Catalyst 9800 | interest and a test setup |
 

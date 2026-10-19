@@ -1,7 +1,7 @@
 """Home Assistant-side data sources for drivers that read through another integration.
 
 Most drivers talk to the access point themselves and only need their settings. A driver
-that reads through another Home Assistant integration (UniFi Network) declares the
+that reads through another Home Assistant integration (UniFi Network, TP-Link Omada) declares the
 source it needs in its SOURCE class attribute; this registry says how to build that
 source and which of the driver's settings are picked from a list of what the source
 knows (e.g. the UniFi access points), so the coordinator and the setup forms never name
@@ -18,7 +18,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import SelectOptionDict
 
 from wifi_ap_associations import AccessPointDriver
-from .unifi_source import HassUnifiSource, access_point_options
+from . import omada_source, unifi_source
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,9 +36,18 @@ class DataSource:
 
 SOURCES: dict[str, DataSource] = {
     "unifi": DataSource(
-        create=HassUnifiSource,
-        unique_field_options=lambda hass, taken: access_point_options(hass, exclude=taken),
+        create=unifi_source.HassUnifiSource,
+        unique_field_options=lambda hass, taken: unifi_source.access_point_options(
+            hass, exclude=taken
+        ),
         no_choices_reason="no_unifi_access_points",
+    ),
+    "omada": DataSource(
+        create=omada_source.HassOmadaSource,
+        unique_field_options=lambda hass, taken: omada_source.access_point_options(
+            hass, exclude=taken
+        ),
+        no_choices_reason="no_omada_access_points",
     ),
 }
 

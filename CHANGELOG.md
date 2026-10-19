@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.0b3 — TP-Link Omada, experimental (beta)
+
+- **Add access point → "TP-Link Omada (via the TP-Link Omada integration)"**, shown as
+  experimental. Like UniFi, it reads through Home Assistant's own
+  [TP-Link Omada](https://www.home-assistant.io/integrations/tplink_omada/) integration:
+  no login here, pick the access point from a list. Clients with SSID, band, signal and
+  connected time; the AP keeps the device the Omada integration made for it, with its
+  area. The controller is asked once a minute for all its APs (the Omada integration
+  itself refreshes clients only every 5 minutes). No instant arrivals: the Omada
+  controller has no event feed for them.
+- Built from the data Home Assistant's own Omada integration is tested with; testers
+  with a real controller wanted in the [Omada discussion](https://github.com/darek-margas/wifi-association-presence/discussions/4).
+- Uses wifi-ap-associations 0.11.2.
+
 ## 0.11.0b2 — instant arrivals for OpenWrt (beta)
 
 - **Instant arrivals for OpenWrt access points.** The integration keeps hostapd's event
