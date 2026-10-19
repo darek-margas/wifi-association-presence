@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0b7 — access point reports: TP-Link details (beta)
+
+- **Collect access point report (SNMP)** now recognises MAC addresses that an access
+  point stores as text, as TP-Link EAPs do, so their client table shows up in the
+  report (redacted, vendor prefix kept) instead of being hidden as plain text.
+- **Collect access point report (SSH)**: when an access point drops the connection
+  ("Connection reset by peer"), the form suggests "Allow old SSH algorithms", which is
+  what a TP-Link EAP670 needs.
+- Uses wifi-ap-associations 0.12.3.
+
 ## 0.11.0b6 — OpenWrt review fixes (beta)
 
 - **OpenWrt: a Wi-Fi reload on the router no longer looks like everyone leaving.** For
