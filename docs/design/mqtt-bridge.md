@@ -1,6 +1,8 @@
 # Design note: an MQTT bridge (Wi-Fi presence without Home Assistant)
 
-Status: **proposal**, for review before any code. Written 2026-10-20. The first step is
+Status: **proposal, mostly agreed** (2026-10-20): name, Node-RED friendly topics and
+the configuration split are decided (see *Decisions* at the end); topics by id or by MAC
+is still open. Written 2026-10-20. The first step is
 done: the presence rules live in the library since wifi-ap-associations 0.12.0
 (`presence`, `coverage`, `tracker`), so the bridge and the integration decide home and
 away the same way.
@@ -43,10 +45,51 @@ unavailable.
 
 ## Configuration
 
-A YAML file, mounted at `/config/config.yaml`, for the lists (access points, devices);
-environment variables for single settings and secrets. Environment variables override
-the file; `${NAME}` in the file is replaced by that variable, and any variable `X` may
-come from a file named by `X_FILE` (Docker secrets).
+Two parts, both from the start:
+
+- **Environment variables for the static basics:** the broker (`MQTT_HOST`, `MQTT_PORT`,
+  `MQTT_USERNAME`, `MQTT_PASSWORD`, `MQTT_TOPIC_PREFIX`), the presence settings
+  (`GRACE_PERIOD`, `POLL_INTERVAL`, `INSTANT_ARRIVALS`), `LOG_LEVEL`, and credentials.
+  Any variable `X` may instead come from a file named by `X_FILE` (Docker secrets).
+- **A YAML file for the details**, mounted at `/config/config.yaml`: access points,
+  controllers and devices. `${NAME}` in it is replaced by that environment variable, so
+  passwords stay in the environment. A setting given in both places takes the
+  environment's value, and the log says so once at start.
+
+### Strict parsing: exact errors, then exit
+
+The bridge reads and checks the whole configuration before connecting to anything, and
+on any problem logs every error it found and **exits with status 1** (so Docker shows
+the container as failed and `restart: unless-stopped` doesn't hide it in a loop of
+half-working starts; a broken config file never runs with defaults). Each message
+names where and what:
+
+```
+config error: /config/config.yaml line 14, column 5: mapping values are not allowed here (YAML syntax)
+config error: /config/config.yaml line 22: access_points[1] (upstairs): unknown key "caps" (did you mean "cap"?)
+config error: /config/config.yaml line 22: access_points[1] (upstairs): missing required key "cap" for type mikrotik_capsman_ssh
+config error: /config/config.yaml line 30: access_points[3]: type "openwrt" is not a known type (known: dlink_dap_ssh, openwrt_ssh, ...)
+config error: /config/config.yaml line 41: devices[0] (alice_phone): mac "5C:AD:BA:00:01" is not a MAC address
+config error: /config/config.yaml line 9: ${HALLWAY_PASSWORD} is not set in the environment
+config error: environment POLL_INTERVAL="sixty": not a number of seconds
+config error: devices: id "alice_phone" used twice (lines 41 and 47)
+3 errors; nothing was started.
+```
+
+- YAML syntax errors carry the parser's line and column. Everything else carries the
+  line of the entry, its path (`access_points[1]`) and its id when it has one.
+- Unknown keys are errors, with the closest valid key suggested; values are checked for
+  type, range (e.g. `poll_interval` 10 to 3600 s), the driver's own choices, MAC format
+  and unique ids.
+- An access point's keys are checked against its driver's `FIELDS`, so they are exactly
+  the integration's setup form.
+- Passwords never appear in a message, even when the value is what's wrong.
+- `wifi-presence-mqtt --check-config` (also as `docker run ... --check-config`) runs only
+  this check and exits 0 or 1, for checking a change before restarting.
+
+Errors that are not about the configuration (an access point unreachable, a wrong
+password on an AP, the broker down at start) don't exit: they are logged and retried,
+as in Home Assistant, with the access point shown `offline`.
 
 ```yaml
 mqtt:
@@ -105,9 +148,6 @@ Only listed devices are published by default. `publish_all_clients: true` also
 publishes every client seen (MAC, AP, signal) on one topic, for building the device list;
 off by default, since it publishes the neighbours' phones too.
 
-A minimal setup can skip the file: `AP_1=openwrt_ssh://root:pass@192.168.1.2`,
-`DEVICE_1=alice_phone=5C:AD:BA:00:00:01`, `MQTT_HOST=...` (one URL per access point,
-the driver's fields as query parameters where the URL has no place for them).
 
 ## MQTT topics
 
@@ -118,7 +158,10 @@ are not retained.
 |---|---|---|
 | `wifi-presence/status` | `online` / `offline` (offline is the last will) | yes |
 | `wifi-presence/device/<id>/state` | `home`, `not_home` or `unknown` | yes |
-| `wifi-presence/device/<id>/attributes` | JSON: `access_point`, `area`, `ssid`, `band`, `signal`, `signal_unit`, `quality` (0-100), `home_since` / `away_since`, `last_seen`, `roams_today`, `short_drops_today`, `late_roams_today` | yes |
+| `wifi-presence/device/<id>/attributes` | JSON: `mac`, `access_point`, `area`, `ssid`, `band`, `signal`, `signal_unit`, `quality` (0-100), `last_seen`, `roams_today`, `short_drops_today`, `late_roams_today` | yes |
+| `wifi-presence/device/<id>/home_since` | ISO time the current visit started; empty while away | yes |
+| `wifi-presence/device/<id>/away_since` | ISO time the device was declared away; empty while home | yes |
+| `wifi-presence/device/<id>/access_point` | id of the access point it is on; empty while away | yes |
 | `wifi-presence/ap/<id>/state` | `online` / `offline` (readable or not) | yes |
 | `wifi-presence/ap/<id>/attributes` | JSON: `name`, `model`, `firmware`, `uptime_seconds`, `cpu_percent`, `memory_percent`, `clients` (per band), `average_signal_quality`, `weak_clients`, `error` (when offline) | yes |
 | `wifi-presence/event` | JSON: `{"event": "arrived" / "left" / "roamed", "device": id, "access_point": id, "from": id, "at": ...}` | no |
@@ -127,6 +170,13 @@ are not retained.
 `left` is published when the grace period runs out, not when the client disconnects, so
 a phone that sleeps or roams never sends a false departure, the same rule as the
 integration.
+
+The times and the access point have their own topics as well as being in the
+attributes, so a Node-RED flow can use a plain `mqtt in` node without parsing JSON.
+
+When a device or access point is removed from the configuration, the bridge clears its
+retained topics at the next start (an empty retained message), so nothing stale stays
+on the broker.
 
 ### Home Assistant MQTT discovery (optional)
 
@@ -205,11 +255,20 @@ with a warning in the README. The bridge publishes MAC addresses of tracked devi
 3. **0.1.0b3:** Home Assistant MQTT discovery.
 4. **0.1.0:** after testers on Node-RED and one other platform confirm it.
 
-## Open questions
+## Decisions (2026-10-20)
 
-1. Repository and image name: `wifi-presence-mqtt`?
-2. Topic prefix default `wifi-presence`, and topics by configured id (as proposed) rather
-   than by MAC?
-3. Should `home_since` / `away_since` be in the attributes, or separate retained topics
-   (easier in Node-RED, more topics)?
-4. Environment-only setup (`AP_1=...` URLs): worth having in 0.1.0, or file only at first?
+1. Repository and image: `wifi-presence-mqtt`.
+2. Times (`home_since`, `away_since`) and the current access point get their own
+   retained topics, for Node-RED, besides the attributes JSON.
+3. Configuration from both from the start: environment for the static basics and
+   credentials, YAML for access points, controllers and devices; strict parsing that
+   logs every exact fault and exits.
+
+## Open
+
+- **Topics by configured id (proposed) or by MAC.** By id, a device keeps its topic when
+  its MAC changes (new phone, private / rotating Wi-Fi addresses, now the default on
+  phones): only the config line changes, flows don't. Ids are readable in flows and keep
+  MACs out of the topic tree (the MAC is still in the attributes). By MAC, nothing needs
+  naming, but every MAC change is a new topic, old retained topics pile up, and flows
+  must be edited each time.
