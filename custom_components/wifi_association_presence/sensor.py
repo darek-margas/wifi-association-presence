@@ -33,7 +33,7 @@ from .coordinator import (
     Sighting,
     WifiAssociationConfigEntry,
 )
-from .coverage_stats import AccessPointCoverage, DeviceCounts
+from wifi_ap_associations.coverage import AccessPointCoverage, DeviceCounts
 from .entity import access_point_device_info, tracked_device_info
 
 type StateValue = str | int | datetime | None

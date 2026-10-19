@@ -86,7 +86,7 @@ from .const import (
 )
 from .coordinator import AssociationCoordinator, user_named
 from .diagnostics import store_failed_attempt, store_report
-from .presence import Sighting
+from wifi_ap_associations.presence import Sighting
 from .sources import build_driver, field_choices
 
 

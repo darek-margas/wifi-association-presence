@@ -647,9 +647,9 @@ signal) and its health, and per device whether it is home and on which access po
 Shipped as a container and configured through environment variables: the broker, and
 each access point's type and settings, with passwords from Docker secrets or an env file
 rather than the compose file. Optionally Home Assistant MQTT discovery, for installations
-that keep Home Assistant elsewhere. The presence rules (grace period, roams, arrival and
-departure times) live in this integration today and would move into the library first, so
-the bridge and the integration decide home and away the same way.
+that keep Home Assistant elsewhere. First step done in 0.11.0b4: the presence rules (grace
+period, roams, arrival and departure times, coverage) are now in the library, so the
+bridge and the integration decide home and away the same way.
 
 Done in 0.6.0: the access point code is now a standalone library on PyPI,
 [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), tested and
@@ -661,8 +661,8 @@ The code is in two repos:
 
 | Repo | Holds | Released as |
 |---|---|---|
-| [wifi-ap-associations](https://github.com/darek-margas/wifi-ap-associations) | The access point drivers: logging in, reading the association table and the AP's own details. No Home Assistant imports. Driver tests and AP fixtures. | PyPI package `wifi-ap-associations` (tag `v<version>` in that repo) |
-| this repo | The integration: presence rules, trackers and sensors, configuration flow, the Home Assistant data sources (UniFi, TP-Link Omada), `scripts/` | HACS release (version in `manifest.json`) |
+| [wifi-ap-associations](https://github.com/darek-margas/wifi-ap-associations) | The access point drivers: logging in, reading the association table and the AP's own details; and the presence rules (`presence`, `coverage`, `tracker`: sightings, grace period, visits, coverage, storage). No Home Assistant imports. Driver and presence tests, AP fixtures. | PyPI package `wifi-ap-associations` (tag `v<version>` in that repo) |
+| this repo | The integration: the coordinator (polling schedule, storage, logging, devices and areas around the library's `PresenceTracker`), trackers and sensors, configuration flow, the Home Assistant data sources (UniFi, TP-Link Omada), `scripts/` | HACS release (version in `manifest.json`) |
 
 The integration pins the library exactly in `manifest.json`
 (`"requirements": ["wifi-ap-associations==<version>"]`), and Home Assistant installs that
@@ -675,9 +675,9 @@ the library over the pinned one: `pip install -e ../wifi-ap-associations`.
 - Testing the OpenWrt driver without hardware: [docs/openwrt-vm-test.md](docs/openwrt-vm-test.md)
 - Tests: `python3 -m pytest tests` (needs `pytest` and `wifi-ap-associations`; the driver
   tests are in the library). The presence rules
-  (merging AP reads, roaming, grace period, visits, retention, storage) live in
-  [`presence.py`](custom_components/wifi_association_presence/presence.py) without Home
-  Assistant imports and are tested directly. `tests_ha/` runs the integration inside Home
+  (merging AP reads, roaming, grace period, visits, retention, storage, coverage) live in
+  the library since 0.11.0b4 (`wifi_ap_associations.presence`, `.coverage`, `.tracker`)
+  and are tested there. `tests_ha/` runs the integration inside Home
   Assistant (setup, restarts, outages, UniFi and Omada through stand-ins for their
   integrations); CI runs
   both, ruff, hassfest and the HACS validation on every push.

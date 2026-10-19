@@ -301,7 +301,7 @@ async def test_area_sensor_follows_only_access_point_devices(hass: HomeAssistant
 async def test_coverage_day_resets_during_total_ap_failure(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:
-    from custom_components.wifi_association_presence.coverage_stats import DeviceCounts
+    from wifi_ap_associations.coverage import DeviceCounts
 
     # Cross local midnight while the last successful poll is still within grace.
     tomorrow = dt_util.as_local(dt_util.utcnow()).date() + timedelta(days=1)

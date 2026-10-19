@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.0b4 — presence rules moved into the library (beta)
+
+- **Nothing changes in how presence works**: the rules that decide home and away (grace
+  period, roaming between access points, arrival times, riding out an outage, coverage
+  counts, what is saved across a restart) moved from this integration into the library,
+  wifi-ap-associations 0.12.0, unchanged, with their tests. The integration now keeps
+  only what is Home Assistant's: the polling schedule, storage, logging, devices and
+  areas. Saved data keeps its format, so visits and today's counts survive the update.
+- Why: so other programs built on the library, an MQTT bridge first, decide home and
+  away exactly as the integration does.
+- Uses wifi-ap-associations 0.12.0.
+
 ## 0.11.0b3 — TP-Link Omada, experimental (beta)
 
 - **Add access point → "TP-Link Omada (via the TP-Link Omada integration)"**, shown as

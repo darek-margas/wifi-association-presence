@@ -1,4 +1,10 @@
-"""Poll every configured access point and remember where each MAC was last seen."""
+"""Poll every configured access point and remember where each MAC was last seen.
+
+The presence rules and the state across polls are the library's (PresenceTracker in
+wifi_ap_associations.tracker, shared with programs outside Home Assistant); this
+coordinator schedules the polls, stores the data, logs, and links access points to
+Home Assistant's devices and areas.
+"""
 
 from __future__ import annotations
 
@@ -17,6 +23,15 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from wifi_ap_associations import DRIVERS, AccessPointDriver, AccessPointError, AccessPointInfo
+from wifi_ap_associations.coverage import AccessPointCoverage, CoverageTracker
+from wifi_ap_associations.presence import AccessPointRead, AccessPointState, Sighting
+from wifi_ap_associations.tracker import (
+    AllAccessPointsFailed,
+    PresenceSnapshot,
+    PresenceTracker,
+    poll_all,
+    watch_forever,
+)
 from .const import (
     CONF_CONSIDER_HOME,
     CONF_DRIVER,
@@ -33,50 +48,21 @@ from .const import (
     WATCH_RETRY_MIN,
     WATCH_STABLE,
 )
-from .coverage_stats import AccessPointCoverage, CoverageTracker, access_point_coverage
-from .presence import (
-    AccessPointRead,
-    AccessPointState,
-    Sighting,
-    carry_visits,
-    is_present,
-    merge_reads,
-    prune,
-    restart_visit_gap,
-    ride_out_total_failure,
-    sightings_from_storage,
-    sightings_to_storage,
-    stored_at,
-    stored_cleanly,
-)
 from .sources import build_driver
 
 __all__ = ["AccessPointState", "Sighting"]
 
 type WifiAssociationConfigEntry = ConfigEntry[AssociationCoordinator]
 
-# Sightings are kept (and stored across reloads and restarts) this long, so devices that
-# sleep with Wi-Fi off (cars, tablets) can still be picked when adding a tracked device.
-SIGHTING_RETENTION = timedelta(days=7)
+# Coordinator data: sightings by MAC and access point state by subentry id (the
+# subentry id is the tracker's access point id).
+PresenceData = PresenceSnapshot
+
 STORAGE_VERSION = 1
 # Sightings and visits are written at most this often, plus on unload and when Home
 # Assistant stops (it does not unload entries then): a few minutes of staleness after a
 # crash is fine, a write per poll is not (SD cards).
 STORAGE_SAVE_INTERVAL = timedelta(minutes=10)
-# A device read in the latest poll must count as present, so a shorter grace period
-# acts as this one: away after one missed poll.
-MIN_CONSIDER_HOME = timedelta(seconds=30)
-# Sightings this close together belong to the same visit even with a short grace
-# period (consecutive polls are SCAN_INTERVAL apart, give or take a slow AP).
-MIN_VISIT_GAP = SCAN_INTERVAL + timedelta(seconds=30)
-
-
-@dataclass(frozen=True, slots=True)
-class PresenceData:
-    """Coordinator data: sightings by MAC and access point state by subentry id."""
-
-    sightings: dict[str, Sighting]
-    access_points: dict[str, AccessPointState]
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,34 +139,37 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
                     subentry.subentry_id, subentry.title, driver, named=user_named(subentry)
                 )
             )
-        self._sightings: dict[str, Sighting] = {}
-        self._ap_states: dict[str, AccessPointState] = {}
         self._failing: set[str] = set()
-        # Last poll in which at least one access point was read; a poll in which none
-        # could be is ridden out only within the grace period after it.
-        self._last_success: datetime | None = None
         self._next_save: datetime | None = None
-        # When the restored sightings file was written, and whether at stop/unload
-        # (clean) or periodically; None once the first poll used it.
-        self._restored_at: datetime | None = None
-        self._restored_clean = False
         # Set by the save at stop/unload; no periodic write may replace it afterwards.
         self._final_save_done = False
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.sightings"
         )
-        self.consider_home = max(
+        # Sightings, visits, AP states and coverage across polls (the library's rules).
+        self.tracker = PresenceTracker(
             timedelta(seconds=entry.options.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)),
-            MIN_CONSIDER_HOME,
+            poll_interval=SCAN_INTERVAL,
         )
-        self._visit_gap = max(self.consider_home, MIN_VISIT_GAP)
-        # Coverage sensors: per-device counts of the day, per-AP client signal.
-        self.coverage = CoverageTracker()
-        self.access_point_coverage: dict[str, AccessPointCoverage] = {}
         # Instant arrivals: at most one task asking for a refresh at a time; changes
         # reported meanwhile only mark that it should ask once more.
         self._trigger_task: asyncio.Task[None] | None = None
         self._trigger_again = False
+
+    @property
+    def consider_home(self) -> timedelta:
+        """The grace period in use (never under one poll)."""
+        return self.tracker.consider_home
+
+    @property
+    def coverage(self) -> CoverageTracker:
+        """Coverage counts of the day per device (roams, short drops, late roams)."""
+        return self.tracker.coverage
+
+    @property
+    def access_point_coverage(self) -> dict[str, AccessPointCoverage]:
+        """Client signal per access point in the latest poll."""
+        return self.tracker.access_point_coverage
 
     @property
     def has_access_points(self) -> bool:
@@ -190,13 +179,9 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
     async def async_restore_sightings(self) -> None:
         """Load the sightings saved before the last reload or restart."""
         stored = await self._store.async_load()
-        self._sightings = sightings_from_storage(stored, dt_util.utcnow(), SIGHTING_RETENTION)
-        self._restored_at = stored_at(stored)
-        self._restored_clean = stored_cleanly(stored)
-        # Today's coverage counts (roams, drops, late roams) survive a same-day restart.
-        self.coverage.restore(
-            (stored or {}).get("coverage"), dt_util.as_local(dt_util.utcnow()).date()
-        )
+        now = dt_util.utcnow()
+        # Visits, and today's coverage counts, survive a reload or restart.
+        self.tracker.restore(stored, now, dt_util.as_local(now).date())
 
     async def async_save_sightings(self) -> None:
         """Save now (on unload and on stop, so the next setup starts from current data)."""
@@ -205,24 +190,16 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
 
     def _storage_data(self, clean: bool = False) -> dict[str, Any]:
         """What is saved: the sightings and today's coverage counts."""
-        data = sightings_to_storage(self._sightings, dt_util.utcnow(), clean=clean)
-        data["coverage"] = self.coverage.to_storage()
-        return data
+        return self.tracker.to_storage(dt_util.utcnow(), clean=clean)
 
     async def _async_update_data(self) -> PresenceData:
         """Read every AP in parallel; keep previous sightings for APs that fail."""
-        self.coverage.reset_day(dt_util.as_local(dt_util.utcnow()).date())
         if not self.access_points:
-            return PresenceData(dict(self._sightings), {})
+            now = dt_util.utcnow()
+            return self.tracker.update([], now, dt_util.as_local(now).date())
 
         started = time.monotonic()
-        results = await asyncio.gather(
-            *(
-                asyncio.wait_for(ap.driver.async_poll(), ap.driver.POLL_TIMEOUT)
-                for ap in self.access_points
-            ),
-            return_exceptions=True,
-        )
+        results = await poll_all([ap.driver for ap in self.access_points])
         LOGGER.debug(
             "Polled %d access point(s) in %.2f s", len(self.access_points), time.monotonic() - started
         )
@@ -241,47 +218,20 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             self._log_read(ap, result)
 
         now = dt_util.utcnow()
-        merged = merge_reads(reads, now)
-        self._ap_states.update(merged.states)
-        for subentry_id in merged.failed:
-            # Keep what the AP last reported about itself (name, firmware) while down.
-            previous = self._ap_states.get(subentry_id)
-            self._ap_states[subentry_id] = AccessPointState(
-                available=False, info=previous.info if previous else None
-            )
-        if len(merged.failed) == len(self.access_points):
-            # Nobody was observed: a device seen on another AP afterwards is no roam.
-            self.coverage.interrupt()
+        try:
             # A short total outage (e.g. a controller restart) is ridden out on the
-            # previous sightings, like a single failing AP; the first refresh still
-            # fails, so setup is retried.
-            if not ride_out_total_failure(self._last_success, now, self.consider_home):
-                raise UpdateFailed("None of the access points could be read")
+            # previous sightings, like a single failing AP; past the grace period (and
+            # at the first refresh, so setup is retried) it fails.
+            data = self.tracker.update(reads, now, dt_util.as_local(now).date())
+        except AllAccessPointsFailed as err:
+            raise UpdateFailed(str(err)) from err
+        if self.tracker.last_success != now:
             LOGGER.debug("No access point could be read; within the grace period")
-            return PresenceData(dict(self._sightings), dict(self._ap_states))
-        self._last_success = now
-        self.coverage.update(
-            merged.sightings,
-            merged.failed,
-            now,
-            dt_util.as_local(now).date(),
-            self.consider_home,
-        )
-        self.access_point_coverage = access_point_coverage(merged.sightings)
-
-        visit_gap = self._visit_gap
-        if self._restored_at is not None:
-            # First poll after a restart or reload (see restart_visit_gap).
-            visit_gap = restart_visit_gap(
-                visit_gap, self._restored_at, self._restored_clean, now
-            )
-            self._restored_at = None
-        seen = carry_visits(merged.sightings, self._sightings, now, visit_gap)
-        self._sightings = prune({**self._sightings, **seen}, now, SIGHTING_RETENTION)
+            return data
         if not self._final_save_done and (self._next_save is None or now >= self._next_save):
             self._store.async_delay_save(self._storage_data)
             self._next_save = now + STORAGE_SAVE_INTERVAL
-        return PresenceData(dict(self._sightings), dict(self._ap_states))
+        return data
 
     @callback
     def async_start_watchers(self) -> None:
@@ -306,36 +256,22 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         is retried after a growing wait, logged once when it stops and once when it
         works again; polling every minute goes on regardless.
         """
-        delay = WATCH_RETRY_MIN
-        paused = False
-        while True:
-            started = time.monotonic()
-            try:
-                await ap.driver.async_watch(self._on_change)
-                reason = "the feed ended"
-            except asyncio.CancelledError:
-                raise
-            except AccessPointError as err:
-                reason = str(err) or type(err).__name__
-            except Exception:  # a driver bug must not end the watching for good
-                LOGGER.exception("Unexpected error watching access point %s", ap.title)
-                reason = "unexpected error"
-            if time.monotonic() - started >= WATCH_STABLE:
-                delay = WATCH_RETRY_MIN
-                if paused:
-                    LOGGER.info("Instant arrivals for %s work again", ap.title)
-                    paused = False
-            if not paused:
-                LOGGER.info(
-                    "Instant arrivals for %s paused (%s); polling every minute goes on",
-                    ap.title,
-                    reason,
-                )
-                paused = True
-            else:
-                LOGGER.debug("Watching %s again failed: %s", ap.title, reason)
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, WATCH_RETRY_MAX)
+        await watch_forever(
+            ap.driver,
+            self._on_change,
+            on_paused=lambda reason: LOGGER.info(
+                "Instant arrivals for %s paused (%s); polling every minute goes on",
+                ap.title,
+                reason,
+            ),
+            on_resumed=lambda: LOGGER.info("Instant arrivals for %s work again", ap.title),
+            on_failed_again=lambda reason: LOGGER.debug(
+                "Watching %s again failed: %s", ap.title, reason
+            ),
+            retry_min=WATCH_RETRY_MIN,
+            retry_max=WATCH_RETRY_MAX,
+            stable=WATCH_STABLE,
+        )
 
     @callback
     def _on_change(self) -> None:
@@ -429,7 +365,6 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
 
     def current_sighting(self, mac: str | None) -> Sighting | None:
         """The MAC's sighting if it is within the grace period, else None."""
-        if not mac or self.data is None:
+        if self.data is None:
             return None
-        sighting = self.data.sightings.get(mac)
-        return sighting if is_present(sighting, dt_util.utcnow(), self.consider_home) else None
+        return self.tracker.current(mac, dt_util.utcnow())
