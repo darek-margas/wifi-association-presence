@@ -198,6 +198,9 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         now = dt_util.utcnow()
         # Visits, and today's coverage counts, survive a reload or restart.
         self.tracker.restore(stored, now, dt_util.as_local(now).date())
+        # Fast departures that were pending at the restart are still due on time.
+        for at in self.tracker.pending_departures(now):
+            self._book_departure_poll((at - now).total_seconds())
 
     async def async_save_sightings(self) -> None:
         """Save now (on unload and on stop, so the next setup starts from current data)."""
@@ -303,13 +306,18 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             return
         LOGGER.debug("Client left %s: devices missing from it are away in %s", ap.title, fast)
         self.tracker.note_leave(ap.subentry_id, dt_util.utcnow())
+        self._book_departure_poll(fast.total_seconds())
+
+    @callback
+    def _book_departure_poll(self, delay: float) -> None:
+        """Poll just after a fast departure deadline `delay` seconds from now."""
 
         @callback
         def _due(_now: datetime) -> None:
             self._departure_polls.discard(cancel)
             self._on_change()
 
-        cancel = async_call_later(self.hass, fast.total_seconds() + 1, _due)
+        cancel = async_call_later(self.hass, delay + 1, _due)
         self._departure_polls.add(cancel)
 
     @callback

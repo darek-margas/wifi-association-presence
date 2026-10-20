@@ -176,3 +176,42 @@ async def test_a_later_leave_never_postpones_an_earlier_deadline(
     assert polls == ["poll", "poll"]
     assert coordinator._departure_polls == set()
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_a_reload_rebooks_pending_deadline_polls(
+    hass: HomeAssistant, freezer, monkeypatch
+) -> None:
+    from homeassistant.util import dt as dt_util
+    from wifi_ap_associations.presence import SIGNAL_DBM, AccessPointRead
+
+    entry = await setup(hass, {"fast_departure": 30})
+    tracker = entry.runtime_data.tracker
+    ap = entry.runtime_data.access_points[0]
+
+    def round_(*clients: tuple[str, int]) -> None:
+        now = dt_util.utcnow()
+        result = PollResult(
+            [AssociatedClient(mac, "Home", "5GHz", s) for mac, s in clients],
+            AccessPointInfo(name="AP", firmware="1.0", uptime_seconds=3600),
+        )
+        tracker.update([AccessPointRead(ap.subentry_id, "AP", SIGNAL_DBM, result)], now, now.date())
+
+    round_((PHONE, -50))
+    freezer.tick(10)
+    tracker.note_leave(ap.subentry_id, dt_util.utcnow())  # deadline in 30 s
+    freezer.tick(5)
+    round_()  # the phone is missing: away at the deadline
+    assert tracker.pending_departures(dt_util.utcnow())
+    assert await hass.config_entries.async_unload(entry.entry_id)  # saves
+
+    async def empty(self) -> PollResult:  # the phone is still gone after the reload
+        return PollResult([], AccessPointInfo(name="AP"))
+
+    monkeypatch.setattr(WatchingDriver, "async_poll", empty)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    coordinator = entry.runtime_data
+    assert coordinator.tracker.pending_departures(dt_util.utcnow())
+    # The poll at the restored deadline is booked again.
+    assert len(coordinator._departure_polls) == 1
+    assert await hass.config_entries.async_unload(entry.entry_id)
