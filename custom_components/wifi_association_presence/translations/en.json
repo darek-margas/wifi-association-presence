@@ -131,7 +131,7 @@
             "ap_name": "The access point's name as the Cisco controller lists it (show ap summary), e.g. AP01. Host and login are the controller's; add one access point per AP.",
             "cap": "The CAP's identity as the CAPsMAN controller lists it (/interface wifi capsman remote-cap print), e.g. ap_upstairs. Host and login are the controller's; add one access point per CAP.",
             "snmp_version": "Which credentials are used: the community (v2c) or the user and keys (v3). The others may stay filled in.",
-            "community": "SNMP v2c: the controller's read-only community.",
+            "community": "SNMP v2c: the read-only community of the access point or controller.",
             "priv_key": "SNMP v3: leave empty to use the authentication key."
           }
         },
@@ -161,7 +161,7 @@
             "ap_name": "The access point's name as the Cisco controller lists it (show ap summary), e.g. AP01. Host and login are the controller's; add one access point per AP.",
             "cap": "The CAP's identity as the CAPsMAN controller lists it (/interface wifi capsman remote-cap print), e.g. ap_upstairs. Host and login are the controller's; add one access point per CAP.",
             "snmp_version": "Which credentials are used: the community (v2c) or the user and keys (v3). The others may stay filled in.",
-            "community": "SNMP v2c: the controller's read-only community.",
+            "community": "SNMP v2c: the read-only community of the access point or controller.",
             "priv_key": "SNMP v3: leave empty to use the authentication key."
           }
         }

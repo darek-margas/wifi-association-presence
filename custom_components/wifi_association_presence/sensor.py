@@ -49,18 +49,23 @@ class AccessPointSensorDescription(SensorEntityDescription):
     # The AccessPointInfo field the value comes from, if any: the sensor is only created
     # for drivers that report it (AccessPointDriver.REPORTS).
     info_field: str | None = None
+    # The client detail it needs ("band" or "signal"), if any: only created for drivers
+    # that give it (AccessPointDriver.CLIENT_DETAILS).
+    client_detail: str | None = None
 
 
 ACCESS_POINT_SENSORS = (
     AccessPointSensorDescription(
         key="clients_2_4ghz",
         translation_key="clients_2_4ghz",
+        client_detail="band",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda s: s.clients_by_band.get("2.4GHz", 0),
     ),
     AccessPointSensorDescription(
         key="clients_5ghz",
         translation_key="clients_5ghz",
+        client_detail="band",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda s: s.clients_by_band.get("5GHz", 0),
     ),
@@ -110,6 +115,7 @@ ACCESS_POINT_SENSORS = (
     AccessPointSensorDescription(
         key="average_client_signal",
         translation_key="average_client_signal",
+        client_detail="signal",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda _: None,
@@ -118,6 +124,7 @@ ACCESS_POINT_SENSORS = (
     AccessPointSensorDescription(
         key="weak_clients",
         translation_key="weak_clients",
+        client_detail="signal",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda _: None,
         coverage_fn=lambda c: c.weak_clients if c else 0,
@@ -211,7 +218,8 @@ async def async_setup_entry(
         reported = [
             d
             for d in ACCESS_POINT_SENSORS
-            if d.info_field is None or d.info_field in ap.driver.REPORTS
+            if (d.info_field is None or d.info_field in ap.driver.REPORTS)
+            and (d.client_detail is None or d.client_detail in ap.driver.CLIENT_DETAILS)
         ]
         # Sensors created by earlier versions for details this driver never reports.
         for description in ACCESS_POINT_SENSORS:

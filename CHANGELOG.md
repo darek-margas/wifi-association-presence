@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.0b9 — standalone TP-Link EAP over SNMP (beta, experimental)
+
+- **TP-Link EAP, standalone (SNMP)**, experimental: EAP access points running without an
+  Omada controller, read over SNMP v2c or v3. Built from an EAP670's reports in the
+  [Omada discussion](https://github.com/darek-margas/wifi-association-presence/discussions/4);
+  it gives presence and which AP, not signal, band or SSID (the EAP's client table has
+  only MACs). Setup in the [wiki](https://github.com/darek-margas/wifi-association-presence/wiki/TP-Link-EAP).
+  EAPs managed by a controller keep using the TP-Link Omada type. Its access points get
+  a client count but no per-band counts or signal sensors, which would always read zero.
+- Uses wifi-ap-associations 0.13.1.
+
 ## 0.11.0b8 — instant arrivals for D-Link DAP; fast departure (beta)
 
 - **Instant arrivals for D-Link DAP access points.** Set the DAP's SNMP trap server to
