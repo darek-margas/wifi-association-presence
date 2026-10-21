@@ -119,8 +119,7 @@ Every tracker tells you **when** the device arrived or left, not just whether it
   shows in seconds instead of up to a minute. Departures still wait for the grace period,
   and the poll, not the event, decides who is there. On by default; switch it off in
   **Configure** (for MikroTik and OpenWrt it keeps one SSH connection open per access
-  point or CAPsMAN controller; UniFi uses the events the UniFi Network integration
-  already receives; D-Link DAPs send SNMP traps to Home Assistant, see the
+  point or CAPsMAN controller; UniFi keeps the controller's event stream open; D-Link DAPs send SNMP traps to Home Assistant, see the
   [wiki](../../wiki/D-Link-DAP#instant-arrivals-snmp-traps)).
 - **Fast departure** (optional, off by default). When an access point reports a client
   leaving, a device missing from it is away after a short time you choose instead of the
@@ -335,12 +334,12 @@ Leaving an access point's password empty keeps the current one.
 | Type | Models | Method |
 |---|---|---|
 | D-Link DAP (SSH console) | **Tested:** DAP-2610 (fw v2.06, [report](docs/ap-reports/dlink-dap-2610-v2.06.txt)), DAP-3662. **Likely:** other DAP models with the same CLI Setup guide: [wiki](../../wiki/D-Link-DAP). | SSH: `config wlan 0/1` + `get clientinfo` |
-| UniFi (via the UniFi Network integration) | **Confirmed** on a UniFi Network controller by a user. Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application that Home Assistant's [UniFi Network](https://www.home-assistant.io/integrations/unifi/) integration is connected to Setup guide: [wiki](../../wiki/UniFi). | The controller's active client list (`stat/sta`), over the UniFi integration's existing session |
+| UniFi Network controller | **Confirmed** on a UniFi Network controller by a user. Any UniFi AP, or console/gateway with built-in Wi-Fi, managed by a UniFi Network application (UniFi OS console, Cloud Key or self-hosted); read through the controller with a local account (since 0.12; the login checked against a self-hosted Network application 10.0). Setup guide: [wiki](../../wiki/UniFi). | The controller's active client list (`stat/sta`) and devices (`stat/device`) over its web API, one login and one read shared by its APs; its event stream for instant arrivals |
 | OpenWrt (SSH, ubus) | Any AP running OpenWrt with its standard hostapd (`wpad-*`). **Verified** on OpenWrt 25.12.5 end to end in Home Assistant and on 22.03.7, in VMs with simulated radios; reports from physical routers welcome Setup guide: [wiki](../../wiki/OpenWrt). | SSH: `ubus call hostapd.<radio> get_clients` / `get_status` for every radio, `ubus call system board` / `info` |
 | MikroTik RouterOS (SSH) | RouterOS access points and routers with Wi-Fi. **Confirmed** in Home Assistant on a cAP lite with the `wireless` package, RouterOS 7.24.4 ([#12](https://github.com/darek-margas/wifi-association-presence/issues/12)), with signal; system details also on RouterOS 7.20 (a CRS310 switch). For CAPsMAN with one access point per CAP, use the MikroTik CAPsMAN type below. Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH, one exec request per command: `/system identity`, `/system resource`, `/interface wifi` (RouterOS 7) and `/interface wireless` (RouterOS 6, and RouterOS 7 radios still on it) `registration-table print terse` and `print terse`, both read and combined (signal and uptime of `wireless` from `registration-table print stats terse`) |
 | MikroTik CAP via CAPsMAN (SSH) | CAPs managed by a CAPsMAN controller on RouterOS 7 (`wifi` package); one access point here per CAP, picked by its identity on the controller. **Confirmed** in Home Assistant on a CAPsMAN router with two cAP ax on RouterOS 7.24.4 ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)). Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH exec on the controller, one login shared by its CAPs: `/interface wifi capsman remote-cap`, `/interface wifi` and its `registration-table`, each `print terse`; each client put on the CAP its interface (or its master interface) belongs to |
 | Cisco Catalyst 9800 controller (SSH or SNMP) | Lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE); one access point here per Cisco AP, picked by its name on the controller. **Confirmed over SSH** on a C9800-CL (IOS-XE 17.15.5, C9120AXI, [#10](https://github.com/darek-margas/wifi-association-presence/issues/10)) in Home Assistant, with signal, using a restricted parser view, and **over SNMP** (v3) in Home Assistant, with signal on every client; its clients, SSIDs and bands matched SSH. Setup guide: [wiki](../../wiki/Cisco-Catalyst-9800). | SSH: the controller's console, one login shared by its APs: `show ap summary`, `show wlan summary`, `show wireless client summary`, and up to 15 clients' `show wireless client mac-address <mac> detail` per poll, in turns, for signal and connected time. SNMP (v2c or v3, chosen in the settings): the Airespace client table (AP, SSID, state, protocol), client statistics (signal) and AP table (name, location, status, model), plus Cisco's client table (connected time), one read shared by its APs |
-| TP-Link Omada (via the TP-Link Omada integration), **experimental** | Omada access points (EAP) managed by an Omada controller (software, OC200/OC300, or a router with a built-in controller) that Home Assistant's [TP-Link Omada](https://www.home-assistant.io/integrations/tplink_omada/) integration is connected to. Written from the data that integration is tested with; testers wanted in the [Omada discussion](https://github.com/darek-margas/wifi-association-presence/discussions/4). Setup guide: [wiki](../../wiki/TP-Link-Omada). | The controller's connected client list and device list, over the Omada integration's existing session, once a minute for all its APs |
+| TP-Link Omada controller, **experimental** | Omada access points (EAP) managed by an Omada controller, version 5 or later (software, OC200/OC300, or a router with a built-in controller); read through the controller with a local account (since 0.12; the login checked against a software controller 5.15, not yet with access points). Testers wanted in the [Omada discussion](https://github.com/darek-margas/wifi-association-presence/discussions/4). Setup guide: [wiki](../../wiki/TP-Link-Omada). | The controller's connected clients and devices over its web API (v2), one login and one read shared by its EAPs |
 | TP-Link EAP, standalone (SNMP), **experimental** | TP-Link EAP access points running without an Omada controller. Built from an EAP670's reports (firmware 1.3.13); testers wanted in the [Omada discussion](https://github.com/darek-margas/wifi-association-presence/discussions/4). Setup guide: [wiki](../../wiki/TP-Link-EAP). | SNMP (v2c or v3): TP-Link's client table (the clients' MACs) and the system name and description |
 
 ### What each type reports
@@ -349,15 +348,15 @@ Leaving an access point's password empty keeps the current one.
 |---|---|---|---|---|---|---|---|---|
 | Clients, band, SSID name | ✓ | ✓ | ✓ | ✓ | ✓ (per CAP) | ✓ | ✓ | clients only |
 | Signal | % | dBm | dBm | dBm | dBm | dBm: over SNMP every poll, over SSH each client refreshed about every 2 minutes | dBm | — |
-| AP device and sensors created here | ✓ | ✓ | — (uses the UniFi device) | ✓ | ✓ (one per CAP) | ✓ | — (uses the Omada device) | ✓ |
-| Name | system name | host name | UniFi name | identity | CAP identity | AP name | Omada name | system name |
-| Model | — (enter it in the AP's settings) | ✓ | in UniFi | ✓ (board name) | ✓ (board name) | ✓ | in Omada | ✓ |
-| Firmware, hardware | ✓ | ✓ | in UniFi | firmware | firmware | — | in Omada | — |
-| Last boot (uptime) | ✓ | ✓ | in UniFi | ✓ | ✓ | — | in Omada | — |
+| AP device and sensors created here | ✓ | ✓ | ✓ | ✓ | ✓ (one per CAP) | ✓ | ✓ | ✓ |
+| Name | system name | host name | controller name | identity | CAP identity | AP name | controller name | system name |
+| Model | — (enter it in the AP's settings) | ✓ | ✓ | ✓ (board name) | ✓ (board name) | ✓ | ✓ | ✓ |
+| Firmware, hardware | ✓ | ✓ | firmware | firmware | firmware | — | ✓ | — |
+| Last boot (uptime) | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | — |
 | Location | ✓ | — (no such setting) | — | — | — | ✓ (if set on the controller) | — | — |
-| CPU % | ✓ | — (only load averages) | in UniFi | ✓ | — | — | in Omada | — |
-| Memory % | ✓ | ✓ | in UniFi | ✓ | — | — | in Omada | — |
-| Login | SSH, password | SSH, password | none (the UniFi integration's session) | SSH, password | SSH, the controller's | the controller's: SSH (a parser view with five commands, see the [wiki](../../wiki/Cisco-Catalyst-9800); privilege 1 gives presence only), or SNMP v2c / v3 | none (the Omada integration's session) | SNMP v2c / v3 |
+| CPU % | ✓ | — (only load averages) | ✓ | ✓ | — | — | ✓ | — |
+| Memory % | ✓ | ✓ | ✓ | ✓ | — | — | ✓ | — |
+| Login | SSH, password | SSH, password | the controller's: a local account | SSH, password | SSH, the controller's | the controller's: SSH (a parser view with five commands, see the [wiki](../../wiki/Cisco-Catalyst-9800); privilege 1 gives presence only), or SNMP v2c / v3 | the controller's: a local account | SNMP v2c / v3 |
 
 Sensors for details a type can't report are not created. No type gives clients' IP
 addresses or host names to this integration, so trackers have no `ip` / `host_name`.
@@ -368,9 +367,9 @@ Each type of access point is a driver, and there are two kinds:
 
 - **Directly from the AP** (D-Link and OpenWrt, over SSH). Works without any controller,
   and with only the APs you are allowed to log in to.
-- **Through a controller** (UniFi and TP-Link Omada, via Home Assistant's own
-  integrations for them; Cisco 9800, over SSH or SNMP). No
-  login per AP and one request for all of them, but you need access to the controller.
+- **Through a controller** (UniFi and TP-Link Omada over the controller's web API; Cisco
+  9800 over SSH or SNMP; MikroTik CAPsMAN over SSH). One login and one request for all
+  of a controller's APs, but you need an account on the controller.
 
 Both can exist for the same vendor and can be mixed in one installation, because every
 access point is its own entry and trackers don't care which driver saw a device. That
@@ -383,39 +382,37 @@ each AP keeps its own device and area, so room-level presence works the same.
 
 The full guide is in the [wiki](../../wiki/UniFi).
 
-- Set up Home Assistant's **UniFi Network** integration first. No credentials are entered
-  here: this integration reuses that one's connection to the controller.
-- **Add access point → UniFi (via the UniFi Network integration)**, then pick the AP from
-  the list (one access point entry per physical AP). APs already added are left out of
-  the list.
-- No new device or AP sensors are created: the entry attaches to the AP's **existing
-  UniFi device**, and the area you set on that device is what the tracked devices' Area
-  sensor reports. UniFi already provides the AP's client count, uptime, CPU and memory
-  there.
-- Each poll requests the controller's active client list once, shared by all its APs; a
-  client is associated to an AP while the controller lists it there. Signal is in dBm.
+- A **local account** on the controller (a View Only / Read Only role is enough), not a
+  UniFi cloud account with two-factor sign-in.
+- **Add access point → UniFi Network controller**: the controller's address, port (443
+  for a UniFi OS console, 8443 for a self-hosted Network application), the account and
+  the site (`default`), then pick the AP from the controller's list. One entry per
+  physical AP; they share one login and one read.
+- Each poll requests the controller's active client list and devices once, shared by all
+  its APs; a client is associated to an AP while the controller lists it there. Signal is
+  in dBm. The controller's event stream makes an arrival poll at once.
 - An AP the controller reports as offline (or not adopted) counts as unreadable, and
   tracked devices on it fall back to the grace period, as with any failing AP.
-- The UniFi integration's own device trackers can stay enabled or be disabled; they are
-  independent of this integration's trackers.
+- **Added before 0.12?** Those read through Home Assistant's UniFi Network integration,
+  which a custom integration may not do; after the update a repair notice asks to
+  **Reconfigure** each with the controller's login. Home Assistant's UniFi integration
+  can stay; the two are independent.
 
 ### TP-Link Omada setup notes (experimental)
 
 The full guide is in the [wiki](../../wiki/TP-Link-Omada).
 
-- Set up Home Assistant's **TP-Link Omada** integration first. No credentials are
-  entered here: this integration reuses that one's connection to the controller.
-- **Add access point → TP-Link Omada (via the TP-Link Omada integration)**, then pick
-  the EAP from the list (one access point entry per EAP). The list comes from the Omada
-  integration's device list, which it refreshes every 5 minutes.
-- No new device or AP sensors are created: the entry attaches to the EAP's **existing
-  Omada device**, and the area you set on that device is what the tracked devices' Area
-  sensor reports.
+- A **local account** on the controller (Viewer role is enough), controller version 5 or
+  later.
+- **Add access point → TP-Link Omada controller**: the controller's address, port (443
+  for an OC200/OC300 or a router, 8043 for the software controller), the account and the
+  site (`Default`), then pick the EAP from the controller's list. One entry per EAP.
 - Each poll asks the controller for its connected clients and devices once, shared by
-  all its EAPs (the Omada integration's own client list is only refreshed every 5
-  minutes). Signal is in dBm. An EAP the controller doesn't show as connected counts as
-  unreadable.
+  all its EAPs. Signal is in dBm. An EAP the controller doesn't show as connected counts
+  as unreadable.
 - No instant arrivals: the Omada controller has no event feed for them.
+- **Added before 0.12?** As for UniFi: a repair notice asks to **Reconfigure** each EAP
+  with the controller's login.
 
 ### OpenWrt setup notes
 
@@ -464,10 +461,10 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
 ## Limitations
 
 **Access point support**
-- **Six kinds of access point so far:** D-Link DAP, OpenWrt, UniFi (through Home
-  Assistant's UniFi Network integration), MikroTik RouterOS (also CAPsMAN), Cisco
-  Catalyst 9800 (over SSH or SNMP) and TP-Link Omada (through Home Assistant's Omada
-  integration, experimental). Support for more depends on owners contributing data (see
+- **Seven kinds of access point so far:** D-Link DAP, OpenWrt, UniFi (through its
+  controller), MikroTik RouterOS (also CAPsMAN), Cisco Catalyst 9800 (over SSH or SNMP),
+  TP-Link Omada (through its controller, experimental) and standalone TP-Link EAP (SNMP,
+  experimental). Support for more depends on owners contributing data (see
   [Help add your access point](#help-add-your-access-point) and the
   [Roadmap](#roadmap)); the driver interface is designed for it.
 - **Each type gives what its AP offers**, no more (see
@@ -733,11 +730,10 @@ What a new driver needs on this side:
 - labels for new setting names in `strings.json` and `translations/en.json` (data and
   data_description of the `details` and `reconfigure` steps, and `selector` options for
   settings with choices); `tests/test_strings.py` fails if one is missing;
-- for a driver that reads through another Home Assistant integration (`SOURCE`, like
-  UniFi or TP-Link Omada), the source registered once in
-  [`sources.py`](custom_components/wifi_association_presence/sources.py): how to create
-  it, the options for its access point setting, and the "nothing left to add" message.
-  The driver module itself stays free of Home Assistant imports;
+- nothing else for a controller driver that lists its access points
+  (`LISTS_ACCESS_POINTS`): the form logs in with the controller settings and offers the
+  list for the access point setting. A custom integration may not borrow another
+  integration's logged-in session, so a driver logs in itself;
 - a beta, pushed only once the library version it pins is on PyPI.
 
 ## License

@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.12.0b1 — UniFi and TP-Link Omada log in to their controller (beta)
+
+**Why:** the review for HACS's default list asked that this integration stop reading
+UniFi (and so TP-Link Omada) through Home Assistant's own integrations for them: a
+custom integration must not reach into another integration's logged-in session or client
+object, which can change without notice and uses a login the user never gave this
+integration. So these two access point types now log in to the controller themselves,
+with an account you give them. Nothing else changes.
+
+- **Add access point → UniFi Network controller / TP-Link Omada controller:** the
+  controller's address, port, a local account and the site, then pick the access point
+  from the controller's list. Access points of one controller share one login and one
+  read. UniFi keeps the controller's event stream open for instant arrivals.
+- **Already have UniFi or Omada access points?** After the update each one shows
+  unavailable and a **repair notice** names it: **Reconfigure** it with the controller's
+  address, port, account and site. Tracked devices and their history stay; the access
+  point gets a device of its own, starting in the area of the UniFi or Omada
+  integration's device for it, with its client count, firmware, uptime, CPU and memory.
+  Those integrations can stay installed; they're independent of this one now. Guides:
+  [UniFi](https://github.com/darek-margas/wifi-association-presence/wiki/UniFi),
+  [Omada](https://github.com/darek-margas/wifi-association-presence/wiki/TP-Link-Omada).
+- The login is checked against a self-hosted UniFi Network application 10.0 and an Omada
+  software controller 5.15; UniFi OS consoles and real access points need testers.
+- A failed connection test in the access point form now says why (the controller's or
+  access point's own answer).
+- Uses wifi-ap-associations 0.14.0.
+
 ## 0.11.0 — instant arrivals for UniFi, OpenWrt and D-Link DAP; fast departure; TP-Link
 
 Everything since 0.10.0 (the 0.11.0 betas below have the details), for everyone. Update

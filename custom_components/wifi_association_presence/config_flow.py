@@ -91,7 +91,6 @@ from .const import (
 from .coordinator import AssociationCoordinator, user_named
 from .diagnostics import store_failed_attempt, store_report
 from wifi_ap_associations.presence import Sighting
-from .sources import build_driver, field_choices
 
 
 TEST_TIMEOUT = 45
@@ -518,6 +517,9 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
     """Add or edit an access point: its type, a name and that type's settings."""
 
     _driver_type: str
+    # A controller type: the settings so far, and its access points to pick from.
+    _pending: dict[str, Any]
+    _options: list[SelectOptionDict]
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -554,34 +556,83 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
         """Ask for the name and settings of the chosen type, and test them."""
         driver_cls = DRIVERS[self._driver_type]
         errors: dict[str, str] = {}
+        reason = ""
         if user_input is not None:
             name, data = _split_name(user_input, driver_cls)
-            if self._in_use(driver_cls, data):
-                return self.async_abort(reason="already_configured")
             # The name is stored explicitly, so "user named it" isn't guessed later.
             data = {CONF_DRIVER: self._driver_type, **data, CONF_NAME: name or ""}
-            errors, reported_name = await _async_build_and_test(self.hass, driver_cls, data)
-            if not errors:
-                return self.async_create_entry(
-                    title=name
-                    or reported_name
-                    or data.get(driver_cls.UNIQUE_FIELD)
-                    or driver_cls.NAME,
-                    data=data,
+            if driver_cls.LISTS_ACCESS_POINTS:
+                # A controller: log in, then pick the access point from its list.
+                errors, reason, options = await _async_list_access_points(
+                    self.hass, driver_cls, data, self._taken(driver_cls)
                 )
-        picked = self._field_choices(driver_cls)
-        choices = picked[0] if picked else None
-        if picked and not any(choices.values()):
-            # e.g. no UniFi access point left to add
-            return self.async_abort(reason=picked[1])
+                if not errors:
+                    if not options:
+                        return self.async_abort(reason="no_access_points_left")
+                    self._pending, self._options = data, options
+                    return await self.async_step_pick()
+            else:
+                if self._in_use(driver_cls, data):
+                    return self.async_abort(reason="already_configured")
+                errors, reported_name, reason = await _async_build_and_test(
+                    self.hass, driver_cls, data
+                )
+                if not errors:
+                    return self.async_create_entry(
+                        title=name
+                        or reported_name
+                        or data.get(driver_cls.UNIQUE_FIELD)
+                        or driver_cls.NAME,
+                        data=data,
+                    )
         return self.async_show_form(
             step_id="details",
             data_schema=self.add_suggested_values_to_schema(
-                _access_point_schema(driver_cls, editing=False, choices=choices),
+                _access_point_schema(
+                    driver_cls,
+                    editing=False,
+                    omit={driver_cls.UNIQUE_FIELD} if driver_cls.LISTS_ACCESS_POINTS else set(),
+                ),
                 user_input or {},
             ),
             errors=errors,
-            description_placeholders={"type": driver_cls.NAME},
+            description_placeholders={"type": driver_cls.NAME, "reason": reason},
+        )
+
+    async def async_step_pick(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Pick the access point from the controller's list, and test it."""
+        driver_cls = DRIVERS[self._driver_type]
+        errors: dict[str, str] = {}
+        reason = ""
+        if user_input is not None:
+            data = {**self._pending, driver_cls.UNIQUE_FIELD: user_input[driver_cls.UNIQUE_FIELD]}
+            if self._in_use(driver_cls, data):
+                return self.async_abort(reason="already_configured")
+            errors, reported_name, reason = await _async_build_and_test(self.hass, driver_cls, data)
+            if not errors:
+                label = next(
+                    (o["label"] for o in self._options if o["value"] == data[driver_cls.UNIQUE_FIELD]),
+                    None,
+                )
+                return self.async_create_entry(
+                    title=data.get(CONF_NAME) or reported_name or label or driver_cls.NAME,
+                    data=data,
+                )
+        return self.async_show_form(
+            step_id="pick",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(driver_cls.UNIQUE_FIELD): SelectSelector(
+                        SelectSelectorConfig(
+                            options=self._options, mode=SelectSelectorMode.DROPDOWN
+                        )
+                    )
+                }
+            ),
+            errors=errors,
+            description_placeholders={"type": driver_cls.NAME, "reason": reason},
         )
 
     async def async_step_reconfigure(
@@ -593,6 +644,7 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
         if driver_cls is None:
             return self.async_abort(reason="unknown_driver")
         errors: dict[str, str] = {}
+        reason = ""
         if user_input is not None:
             name, changes = _split_name(user_input, driver_cls)
             data = {
@@ -602,7 +654,9 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
             }
             if self._in_use(driver_cls, data, except_id=subentry.subentry_id):
                 return self.async_abort(reason="already_configured")
-            errors, reported_name = await _async_build_and_test(self.hass, driver_cls, data)
+            errors, reported_name, reason = await _async_build_and_test(
+                self.hass, driver_cls, data
+            )
             if not errors:
                 return self.async_update_and_abort(
                     self._get_entry(),
@@ -613,7 +667,6 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
                     or driver_cls.NAME,
                     data=data,
                 )
-        picked = self._field_choices(driver_cls, subentry.subentry_id)
         suggested = {
             CONF_NAME: subentry.title if user_named(subentry) else None,
             CONF_MODEL: subentry.data.get(CONF_MODEL),
@@ -622,15 +675,11 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=self.add_suggested_values_to_schema(
-                _access_point_schema(
-                    driver_cls,
-                    editing=True,
-                    choices=picked[0] if picked else None,
-                ),
+                _access_point_schema(driver_cls, editing=True),
                 user_input or suggested,
             ),
             errors=errors,
-            description_placeholders={"type": driver_cls.NAME},
+            description_placeholders={"type": driver_cls.NAME, "reason": reason},
         )
 
     def _in_use(
@@ -657,36 +706,31 @@ class AccessPointSubentryFlow(ConfigSubentryFlow):
                 return True
         return False
 
-    def _field_choices(
-        self, driver_cls: type[AccessPointDriver], except_id: str | None = None
-    ) -> tuple[dict[str, list[SelectOptionDict]], str] | None:
-        """Settings picked from a list rather than typed, and the abort reason when
-        nothing is left to pick (None if the driver's settings are all typed in).
-
-        Values used by other access points are left out of the lists, e.g. UniFi
-        access points already added.
-        """
-        taken = {
-            value
+    def _taken(self, driver_cls: type[AccessPointDriver]) -> set[str]:
+        """Values of the driver's UNIQUE_FIELD that other access points already use
+        (left out of a controller's list), e.g. UniFi access points already added."""
+        return {
+            str(value)
             for sub in self._get_entry().get_subentries_of_type(SUBENTRY_ACCESS_POINT)
-            if sub.subentry_id != except_id
-            and (value := sub.data.get(driver_cls.UNIQUE_FIELD)) is not None
+            if (value := sub.data.get(driver_cls.UNIQUE_FIELD)) is not None
         }
-        return field_choices(self.hass, driver_cls, taken)
 
 
 def _access_point_schema(
     driver_cls: type[AccessPointDriver],
     editing: bool,
-    choices: dict[str, list[SelectOptionDict]] | None = None,
+    omit: set[str] | None = None,
 ) -> vol.Schema:
-    """Form fields: an optional name, then the driver's own settings."""
+    """Form fields: an optional name, then the driver's own settings (except `omit`,
+    e.g. the access point picked from a controller's list in the next step)."""
     schema: dict[Any, Any] = {
         vol.Optional(CONF_NAME): TextSelector(),
         # Shown on the device; drivers may also report it themselves.
         vol.Optional(CONF_MODEL): TextSelector(),
     }
     for field in driver_cls.FIELDS:
+        if omit and field.key in omit:
+            continue
         if field.secret:
             # When editing, leaving the secret blank keeps the stored value.
             key = (
@@ -706,13 +750,6 @@ def _access_point_schema(
             continue
         if field.optional:
             schema[vol.Optional(field.key)] = TextSelector()
-            continue
-        if choices and field.key in choices:
-            schema[vol.Required(field.key)] = SelectSelector(
-                SelectSelectorConfig(
-                    options=choices[field.key], mode=SelectSelectorMode.DROPDOWN
-                )
-            )
             continue
         key = (
             vol.Required(field.key, default=field.default)
@@ -750,36 +787,68 @@ def _split_name(
 
 async def _async_build_and_test(
     hass: HomeAssistant, driver_cls: type[AccessPointDriver], data: dict[str, Any]
-) -> tuple[dict[str, str], str | None]:
-    """Create the driver and read the AP once; return form errors and its reported name.
+) -> tuple[dict[str, str], str | None, str]:
+    """Create the driver and read the AP once; return form errors, its reported name
+    and why it failed (shown in the form).
 
     A value the driver rejects outright (e.g. a malformed MAC submitted through the
     API, which the dropdown prevents in the UI) is reported on its field.
     """
     try:
-        driver = build_driver(hass, driver_cls, data)
+        driver = driver_cls(data)
     except (KeyError, ValueError):
-        return {driver_cls.UNIQUE_FIELD: "invalid_value"}, None
+        return {driver_cls.UNIQUE_FIELD: "invalid_value"}, None, ""
     for module in driver_cls.BLOCKING_IMPORTS:  # e.g. pysnmp, off the event loop
         await async_import_module(hass, module)
-    return await _async_test_access_point(driver)
+    try:
+        return await _async_test_access_point(driver)
+    finally:
+        await driver.async_close()
 
 
 async def _async_test_access_point(
     driver: AccessPointDriver,
-) -> tuple[dict[str, str], str | None]:
-    """Read the AP once; return form errors and the name the AP reports, if any."""
+) -> tuple[dict[str, str], str | None, str]:
+    """Read the AP once; return form errors, the name the AP reports and the reason."""
     try:
         result = await asyncio.wait_for(driver.async_poll(), TEST_TIMEOUT)
-    except AccessPointAuthError:
-        return {"base": "invalid_auth"}, None
+    except AccessPointAuthError as err:
+        return {"base": "invalid_auth"}, None, _reason(err)
     except (AccessPointError, TimeoutError) as err:
         LOGGER.debug("Access point test failed: %s", err)
-        return {"base": "cannot_connect"}, None
+        return {"base": "cannot_connect"}, None, _reason(err)
     except Exception:
         LOGGER.exception("Unexpected error testing the access point")
-        return {"base": "unknown"}, None
-    return {}, result.info.name if result.info else None
+        return {"base": "unknown"}, None, ""
+    return {}, result.info.name if result.info else None, ""
+
+
+async def _async_list_access_points(
+    hass: HomeAssistant,
+    driver_cls: type[AccessPointDriver],
+    data: dict[str, Any],
+    taken: set[str],
+) -> tuple[dict[str, str], str, list[SelectOptionDict]]:
+    """Log in to a controller and list its access points not yet added: form errors,
+    the reason it failed, and the options."""
+    for module in driver_cls.BLOCKING_IMPORTS:
+        await async_import_module(hass, module)
+    try:
+        found = await asyncio.wait_for(driver_cls.async_list_access_points(data), TEST_TIMEOUT)
+    except AccessPointAuthError as err:
+        return {"base": "invalid_auth"}, _reason(err), []
+    except (AccessPointError, TimeoutError) as err:
+        LOGGER.debug("Listing access points failed: %s", err)
+        return {"base": "cannot_connect"}, _reason(err), []
+    except Exception:
+        LOGGER.exception("Unexpected error listing access points")
+        return {"base": "unknown"}, "", []
+    return {}, "", [SelectOptionDict(value=v, label=l) for v, l in found if v not in taken]
+
+
+def _reason(err: BaseException) -> str:
+    """What went wrong, for the form (empty for a bare timeout)."""
+    return str(err) or ("no answer in time" if isinstance(err, TimeoutError) else "")
 
 
 def _sighting_label(mac: str, sighting: Sighting, coordinator: AssociationCoordinator) -> str:

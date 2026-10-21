@@ -71,25 +71,61 @@
         "aes192c": "AES-192 (Cisco key extension)",
         "aes256c": "AES-256 (Cisco key extension)"
       }
+    },
+    "verify_ssl": {
+      "options": {
+        "no": "No",
+        "yes": "Yes"
+      }
     }
   },
   "entity": {
     "sensor": {
-      "clients_2_4ghz": { "name": "Clients 2.4 GHz" },
-      "clients_5ghz": { "name": "Clients 5 GHz" },
-      "clients_total": { "name": "Clients" },
-      "cpu": { "name": "CPU" },
-      "memory": { "name": "Memory" },
-      "last_boot": { "name": "Last boot" },
-      "location": { "name": "Location" },
-      "average_client_signal": { "name": "Average client signal" },
-      "weak_clients": { "name": "Weak clients" },
-      "roams_today": { "name": "Roams today" },
-      "drops_today": { "name": "Short drops today" },
-      "late_roams_today": { "name": "Late roams today" },
-      "access_point": { "name": "Access point" },
-      "signal": { "name": "Signal" },
-      "area": { "name": "Area" }
+      "clients_2_4ghz": {
+        "name": "Clients 2.4 GHz"
+      },
+      "clients_5ghz": {
+        "name": "Clients 5 GHz"
+      },
+      "clients_total": {
+        "name": "Clients"
+      },
+      "cpu": {
+        "name": "CPU"
+      },
+      "memory": {
+        "name": "Memory"
+      },
+      "last_boot": {
+        "name": "Last boot"
+      },
+      "location": {
+        "name": "Location"
+      },
+      "average_client_signal": {
+        "name": "Average client signal"
+      },
+      "weak_clients": {
+        "name": "Weak clients"
+      },
+      "roams_today": {
+        "name": "Roams today"
+      },
+      "drops_today": {
+        "name": "Short drops today"
+      },
+      "late_roams_today": {
+        "name": "Late roams today"
+      },
+      "access_point": {
+        "name": "Access point"
+      },
+      "signal": {
+        "name": "Signal"
+      },
+      "area": {
+        "name": "Area"
+      }
     }
   },
   "config_subentries": {
@@ -122,17 +158,23 @@
             "auth_key": "SNMP v3 authentication key",
             "auth_protocol": "SNMP v3 authentication algorithm",
             "priv_key": "SNMP v3 privacy key",
-            "priv_protocol": "SNMP v3 privacy algorithm"
+            "priv_protocol": "SNMP v3 privacy algorithm",
+            "site": "Site",
+            "verify_ssl": "Check the controller's certificate"
           },
           "data_description": {
-            "host": "The access point's address. For a CAP via CAPsMAN or an AP on a Cisco controller, the controller's address, not the AP's.",
+            "host": "The access point's address. For a CAP via CAPsMAN, an AP on a Cisco controller, or a UniFi or Omada access point, the controller's address, not the AP's.",
             "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name; for UniFi, its name in the UniFi Network application), or else its host.",
-            "ap_mac": "An access point known to the UniFi Network or TP-Link Omada integration, whichever this type reads through. Clients are read from its controller through that integration; no extra login is needed.",
+            "ap_mac": "The access point's MAC address, as the controller lists it.",
             "ap_name": "The access point's name as the Cisco controller lists it (show ap summary), e.g. AP01. Host and login are the controller's; add one access point per AP.",
             "cap": "The CAP's identity as the CAPsMAN controller lists it (/interface wifi capsman remote-cap print), e.g. ap_upstairs. Host and login are the controller's; add one access point per CAP.",
             "snmp_version": "Which credentials are used: the community (v2c) or the user and keys (v3). The others may stay filled in.",
             "community": "SNMP v2c: the read-only community of the access point or controller.",
-            "priv_key": "SNMP v3: leave empty to use the authentication key."
+            "priv_key": "SNMP v3: leave empty to use the authentication key.",
+            "site": "UniFi: the site's name or its short name from the controller's URL (default). Omada: the site's name (Default).",
+            "verify_ssl": "Most local controllers use a certificate of their own; leave this off unless yours has one your system trusts.",
+            "username": "For UniFi and Omada, a local account on the controller (a read-only or view-only role is enough); not a cloud account with two-factor sign-in.",
+            "port": "For UniFi: 443 for a UniFi OS console (Cloud Gateway, Cloud Key Gen2), 8443 for a self-hosted Network application. For Omada: 443 for an OC200/OC300 or a router, 8043 for the software controller."
           }
         },
         "reconfigure": {
@@ -152,32 +194,44 @@
             "auth_key": "SNMP v3 authentication key",
             "auth_protocol": "SNMP v3 authentication algorithm",
             "priv_key": "SNMP v3 privacy key",
-            "priv_protocol": "SNMP v3 privacy algorithm"
+            "priv_protocol": "SNMP v3 privacy algorithm",
+            "site": "Site",
+            "verify_ssl": "Check the controller's certificate"
           },
           "data_description": {
-            "host": "The access point's address. For a CAP via CAPsMAN or an AP on a Cisco controller, the controller's address, not the AP's.",
+            "host": "The access point's address. For a CAP via CAPsMAN, an AP on a Cisco controller, or a UniFi or Omada access point, the controller's address, not the AP's.",
             "name": "Leave empty to use the name the access point reports about itself (for D-Link, its system name; for UniFi, its name in the UniFi Network application), or else its host.",
-            "ap_mac": "An access point known to the UniFi Network or TP-Link Omada integration, whichever this type reads through. Clients are read from its controller through that integration; no extra login is needed.",
+            "ap_mac": "The access point's MAC address, as the controller lists it.",
             "ap_name": "The access point's name as the Cisco controller lists it (show ap summary), e.g. AP01. Host and login are the controller's; add one access point per AP.",
             "cap": "The CAP's identity as the CAPsMAN controller lists it (/interface wifi capsman remote-cap print), e.g. ap_upstairs. Host and login are the controller's; add one access point per CAP.",
             "snmp_version": "Which credentials are used: the community (v2c) or the user and keys (v3). The others may stay filled in.",
             "community": "SNMP v2c: the read-only community of the access point or controller.",
-            "priv_key": "SNMP v3: leave empty to use the authentication key."
+            "priv_key": "SNMP v3: leave empty to use the authentication key.",
+            "site": "UniFi: the site's name or its short name from the controller's URL (default). Omada: the site's name (Default).",
+            "verify_ssl": "Most local controllers use a certificate of their own; leave this off unless yours has one your system trusts.",
+            "username": "For UniFi and Omada, a local account on the controller (a read-only or view-only role is enough); not a cloud account with two-factor sign-in.",
+            "port": "For UniFi: 443 for a UniFi OS console (Cloud Gateway, Cloud Key Gen2), 8443 for a self-hosted Network application. For Omada: 443 for an OC200/OC300 or a router, 8043 for the software controller."
+          }
+        },
+        "pick": {
+          "title": "Pick the access point",
+          "description": "Access points of the controller that aren't added yet ({type}).",
+          "data": {
+            "ap_mac": "Access point"
           }
         }
       },
       "error": {
-        "cannot_connect": "Could not connect to the access point or read its client list.",
+        "cannot_connect": "Could not connect to the access point or read its client list. {reason}",
         "invalid_value": "This value is not valid.",
-        "invalid_auth": "The access point rejected the username or password.",
+        "invalid_auth": "The access point rejected the username or password. {reason}",
         "unknown": "Unexpected error while reading the access point. See the Home Assistant log for details."
       },
       "abort": {
         "already_configured": "This access point is already configured.",
         "reconfigure_successful": "Access point updated.",
         "unknown_driver": "This access point uses a type that is no longer available. Remove it and add it again.",
-        "no_omada_access_points": "No TP-Link Omada access points are available. Set up the TP-Link Omada integration first (with a site that has access points), or all of its access points are already added.",
-        "no_unifi_access_points": "No UniFi access points are available. Set up the UniFi Network integration first (with a site that has access points), or all of its access points are already added."
+        "no_access_points_left": "The controller has no access points that aren't added already."
       }
     },
     "tracked_device": {
@@ -290,6 +344,11 @@
         "report_ready": "**Report collected in {elapsed}.**\n\n⚠️ **Read the whole report before you submit it.** Automatic redaction removes MAC, IP and email addresses, key-like strings and the password, community or keys you typed, but it can't recognise everything: a Wi-Fi passphrase, names, locations or serial numbers can look like ordinary text. Replace anything you don't want public by hand. Issues on GitHub are public.\n\nTo download it, open the [Wi-Fi Association Presence page]({integration_url}), then the menu (⋮) on the **Wi-Fi association presence** row at the top, and choose **Download diagnostics**. The report is the `access_point_report` part of that file.\n\nLater you find it the same way: Settings → Devices & services → Wi-Fi Association Presence → ⋮ → Download diagnostics. It is kept until Home Assistant restarts or you collect another report.\n\nThe file also contains Home Assistant's usual diagnostics details (your Home Assistant version and the list of custom integrations). Once you have read it, attach it to a [New access point model]({issue_url}) issue."
       }
     }
+  },
+  "issues": {
+    "controller_login": {
+      "title": "{name} needs its controller's login",
+      "description": "{name} ({type}) used to read its clients through another Home Assistant integration. Since 0.12 it logs in to the controller itself, so it needs the controller's address and a local account. Open Settings → Devices & services → Wi-Fi Association Presence, find {name} under Access points and choose Reconfigure. Until then its devices count as away after the grace period."
+    }
   }
 }
-

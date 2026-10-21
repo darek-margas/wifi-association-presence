@@ -1,16 +1,20 @@
 {
   "domain": "wifi_association_presence",
   "name": "Wi-Fi Association Presence",
-  "after_dependencies": ["tplink_omada", "unifi"],
-  "codeowners": ["@darek-margas"],
+  "codeowners": [
+    "@darek-margas"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/darek-margas/wifi-association-presence",
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/darek-margas/wifi-association-presence/issues",
-  "loggers": ["wifi_ap_associations"],
-  "requirements": ["wifi-ap-associations==0.13.1"],
+  "loggers": [
+    "wifi_ap_associations"
+  ],
+  "requirements": [
+    "wifi-ap-associations==0.14.0"
+  ],
   "single_config_entry": true,
-  "version": "0.11.0"
+  "version": "0.12.0b1"
 }
-

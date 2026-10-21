@@ -54,7 +54,6 @@ from .const import (
     WATCH_RETRY_MIN,
     WATCH_STABLE,
 )
-from .sources import build_driver
 
 __all__ = ["AccessPointState", "Sighting"]
 
@@ -131,7 +130,7 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
                 )
                 continue
             try:
-                driver = build_driver(hass, driver_cls, dict(subentry.data))
+                driver = driver_cls(dict(subentry.data))
             except (KeyError, ValueError) as err:
                 # A bad or missing setting only loses this AP, never the whole entry.
                 LOGGER.error(

@@ -22,6 +22,11 @@ point now**, not as the source of truth.
 
 ## UniFi: the UniFi Network integration's events (0.11.0b1)
 
+Since 0.12 (library 0.14) the driver logs in to the controller itself and keeps one
+event websocket per controller (`wss/s/<site>/events`, under `/proxy/network` on UniFi
+OS) for all its access points' watches; the reasoning below about which events count is
+unchanged. The original design, through Home Assistant's UniFi integration:
+
 The UniFi driver reads through Home Assistant's UniFi Network integration, whose aiounifi
 connection receives the controller's events over its websocket (`api.events`). The
 integration subscribes once per UniFi access point and the library decides: a client

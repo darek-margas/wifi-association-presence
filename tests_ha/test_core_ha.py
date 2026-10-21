@@ -272,7 +272,7 @@ async def test_invalid_setting_skips_only_that_ap(hass: HomeAssistant) -> None:
     entry = await setup_entry(hass, ap("ap1"), ap("bad", "Broken"))
     assert entry.state is ConfigEntryState.LOADED
     assert [a.title for a in entry.runtime_data.access_points] == ["Hallway AP"]
-    assert await _async_build_and_test(hass, FakeDriver, {"host": "bad"}) == ({"host": "invalid_value"}, None)
+    assert await _async_build_and_test(hass, FakeDriver, {"host": "bad"}) == ({"host": "invalid_value"}, None, "")
 
 
 async def test_area_sensor_follows_only_access_point_devices(hass: HomeAssistant) -> None:
