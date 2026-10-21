@@ -114,14 +114,14 @@ Every tracker tells you **when** the device arrived or left, not just whether it
   arrival or departure, with the exact time in it.
 - **Survives restarts.** Arrival and departure times are stored, so a restart doesn't
   turn "home since 07:40" into "home since the restart".
-- **Instant arrivals** (MikroTik; UniFi, OpenWrt and D-Link DAP in the 0.11.0 betas). Access points
+- **Instant arrivals** (MikroTik, UniFi, OpenWrt and D-Link DAP). Access points
   that report changes as they happen make the integration poll at once, so an arrival
   shows in seconds instead of up to a minute. Departures still wait for the grace period,
   and the poll, not the event, decides who is there. On by default; switch it off in
   **Configure** (for MikroTik and OpenWrt it keeps one SSH connection open per access
   point or CAPsMAN controller; UniFi uses the events the UniFi Network integration
   already receives; D-Link DAPs send SNMP traps to Home Assistant, see the
-  [wiki](../../wiki/D-Link-DAP#instant-arrivals-snmp-traps-0110-beta)).
+  [wiki](../../wiki/D-Link-DAP#instant-arrivals-snmp-traps)).
 - **Fast departure** (optional, off by default). When an access point reports a client
   leaving, a device missing from it is away after a short time you choose instead of the
   grace period. Faster departures, at the cost of devices that drop off Wi-Fi briefly
@@ -640,8 +640,8 @@ below needs an owner of that hardware to send data and test a build.
 | **Other controllers** (older Cisco AireOS WLCs, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API or CLI, as for the Catalyst 9800 | interest and a test setup |
 
 **Instant arrivals**, more sources: MikroTik's `print follow-only` is in (0.10.0,
-confirmed on RouterOS 7.24), UniFi's connect and roam events and OpenWrt's hostapd
-events and D-Link's SNMP traps are in the 0.11.0 betas; next, RADIUS accounting (a
+confirmed on RouterOS 7.24), UniFi's connect and roam events, OpenWrt's hostapd
+events and D-Link's SNMP traps are in 0.11.0; next, RADIUS accounting (a
 DAP's syslog turned out to be queued and lossy, so not syslog). An event triggers an immediate poll,
 so an arrival shows in seconds instead of up to a minute; departures still wait for the
 grace period. RADIUS accounting also identifies the 802.1X user, which would allow

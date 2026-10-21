@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.11.0 — instant arrivals for UniFi, OpenWrt and D-Link DAP; fast departure; TP-Link
+
+Everything since 0.10.0 (the 0.11.0 betas below have the details), for everyone. Update
+from HACS and restart; nothing to change in your setup.
+
+- **Instant arrivals for UniFi, OpenWrt and D-Link DAP**, as MikroTik has had since
+  0.10.0: a client joining makes the integration poll at once, so an arrival shows in
+  seconds instead of up to a minute. UniFi uses the controller events the UniFi Network
+  integration already receives; OpenWrt keeps hostapd's event feed open over the SSH
+  login it already has; D-Link DAPs send an SNMP trap to Home Assistant (set the DAP's
+  trap server to Home Assistant's address, see the
+  [wiki](https://github.com/darek-margas/wifi-association-presence/wiki/D-Link-DAP#instant-arrivals-snmp-traps)).
+  Confirmed on a DAP-2610: home about 3 seconds after the phone reconnects. On by
+  default under **Configure** → **Instant arrivals**.
+- **Fast departure** (new option, off by default): when an access point reports a
+  client leaving (OpenWrt, D-Link DAP, UniFi), a device missing from it is away after the
+  time you set instead of after the grace period. Faster, at a price: a device that drops
+  off Wi-Fi for longer than that and comes back shows away meanwhile. See the
+  [wiki](https://github.com/darek-margas/wifi-association-presence/wiki/Troubleshooting#fast-departure).
+- **TP-Link, experimental:** EAPs managed by an Omada controller, through Home
+  Assistant's TP-Link Omada integration; and **standalone EAPs over SNMP** (presence and
+  which AP; their client table has no signal or band), first confirmed on an EAP670.
+- **OpenWrt:** a Wi-Fi reload on the router no longer looks like everyone leaving, and
+  only associated and authorized clients count.
+- **Access point reports** say why a connection failed, find MACs stored as text, and
+  "Allow old SSH algorithms" no longer drops the modern ones (ECDSA-only APs such as the
+  EAP670).
+- Under the hood, the presence rules moved into the library unchanged, so the new
+  [MQTT bridge](https://github.com/darek-margas/wifi-presence-mqtt) decides home and away
+  exactly as this integration does. Saved visits and today's counts carry over.
+- Uses wifi-ap-associations 0.13.1.
+
 ## 0.11.0b9 — standalone TP-Link EAP over SNMP (beta, experimental)
 
 - **TP-Link EAP, standalone (SNMP)**, experimental: EAP access points running without an
@@ -17,7 +49,7 @@
   Home Assistant's address: when a client joins, the DAP sends a trap and the integration
   polls it 3 seconds later, so an arrival shows in seconds instead of up to a minute. It
   listens on UDP port 162; nothing to set up on Home Assistant OS or Supervised; Container
-  and Core in the [wiki](https://github.com/darek-margas/wifi-association-presence/wiki/D-Link-DAP#instant-arrivals-snmp-traps-0110-beta).
+  and Core in the [wiki](https://github.com/darek-margas/wifi-association-presence/wiki/D-Link-DAP#instant-arrivals-snmp-traps).
   With debug logging, every trap received is logged in full.
 - **Fast departure** (option, off by default): when an access point reports a client
   leaving (OpenWrt, D-Link DAP, UniFi), a device missing from it is away after the time
