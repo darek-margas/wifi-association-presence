@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.12.0b1 — UniFi and TP-Link Omada log in to their controller (beta)
+## 0.12.0b1 — UniFi and TP-Link Omada log in to their controller (beta, breaking change)
+
+> **Breaking change for UniFi and TP-Link Omada access points.** After updating they stop
+> working until you enter the controller's address and a local account: each one shows
+> unavailable, its tracked devices turn away after the grace period, and a repair notice
+> names it. **Reconfigure** each access point (see below). Other access point types are
+> not affected.
 
 **Why:** the review for HACS's default list asked that this integration stop reading
 UniFi (and so TP-Link Omada) through Home Assistant's own integrations for them: a

@@ -393,7 +393,7 @@ The full guide is in the [wiki](../../wiki/UniFi).
   in dBm. The controller's event stream makes an arrival poll at once.
 - An AP the controller reports as offline (or not adopted) counts as unreadable, and
   tracked devices on it fall back to the grace period, as with any failing AP.
-- **Added before 0.12?** Those read through Home Assistant's UniFi Network integration,
+- **Added before 0.12? Breaking change:** those read through Home Assistant's UniFi Network integration,
   which a custom integration may not do; after the update a repair notice asks to
   **Reconfigure** each with the controller's login. Home Assistant's UniFi integration
   can stay; the two are independent.
@@ -411,7 +411,7 @@ The full guide is in the [wiki](../../wiki/TP-Link-Omada).
   all its EAPs. Signal is in dBm. An EAP the controller doesn't show as connected counts
   as unreadable.
 - No instant arrivals: the Omada controller has no event feed for them.
-- **Added before 0.12?** As for UniFi: a repair notice asks to **Reconfigure** each EAP
+- **Added before 0.12? Breaking change**, as for UniFi: a repair notice asks to **Reconfigure** each EAP
   with the controller's login.
 
 ### OpenWrt setup notes
