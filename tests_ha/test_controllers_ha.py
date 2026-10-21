@@ -248,3 +248,67 @@ async def test_only_old_access_points_still_get_the_notice(hass: HomeAssistant) 
         assert entry.state is ConfigEntryState.SETUP_RETRY
         sub_id = next(iter(entry.subentries))
         assert ir.async_get(hass).async_get_issue(DOMAIN, f"controller_login_{sub_id}") is not None
+
+
+async def test_a_failed_first_poll_releases_the_controller_sessions(hass: HomeAssistant) -> None:
+    """Review of 0.12.0b1: setup retries without an unload, so each attempt closes its
+    drivers itself; else every retry would keep one more user of the session."""
+    from wifi_ap_associations import AccessPointError
+
+    closed: list[str] = []
+
+    async def read(self):
+        raise AccessPointError("controller unreachable")
+
+    async def close(self):
+        closed.append(self.ap_mac)
+
+    with patch(f"{UNIFI}.UnifiController.read", read), patch(
+        f"{UNIFI}.UnifiNetworkDriver.async_close", close
+    ):
+        entry = MockConfigEntry(domain=DOMAIN, title="Wi-Fi", data={}, subentries_data=[
+            ap_sub(AP, "Hallway AP", **LOGIN), ap_sub(GARDEN, "Garden AP", **LOGIN)])
+        entry.add_to_hass(hass)
+        assert not await hass.config_entries.async_setup(entry.entry_id)
+        assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert sorted(closed) == [AP, GARDEN]
+
+
+async def test_upgrade_of_a_named_access_point_without_an_area(hass: HomeAssistant) -> None:
+    """Review of 0.12.0b1: an AP the user named, whose UniFi device has no area (nor any
+    device at all): its own device keeps the name, gets no area, and its entity IDs stay
+    the same through the Reconfigure that adds the login."""
+    from homeassistant.helpers import entity_registry as er
+
+    with unifi_read():
+        named = ConfigSubentryData(
+            subentry_type="access_point", title="Porch", unique_id=None,
+            data={"driver": "unifi_network", "ap_mac": AP, "name": "Porch"},
+        )
+        entry = await _hub(hass, named, ap_sub(GARDEN, "Garden AP", **LOGIN), phone_sub())
+        sub_id = next(s for s, sub in entry.subentries.items() if sub.data.get("ap_mac") == AP)
+        registry = dr.async_get(hass)
+        device = registry.async_get_device_by_identifier((DOMAIN, sub_id), entry.entry_id)
+        assert device is not None and device.name == "Porch" and device.area_id is None
+        entities = er.async_get(hass)
+        before = sorted(
+            e.entity_id for e in er.async_entries_for_config_entry(entities, entry.entry_id)
+            if e.config_subentry_id == sub_id
+        )
+        assert before  # the AP's own sensors
+
+        result = await entry.start_subentry_reconfigure_flow(hass, sub_id)
+        result = await hass.config_entries.subentries.async_configure(
+            result["flow_id"], {**LOGIN, "ap_mac": AP, "name": "Porch"}
+        )
+        assert result["reason"] == "reconfigure_successful"
+        await hass.async_block_till_done()
+        after = sorted(
+            e.entity_id for e in er.async_entries_for_config_entry(entities, entry.entry_id)
+            if e.config_subentry_id == sub_id
+        )
+        assert after == before
+        device = registry.async_get_device_by_identifier((DOMAIN, sub_id), entry.entry_id)
+        assert device.name == "Porch" and device.area_id is None
+        assert entry.runtime_data.data.access_points[sub_id].available
+        assert await hass.config_entries.async_unload(entry.entry_id)

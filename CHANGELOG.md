@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.0b2 — review fixes for the controller login (beta)
+
+- **UniFi instant arrivals are instant again.** The poll an arrival event asks for read
+  the controller's client list from up to 20 seconds before, so the phone often showed
+  home only on a later poll; it now asks the controller anew.
+- A setup that fails on its first poll (e.g. a controller that can't be reached) closes
+  its controller sessions before Home Assistant tries again, instead of keeping one open
+  per attempt.
+- Still a **breaking change** from 0.11 for UniFi and TP-Link Omada access points: see
+  0.12.0b1 below.
+- Uses wifi-ap-associations 0.14.1.
+
 ## 0.12.0b1 — UniFi and TP-Link Omada log in to their controller (beta, breaking change)
 
 > **Breaking change for UniFi and TP-Link Omada access points.** After updating they stop

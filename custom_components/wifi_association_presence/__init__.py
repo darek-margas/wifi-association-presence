@@ -29,7 +29,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEnt
     # Before the first poll: with only such access points it fails and setup retries.
     _update_controller_login_issues(hass, entry, coordinator)
     await coordinator.async_restore_sightings()
-    await coordinator.async_config_entry_first_refresh()
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except BaseException:
+        # Setup retries without an unload: release the controller sessions (UniFi,
+        # Omada) this attempt's drivers opened, or each retry would keep one more.
+        for ap in coordinator.access_points:
+            await ap.driver.async_close()
+        raise
     entry.runtime_data = coordinator
 
     # Register devices before the platforms, so each device_tracker finds the device
