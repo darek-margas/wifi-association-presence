@@ -113,6 +113,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: WifiAssociationConfigEn
     return unloaded
 
 
+LOGIN_ISSUE_PREFIX = "controller_login_"
+
+
 def _area_of_other_device(hass: HomeAssistant, mac: str | None) -> str | None:
     """The area name of another integration's device for this MAC, if it has one."""
     if not mac:
@@ -133,7 +136,7 @@ def _update_controller_login_issues(
     """A repair notice for each controller access point (UniFi, Omada) saved before it
     logged in itself: it needs the controller's address and login (Reconfigure)."""
     for ap in coordinator.access_points:
-        issue_id = f"controller_login_{ap.subentry_id}"
+        issue_id = f"{LOGIN_ISSUE_PREFIX}{ap.subentry_id}"
         if ap.driver.LISTS_ACCESS_POINTS and not str(ap.driver.config.get(CONF_HOST) or "").strip():
             ir.async_create_issue(
                 hass,
@@ -146,3 +149,21 @@ def _update_controller_login_issues(
             )
         else:
             ir.async_delete_issue(hass, DOMAIN, issue_id)
+    # Notices of access points removed since (removing one reloads the entry).
+    _delete_controller_login_issues(hass, keep=set(entry.subentries))
+
+
+def _delete_controller_login_issues(hass: HomeAssistant, keep: set[str] = frozenset()) -> None:
+    """Remove the login notices except those of the subentries in `keep`."""
+    for domain, issue_id in list(ir.async_get(hass).issues):
+        if (
+            domain == DOMAIN
+            and issue_id.startswith(LOGIN_ISSUE_PREFIX)
+            and issue_id.removeprefix(LOGIN_ISSUE_PREFIX) not in keep
+        ):
+            ir.async_delete_issue(hass, DOMAIN, issue_id)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: WifiAssociationConfigEntry) -> None:
+    """Removing the integration removes its repair notices too."""
+    _delete_controller_login_issues(hass)

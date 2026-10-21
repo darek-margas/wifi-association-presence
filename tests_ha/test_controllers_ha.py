@@ -312,3 +312,23 @@ async def test_upgrade_of_a_named_access_point_without_an_area(hass: HomeAssista
         assert device.name == "Porch" and device.area_id is None
         assert entry.runtime_data.data.access_points[sub_id].available
         assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_removing_an_old_access_point_removes_its_notice(hass: HomeAssistant) -> None:
+    """Local review: the notice of an access point deleted before it was reconfigured
+    must go with it, and all of them with the integration."""
+    with unifi_read():
+        shed = "78:8A:20:00:00:30"
+        entry = await _hub(hass, ap_sub(AP, "Hallway AP"), ap_sub(shed, "Shed AP"),
+                           ap_sub(GARDEN, "Garden AP", **LOGIN))
+        issues = ir.async_get(hass)
+        by_mac = {sub.data["ap_mac"]: s for s, sub in entry.subentries.items()}
+        hallway, garden = by_mac[AP], by_mac[shed]
+        assert issues.async_get_issue(DOMAIN, f"controller_login_{hallway}") is not None
+        assert hass.config_entries.async_remove_subentry(entry, hallway)
+        await hass.async_block_till_done()
+        assert issues.async_get_issue(DOMAIN, f"controller_login_{hallway}") is None
+        assert issues.async_get_issue(DOMAIN, f"controller_login_{garden}") is not None
+        assert await hass.config_entries.async_remove(entry.entry_id)
+        await hass.async_block_till_done()
+        assert issues.async_get_issue(DOMAIN, f"controller_login_{garden}") is None

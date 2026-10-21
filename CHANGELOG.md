@@ -8,6 +8,12 @@
 - A setup that fails on its first poll (e.g. a controller that can't be reached) closes
   its controller sessions before Home Assistant tries again, instead of keeping one open
   per attempt.
+- **UniFi fast departure:** the poll at a departure's deadline reads the controller anew
+  instead of its list from before the disconnect, which kept the device home.
+- The same UniFi or Omada access point can't be added twice with its MAC written
+  differently.
+- Removing an access point that still had a login repair notice removes the notice too
+  (and removing the integration removes them all).
 - Still a **breaking change** from 0.11 for UniFi and TP-Link Omada access points: see
   0.12.0b1 below.
 - Uses wifi-ap-associations 0.14.1.
