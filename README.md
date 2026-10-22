@@ -122,8 +122,8 @@ Every tracker tells you **when** the device arrived or left, not just whether it
   point or CAPsMAN controller; UniFi keeps the controller's event stream open; D-Link DAPs send SNMP traps to Home Assistant, see the
   [wiki](../../wiki/D-Link-DAP#instant-arrivals-snmp-traps)).
 - **Fast departure** (optional, off by default). When an access point reports a client
-  leaving, a device missing from it is away after a short time you choose instead of the
-  grace period. Faster departures, at the cost of devices that drop off Wi-Fi briefly
+  leaving (OpenWrt, D-Link DAP and UniFi do; MikroTik, Cisco and TP-Link don't), a device
+  missing from it is away after a short time you choose instead of the grace period. Faster departures, at the cost of devices that drop off Wi-Fi briefly
   showing away; see the [wiki](../../wiki/Troubleshooting#fast-departure).
 - **Light on the database.** The attributes change only on arrival or departure, so the
   recorder writes a row per event, not per poll. The tracker's History and Logbook then
