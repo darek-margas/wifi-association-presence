@@ -44,8 +44,15 @@ async def _add(hass: HomeAssistant, entry: MockConfigEntry, form: dict):
     return await flows.async_configure(result["flow_id"], form)
 
 
-async def test_offered_as_experimental() -> None:
-    assert DRIVERS["tplink_eap_snmp"].EXPERIMENTAL
+async def test_offered_without_the_experimental_label(hass: HomeAssistant) -> None:
+    # Confirmed on an EAP670 (discussion #4) in 0.12.0.
+    assert not DRIVERS["tplink_eap_snmp"].EXPERIMENTAL
+    entry = await _hub(hass)
+    flows = hass.config_entries.subentries
+    result = await flows.async_init((entry.entry_id, "access_point"), context={"source": "user"})
+    options = next(iter(result["data_schema"].schema.values())).config["options"]
+    label = next(o["label"] for o in options if o["value"] == "tplink_eap_snmp")
+    assert label == "TP-Link EAP, standalone (SNMP)"
 
 
 async def test_add_a_standalone_eap(hass: HomeAssistant) -> None:

@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.12.0 — UniFi and TP-Link Omada log in to their controller (breaking change)
+
+> **Breaking change for UniFi and TP-Link Omada access points.** After updating they stop
+> working until you enter the controller's address and a local account: each one shows
+> unavailable, its tracked devices turn away after the grace period, and a repair notice
+> names it. Open it under **Settings → Devices & services → Wi-Fi Association Presence**
+> and choose **Reconfigure**. Tracked devices, their history and the access point's area
+> are kept. Other access point types are not affected.
+
+**Why:** the review for HACS's default list asked that this integration stop reading
+UniFi and TP-Link Omada through Home Assistant's own integrations for them: a custom
+integration must not use another integration's logged-in session, which can change
+without notice and is a login the user never gave this integration. So these two types
+now log in to the controller themselves, with an account you give them.
+
+Everything since 0.11.0 (the 0.12.0 betas below have the details):
+
+- **UniFi Network controller / TP-Link Omada controller:** the access point form takes
+  the controller's address, port, a local account (a read-only one is enough) and the
+  site, then lists the controller's access points to pick from. Access points of one
+  controller share one login and one read. UniFi keeps the controller's event stream
+  open for instant arrivals and fast departure. Each access point gets a device of its
+  own, with client count, firmware, uptime, CPU and memory; one added before starts in
+  the area of the UniFi or Omada integration's device for it. Those integrations can stay
+  installed and are independent of this one. Guides:
+  [UniFi](https://github.com/darek-margas/wifi-association-presence/wiki/UniFi),
+  [Omada](https://github.com/darek-margas/wifi-association-presence/wiki/TP-Link-Omada).
+- Checked against a self-hosted UniFi Network application 10.0 and an Omada software
+  controller 5.15. UniFi OS consoles (UDM, Cloud Gateway) and Omada with real access
+  points haven't been confirmed by a user yet; Omada stays experimental.
+- **Standalone TP-Link EAP (SNMP) is no longer experimental:** confirmed on an EAP670.
+- **Fast departure:** the option's help and the wiki now say which access points report
+  a client leaving (OpenWrt, D-Link DAP, UniFi); for the others it changes nothing.
+- A failed connection test in the access point form says why (the controller's or access
+  point's own answer).
+- Uses wifi-ap-associations 0.14.2.
+
 ## 0.12.0b2 — review fixes for the controller login (beta)
 
 - **UniFi instant arrivals are instant again.** The poll an arrival event asks for read

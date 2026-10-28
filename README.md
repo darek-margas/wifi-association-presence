@@ -48,7 +48,7 @@ Install it anyway; you can help get them supported without any technical knowled
 3. **Wait for an update that supports your model**, then add your access points as above.
 
 Supported today: **D-Link DAP, OpenWrt, UniFi, MikroTik RouterOS (also CAPsMAN) and Cisco
-Catalyst 9800**, and **TP-Link Omada** and **standalone TP-Link EAP** as experimental.
+Catalyst 9800** and **standalone TP-Link EAP**, and **TP-Link Omada** as experimental.
 [More about reports](#help-add-your-access-point) · [What each type reads](#supported-access-points)
 
 ---
@@ -340,7 +340,7 @@ Leaving an access point's password empty keeps the current one.
 | MikroTik CAP via CAPsMAN (SSH) | CAPs managed by a CAPsMAN controller on RouterOS 7 (`wifi` package); one access point here per CAP, picked by its identity on the controller. **Confirmed** in Home Assistant on a CAPsMAN router with two cAP ax on RouterOS 7.24.4 ([#11](https://github.com/darek-margas/wifi-association-presence/issues/11)). Setup guide: [wiki](../../wiki/MikroTik-RouterOS). | SSH exec on the controller, one login shared by its CAPs: `/interface wifi capsman remote-cap`, `/interface wifi` and its `registration-table`, each `print terse`; each client put on the CAP its interface (or its master interface) belongs to |
 | Cisco Catalyst 9800 controller (SSH or SNMP) | Lightweight Cisco APs (9120, 9130, ...) joined to a Catalyst 9800 controller (IOS-XE); one access point here per Cisco AP, picked by its name on the controller. **Confirmed over SSH** on a C9800-CL (IOS-XE 17.15.5, C9120AXI, [#10](https://github.com/darek-margas/wifi-association-presence/issues/10)) in Home Assistant, with signal, using a restricted parser view, and **over SNMP** (v3) in Home Assistant, with signal on every client; its clients, SSIDs and bands matched SSH. Setup guide: [wiki](../../wiki/Cisco-Catalyst-9800). | SSH: the controller's console, one login shared by its APs: `show ap summary`, `show wlan summary`, `show wireless client summary`, and up to 15 clients' `show wireless client mac-address <mac> detail` per poll, in turns, for signal and connected time. SNMP (v2c or v3, chosen in the settings): the Airespace client table (AP, SSID, state, protocol), client statistics (signal) and AP table (name, location, status, model), plus Cisco's client table (connected time), one read shared by its APs |
 | TP-Link Omada controller, **experimental** | Omada access points (EAP) managed by an Omada controller, version 5 or later (software, OC200/OC300, or a router with a built-in controller); read through the controller with a local account (since 0.12; the login checked against a software controller 5.15, not yet with access points). Testers wanted in the [Omada discussion](https://github.com/darek-margas/wifi-association-presence/discussions/4). Setup guide: [wiki](../../wiki/TP-Link-Omada). | The controller's connected clients and devices over its web API (v2), one login and one read shared by its EAPs |
-| TP-Link EAP, standalone (SNMP), **experimental** | TP-Link EAP access points running without an Omada controller. Built from an EAP670's reports (firmware 1.3.13); testers wanted in the [Omada discussion](https://github.com/darek-margas/wifi-association-presence/discussions/4). Setup guide: [wiki](../../wiki/TP-Link-EAP). | SNMP (v2c or v3): TP-Link's client table (the clients' MACs) and the system name and description |
+| TP-Link EAP, standalone (SNMP) | TP-Link EAP access points running without an Omada controller. **Confirmed** on an EAP670 (firmware 1.3.13) in Home Assistant; other models welcome in the [Omada discussion](https://github.com/darek-margas/wifi-association-presence/discussions/4). Setup guide: [wiki](../../wiki/TP-Link-EAP). | SNMP (v2c or v3): TP-Link's client table (the clients' MACs) and the system name and description |
 
 ### What each type reports
 
@@ -463,8 +463,8 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
 **Access point support**
 - **Seven kinds of access point so far:** D-Link DAP, OpenWrt, UniFi (through its
   controller), MikroTik RouterOS (also CAPsMAN), Cisco Catalyst 9800 (over SSH or SNMP),
-  TP-Link Omada (through its controller, experimental) and standalone TP-Link EAP (SNMP,
-  experimental). Support for more depends on owners contributing data (see
+  TP-Link Omada (through its controller, experimental) and standalone TP-Link EAP
+  (SNMP). Support for more depends on owners contributing data (see
   [Help add your access point](#help-add-your-access-point) and the
   [Roadmap](#roadmap)); the driver interface is designed for it.
 - **Each type gives what its AP offers**, no more (see
