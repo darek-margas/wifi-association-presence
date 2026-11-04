@@ -16,5 +16,5 @@
     "wifi-ap-associations==0.14.2"
   ],
   "single_config_entry": true,
-  "version": "0.12.0"
+  "version": "0.12.1"
 }

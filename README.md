@@ -188,16 +188,16 @@ Each tracked device is a Home Assistant device with:
 - **Area** sensor, as above.
 
 ### Access point monitoring
-An access point read directly (D-Link, OpenWrt) is a Home Assistant device with a link to
-its web UI, the details it reports about itself (model, firmware, hardware) and sensors:
+Every access point is a Home Assistant device of its own, whichever type it is, with a
+link to its web UI (for a CAP via CAPsMAN, a Cisco, UniFi or Omada access point: its
+controller's), the details it reports about itself (model, firmware, hardware) and
+sensors:
 - **Clients 2.4 GHz**, **Clients 5 GHz** and **Clients** (total).
 - Diagnostics: **Last boot**, **Location**, **CPU** and **Memory**, each only if the AP
   reports it (see [what each type reports](#supported-access-points)). CPU and Memory are
   disabled by default: they change every poll, so each would be a recorder row per minute.
 - Real SSID names, also where the AP itself only shows an index (D-Link's "SSID index 3").
 
-An access point read through another integration (UniFi, TP-Link Omada) gets no device of its own: it uses the
-AP's existing device from that controller's integration, which already has these details.
 
 ### Wi-Fi coverage
 The integration counts these from the polls it already makes. You don't need a floor plan
@@ -205,8 +205,8 @@ or an app. The [coverage dashboard](docs/coverage-dashboard.md) explains each se
 has a template that builds the whole dashboard from your own access points and devices,
 so there are no entity ids to look up.
 - **Per access point:** **Average client signal** (0-100 %) and **Weak clients** (how
-  many are below 50 %, about -75 dBm). These come only for access points with their own
-  device (not UniFi or Omada).
+  many are below 50 %, about -75 dBm). These come for every type that reports clients'
+  signal (all but the standalone TP-Link EAP).
 - **Per tracked device:** **Roams today**, **Short drops today** and **Late roams today**.
   A short drop means the device vanished and came back within the grace period, which
   presence hides. A late roam means the device switched AP and gained 15 dB or more,
@@ -493,9 +493,12 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
   key** (it changes on a factory reset or reinstall). Keep the APs' management access
   restricted to the Home Assistant host, preferably on a trusted network segment. D-Link
   also needs old SSH algorithms ([D-Link notes](#d-link-dap-setup-notes)).
-- The AP password is stored in Home Assistant's configuration storage, like other
-  integrations' credentials. UniFi and Omada need none here: they use the UniFi or Omada
-  integration's login.
+- Passwords, SNMP communities and keys, and the controller accounts of UniFi and TP-Link
+  Omada access points are stored in Home Assistant's configuration storage, like other
+  integrations' credentials. Use read-only accounts where the device offers them (a View
+  Only local account on a UniFi controller, a Viewer on Omada). The UniFi and Omada
+  controllers are reached over HTTPS; their certificate is checked only if you turn that
+  on, as most local controllers use a certificate of their own.
 - Each poll of an SSH type is a login; the AP may log every one (syslog noise).
 
 **Project state**
@@ -634,7 +637,7 @@ below needs an owner of that hardware to send data and test a build.
 | **SNMP drivers** | One SNMP base driver plus a small table map per vendor, from the Cisco 9800 one (MikroTik registration table next; Aruba, Ruckus as reports arrive) | `wifi-ap-collect --snmp` report |
 | **OpenWrt over HTTP** | The same ubus calls through `/ubus` (JSON-RPC, as LuCI uses), for routers without SSH access; needs a small read-only rpcd ACL | interest |
 | **TP-Link EAP signal and band (standalone)** | The SNMP driver gives presence only; `show wifi status` over SSH may list stations with signal | its output from an EAP |
-| **Other controllers** (older Cisco AireOS WLCs, Aruba Instant) | Through Home Assistant's integration where one exists, else the controller's API or CLI, as for the Catalyst 9800 | interest and a test setup |
+| **Other controllers** (older Cisco AireOS WLCs, Aruba Instant) | The controller's own API or CLI with a login of its own, as for the Catalyst 9800, UniFi and Omada | interest and a test setup |
 
 **Instant arrivals**, more sources: MikroTik's `print follow-only` is in (0.10.0,
 confirmed on RouterOS 7.24), UniFi's connect and roam events, OpenWrt's hostapd
@@ -669,7 +672,7 @@ The code is in two repos:
 | Repo | Holds | Released as |
 |---|---|---|
 | [wifi-ap-associations](https://github.com/darek-margas/wifi-ap-associations) | The access point drivers: logging in, reading the association table and the AP's own details; and the presence rules (`presence`, `coverage`, `tracker`: sightings, grace period, visits, coverage, storage). No Home Assistant imports. Driver and presence tests, AP fixtures. | PyPI package `wifi-ap-associations` (tag `v<version>` in that repo) |
-| this repo | The integration: the coordinator (polling schedule, storage, logging, devices and areas around the library's `PresenceTracker`), trackers and sensors, configuration flow, the Home Assistant data sources (UniFi, TP-Link Omada), `scripts/` | HACS release (version in `manifest.json`) |
+| this repo | The integration: the coordinator (polling schedule, storage, logging, devices and areas around the library's `PresenceTracker`), trackers and sensors, configuration flow (including the controller login and access point list for UniFi and TP-Link Omada), `scripts/` | HACS release (version in `manifest.json`) |
 
 The integration pins the library exactly in `manifest.json`
 (`"requirements": ["wifi-ap-associations==<version>"]`), and Home Assistant installs that
@@ -685,8 +688,9 @@ the library over the pinned one: `pip install -e ../wifi-ap-associations`.
   (merging AP reads, roaming, grace period, visits, retention, storage, coverage) live in
   the library since 0.11.0b4 (`wifi_ap_associations.presence`, `.coverage`, `.tracker`)
   and are tested there. `tests_ha/` runs the integration inside Home
-  Assistant (setup, restarts, outages, UniFi and Omada through stand-ins for their
-  integrations); CI runs
+  Assistant (setup, restarts, outages, the UniFi and Omada controller login, access point
+  list and migration, with the controllers' answers stubbed; the library tests them
+  against fake controllers over HTTP); CI runs
   both, ruff, hassfest and the HACS validation on every push.
 - The icon's source is [`docs/images/icon.svg`](docs/images/icon.svg); the PNGs in
   `custom_components/wifi_association_presence/brand/` (256 and 512 px) are rendered from

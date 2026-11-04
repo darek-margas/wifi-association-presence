@@ -13,7 +13,7 @@ Many homes have **one access point** for the whole house: Wi-Fi then says "home"
 ## The source
 
 - A new access point type, **Tesla BLE (ESPHome)**. Each ESP32 running the Tesla component counts as one access point.
-- It reads **Home Assistant entities**, as the UniFi driver reads through the UniFi Network integration: no login to the ESP32 and no extra connection. Per car on that ESP32 it uses:
+- It reads **Home Assistant entities** (their states, the public interface other integrations' entities offer; never another integration's internal objects or login, which a custom integration may not use): no login to the ESP32 and no extra connection. Per car on that ESP32 it uses:
   - **Present** (binary sensor): the car is a client of this "access point";
   - **BLE Advert RSSI** (dBm): the signal;
   - **BLE MAC** (text sensor): the client's MAC, so a car fits the integration's MAC-keyed model like any Wi-Fi client;

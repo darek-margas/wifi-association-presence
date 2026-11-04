@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.1 — text that still described the old UniFi and Omada setup
+
+No change in behaviour. From the second HACS review:
+
+- README: the Security section says the UniFi and Omada controller accounts are stored
+  like the other credentials (and recommends read-only accounts); every access point is a
+  device of its own, and the coverage sensors come for every type that reports signal;
+  the development and roadmap notes no longer describe reading through Home Assistant's
+  UniFi and Omada integrations.
+- The **Instant arrivals** option's help says UniFi uses the controller's own event
+  stream.
+
 ## 0.12.0 — UniFi and TP-Link Omada log in to their controller (breaking change)
 
 > **Breaking change for UniFi and TP-Link Omada access points.** After updating they stop

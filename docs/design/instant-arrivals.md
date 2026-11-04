@@ -109,7 +109,7 @@ back shows away meanwhile (seen in the DAP-2610's log: clients that disassociate
 
 | Source | Access points | Setup for users | Notes |
 |---|---|---|---|
-| UniFi integration events | UniFi | none | Home Assistant's UniFi integration already receives the controller's connect and roam events over its websocket (its own trackers use them). |
+| UniFi controller events | UniFi | the controller login the access point already has (since 0.12) | The controller pushes connect, roam and disconnect events over its websocket; one stream per controller serves all its access points. Until 0.12 these came through Home Assistant's UniFi integration. |
 | hostapd ubus events | OpenWrt | none | One long-lived SSH session subscribed to hostapd's association events on ubus. |
 | **RADIUS accounting** | any AP on 802.1X (WPA-Enterprise), or set up to send accounting for PSK too | depends, see below | Standard across vendors, authenticated with a shared secret. Details below. |
 | **RouterOS `print follow-only`** | MikroTik, also CAPsMAN controllers | none (the SSH login the integration already has) | One long-lived SSH command per device that prints each change of the registration table. See below; first candidate to build. |
