@@ -116,6 +116,23 @@ async def test_setup_tracker_and_ap_sensors(hass: HomeAssistant) -> None:
         assert hass.states.get(f"sensor.hallway_ap_{key}") is None
 
 
+async def test_tracker_names_its_device(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+) -> None:
+    # Home Assistant 2026.11 warns about a scanner tracker without device info (an
+    # error from 2027.11). The tracker and the sensors share one device, by MAC.
+    await setup_entry(hass, ap("ap1"), PHONE_SUB)
+    entities = er.async_get(hass)
+    tracker = entities.async_get("device_tracker.phone")
+    sensor = entities.async_get("sensor.phone_access_point")
+    assert tracker.disabled_by is None
+    assert tracker.device_id is not None and tracker.device_id == sensor.device_id
+    device = dr.async_get(hass).async_get(tracker.device_id)
+    assert (dr.CONNECTION_NETWORK_MAC, PHONE.lower()) in device.connections
+    assert device.name == "Phone"
+    assert "does not provide device info" not in caplog.text
+
+
 async def test_only_reported_details_get_sensors(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_MAC, SUBENTRY_TRACKED_DEVICE
 from .coordinator import AssociationCoordinator, WifiAssociationConfigEntry
+from .entity import tracked_device_info
 
 
 async def async_setup_entry(
@@ -39,8 +40,12 @@ class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntit
         super().__init__(coordinator)
         self._attr_mac_address = subentry.data[CONF_MAC]
         self._attr_name = subentry.title
-        # Home Assistant names the device it links this tracker to after the hostname.
         self._attr_hostname = subentry.title
+        # The same device as the device's sensors (found by its MAC). Home Assistant
+        # 2026.11 warns about a scanner tracker without device info, and 2027.11 will
+        # stop linking one to the device by MAC on its own. Earlier versions ignore it
+        # and link the tracker by MAC themselves.
+        self._attr_device_info = tracked_device_info(subentry)
 
     @property
     def entity_registry_enabled_default(self) -> bool:

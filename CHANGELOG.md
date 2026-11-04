@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.2 — ready for Home Assistant 2026.11's tracker change
+
+- Each tracker now names its device itself (the device of its sensors, by its MAC).
+  Home Assistant 2026.11 logs a warning for a network tracker that doesn't, and 2027.11
+  will no longer link one to its device on its own. Nothing changes for your trackers:
+  same entity, same device.
+- Home Assistant 2026.11 also adds new network trackers (UniFi and others) disabled. That
+  doesn't affect this integration: its trackers stay enabled, as you chose each device,
+  and UniFi access points have been read from the controller itself since 0.12.0, not
+  through the UniFi integration's trackers.
+
 ## 0.12.1 — text that still described the old UniFi and Omada setup
 
 No change in behaviour. From the second HACS review:
