@@ -296,9 +296,10 @@ Requires Home Assistant **2026.9** or newer.
 
 [![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=darek-margas&repository=wifi-association-presence&category=integration)
 
-(HACS offers to add the repository), then **Download**, and restart Home Assistant. By
-hand: HACS → ⋮ → **Custom repositories** → add this repository's URL with type
-**Integration**, install **Wi-Fi Association Presence**, and restart.
+then **Download**, and restart Home Assistant. Or search HACS for **Wi-Fi Association
+Presence**: it is in HACS's default list (since November 2026), so no custom repository
+is needed. If you added it as a custom repository before, you can remove that entry;
+the installed integration and its settings stay.
 
 **Manual:** copy `custom_components/wifi_association_presence` to
 `/config/custom_components/` and restart Home Assistant.
@@ -503,7 +504,7 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
 
 **Project state**
 - Early development: limited testing (a few installations; OpenWrt so far in a VM), English
-  only, not yet in the default HACS list (add it as a custom repository).
+  only. In HACS's default list since November 2026.
 
 ## Help add your access point
 
