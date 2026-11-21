@@ -89,3 +89,22 @@ jobs:
             gh release create "$TAG" --target "$GITHUB_SHA" --title "$TITLE" \
               --notes-file /tmp/release-notes.md --prerelease="$PRERELEASE"
           fi
+
+      # HACS installs from this zip ("zip_release" in hacs.json) and counts its
+      # downloads in the store. Built from the tag, not from main, and uploaded
+      # once: replacing it would reset the count.
+      - name: Attach the integration zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          ASSET=wifi_association_presence.zip
+          if gh release view "$TAG" --json assets -q '.assets[].name' | grep -qx "$ASSET"; then
+            echo "$ASSET is already on $TAG."
+            exit 0
+          fi
+          rm -rf /tmp/zip && mkdir /tmp/zip
+          git archive "$TAG" custom_components/wifi_association_presence | tar -x -C /tmp/zip
+          (cd /tmp/zip/custom_components/wifi_association_presence && zip -r -X "/tmp/$ASSET" .)
+          gh release upload "$TAG" "/tmp/$ASSET"
