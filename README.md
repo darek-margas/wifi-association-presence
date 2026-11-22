@@ -649,18 +649,13 @@ grace period. RADIUS accounting also identifies the 802.1X user, which would all
 tracking a person even with rotating private MAC addresses. Design and test results:
 [docs/design/instant-arrivals.md](docs/design/instant-arrivals.md).
 
-An idea: **an MQTT bridge**, for Node-RED, openHAB, ioBroker, Domoticz or anything else
-that speaks MQTT, without Home Assistant. A small service built on the same
-[wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/) library polls the
-access points and publishes, per access point, its associated clients (MAC, SSID, band,
-signal) and its health, and per device whether it is home and on which access point.
-Shipped as a container and configured through environment variables: the broker, and
-each access point's type and settings, with passwords from Docker secrets or an env file
-rather than the compose file. Optionally Home Assistant MQTT discovery, for installations
-that keep Home Assistant elsewhere. First step done in 0.11.0b4: the presence rules (grace
-period, roams, arrival and departure times, coverage) are now in the library, so the
-bridge and the integration decide home and away the same way. Proposed configuration,
-topics and container: [docs/design/mqtt-bridge.md](docs/design/mqtt-bridge.md).
+Done: **an MQTT bridge**,
+[wifi-presence-mqtt](https://github.com/darek-margas/wifi-presence-mqtt) (0.1.0), for
+Node-RED, openHAB, ioBroker, Domoticz or anything else that speaks MQTT, without Home
+Assistant. A container built on the same library, so it decides home and away by the same
+rules; optionally with Home Assistant MQTT discovery. Checked against this integration on
+the same five D-Link DAPs before its release: the same trackers, areas and client counts.
+Design: [docs/design/mqtt-bridge.md](docs/design/mqtt-bridge.md).
 
 Done in 0.6.0: the access point code is now a standalone library on PyPI,
 [wifi-ap-associations](https://pypi.org/project/wifi-ap-associations/), tested and
