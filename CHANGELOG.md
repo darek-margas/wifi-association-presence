@@ -1,30 +1,55 @@
 # Changelog
 
-## 0.13.0b1 — parking spots: a car in its spot is home (beta)
+## 0.13.0b1 — parking spots: a DIY sensor tells which car is in which spot (beta)
 
-A sleeping car drops off the Wi-Fi and turned away, even parked in the garage. A sensor
-over the parking space now keeps it home and says which spot it is in.
+**What it does:** you hang one small DIY sensor over each parking space, and the
+integration tells you which of your cars is parked there. It also keeps a parked car
+home while it sleeps. A car asleep in the garage drops off the Wi-Fi, so until now it
+turned away.
 
-- New: **Add parking spot**, as many as you have. Each takes an occupancy sensor over the
-  space, optionally its distance sensor (to tell a car from a ladder or a bin), the floor
-  distance, a car height band, and each car's Bluetooth RSSI measured at the spot (to
-  tell the cars apart; not needed with one car).
-- New option on tracked devices: **Car: placed by parking spots** (Reconfigure). Off for
-  existing devices.
-- A spot that has identified a car outranks the access points: the car is home, in the
-  spot's area (the spot's device starts in its occupancy sensor's area). The tracker gets
-  `parking_spot`; `arrived_at` doesn't move when the car later leaves the Wi-Fi, and
-  `departed_at` counts when it left the spot. The Area sensor shows the spot's area.
-- New sensors: per car **Parking** (`in_spot`, `outside`, `away`, or `home` when a spot
-  can't tell), per spot **Occupant** (the car's name, `empty`, `other`, `unsure`).
-  Diagnostics include what each spot sees.
-- The spot logic is the same file as in Tesla BLE Fleet's parking. Use one of the two
-  per spot.
-- The ESPHome config of our sensor (ESP32-C3 Super Mini, HC-SR04, `ble_rssi` per car) is
-  in `examples/esphome/parking-spot.yaml`, with a link to the 3D-printed box it lives in.
+**The sensor** is an ESP32-C3 Super Mini and an HC-SR04 ultrasonic sensor running
+ESPHome, in a 3D-printed box on the ceiling. It measures the distance down to whatever
+is under it, and listens to the cars' Bluetooth adverts. Cars keep advertising for the
+phone key while asleep.
+- The full ESPHome config, with wiring and calibration notes:
+  [examples/esphome/parking-spot.yaml](https://github.com/darek-margas/wifi-association-presence/blob/main/examples/esphome/parking-spot.yaml).
+- The box (polle87's, on MakerWorld; its page lists the parts):
+  https://makerworld.com/en/models/3368970.
+- Any other occupancy sensor and Bluetooth RSSI sensor work too: the integration only
+  reads their Home Assistant entities.
 
-Not yet: a sleeping car outside, off the Wi-Fi and in no spot, still shows away. That
-waits for the Bluetooth source (`docs/design/tesla-ble-source.md`).
+**How a spot decides:**
+- **Is it a car?** Its height (floor distance minus measured distance) must be in the
+  car band. A ladder, a bin or a person isn't.
+- **Which car?** The one whose Bluetooth signal at the spot is clearly the strongest.
+  With only one car, the height alone is enough.
+- **Then it holds.** Once identified, the car stays in the spot until the spot is empty,
+  so a weak advert or an open tailgate doesn't move it out.
+
+**What you get:**
+- Per car, a **Parking** sensor: `in_spot` (with the spot's name), `outside` (home by
+  Wi-Fi, in no spot), `away`, or `home` when a spot can't tell.
+- Per spot, an **Occupant** sensor: the car's name, `empty`, `other` (not one of your
+  cars), or `unsure` (two cars too close to tell).
+- **The tracker:** a car in a spot is home, in the spot's area, whatever Wi-Fi says.
+  Its attributes `parking_spot`, `arrived_at` and `departed_at` follow the spot, and its
+  Area sensor shows the spot's area.
+- **Diagnostics** show what each spot sees.
+
+**Setup:**
+1. Reconfigure each car's tracked device and turn on **Car: placed by parking spots**.
+   It's off for existing devices.
+2. **Add parking spot**, once per space. Give it the sensor's occupancy, distance, floor
+   distance and each car's RSSI.
+
+Step by step, with calibration:
+[wiki: Parking spots](https://github.com/darek-margas/wifi-association-presence/wiki/Parking-spots).
+
+**Tesla BLE Fleet** has the same spot logic (one shared file) and decides which car to
+honk when the driveway is blocked. Set up each spot in one of the two, not both.
+
+**Not yet:** a sleeping car on the driveway, off the Wi-Fi and in no spot, still shows
+away. That waits for the Bluetooth source.
 
 ## 0.12.2 — ready for Home Assistant 2026.11's tracker change
 
