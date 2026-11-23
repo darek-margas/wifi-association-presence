@@ -97,7 +97,7 @@ and brief gaps, so `not_home` means *gone*, not *quiet*.
   *notify when the kids' tablets are in the garden*, *which floor is everyone on*.
 - It reacts immediately when you move an AP to another area or rename an area.
 
-### Cars in parking spots (beta, 0.13.0b1)
+### Cars in parking spots (beta, 0.13.0b2)
 A car on the home Wi-Fi is tracked like a phone until it falls asleep and leaves the
 Wi-Fi. A sensor over the parking space keeps it home, and says which spot it's in.
 
@@ -106,8 +106,12 @@ Wi-Fi. A sensor over the parking space keeps it home, and says which spot it's i
   its distance sensor, the floor distance (what it reads empty), and each car's
   Bluetooth RSSI measured at the spot. With one car, the RSSI can be left out.
 - A car the spot identifies is **home, in the spot's area**, whatever the access points
-  say: the spot outranks Wi-Fi. The tracker gets a `parking_spot` attribute and its
-  Area sensor shows the spot's area.
+  say: the spot outranks Wi-Fi. The tracker gets a `parking_spot` attribute, and its
+  Access point and Area sensors show the spot and its area.
+- **Outside, asleep:** give the car a **Presence sensor** (Reconfigure), any binary sensor
+  that is on while it's near; for a Tesla, a Tesla BLE ESP32's **Present**. While it's
+  on, the car is home in that sensor's area even off the Wi-Fi, and `outside` if it's in
+  no spot. The order is: spot, presence sensor, Wi-Fi.
 - Per car, **Parking**: `in_spot` (attribute `spot`), `outside` (home by Wi-Fi, in no
   spot), `away`, or `home` when a spot can't tell. Per spot, **Occupant**: the car's
   name, `empty`, `other` (a ladder, a bin, a guest's car) or `unsure` (two cars too close
@@ -124,8 +128,8 @@ The box is polle87's
 on MakerWorld, whose page lists the parts. Any occupancy sensor and any RSSI sensor will
 do.
 
-Outside and away still come from the access points: a sleeping car on the driveway, off
-the Wi-Fi, shows away. Tesla owners: [Tesla BLE Fleet](https://github.com/darek-margas/tesla-ble-fleet)
+Without a presence sensor, outside and away come from the access points, and a sleeping
+car on the driveway, off the Wi-Fi, shows away. Tesla owners: [Tesla BLE Fleet](https://github.com/darek-margas/tesla-ble-fleet)
 has the same parking logic and the "which car is outside" answer for the horn; use one
 of the two per spot. Design: [docs/design/parking-spots.md](docs/design/parking-spots.md).
 
@@ -520,8 +524,8 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
   address for your network.
 - **Devices that drop Wi-Fi to save power** (some Android phones, laptops in sleep)
   disassociate and will show as away unless the grace period covers the gap. A sleeping
-  car does the same; in a [parking spot](#cars-in-parking-spots-beta-0130b1) it stays
-  home.
+  car does the same; in a [parking spot](#cars-in-parking-spots-beta-0130b2), or with a
+  presence sensor, it stays home.
 
 **Security**
 - **SSH types (D-Link, OpenWrt) log in with a password and do not verify the AP's host

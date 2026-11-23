@@ -80,6 +80,10 @@ async def async_get_config_entry_diagnostics(
             for subentry in entry.get_subentries_of_type(SUBENTRY_ACCESS_POINT)
         ),
         "tracked_devices": len(entry.get_subentries_of_type(SUBENTRY_TRACKED_DEVICE)),
+        "presence_sensors": sum(
+            1 for sub in entry.get_subentries_of_type(SUBENTRY_TRACKED_DEVICE)
+            if sub.data.get("presence_sensor")
+        ),
         "parking": _parking(entry),
         "access_point_report": hass.data.get(DATA_AP_REPORT) or NO_REPORT,
     }

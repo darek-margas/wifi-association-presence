@@ -81,6 +81,8 @@ async def test_spot_wins_over_wifi(hass: HomeAssistant) -> None:
     tracker = hass.states.get("device_tracker.bluey")
     assert tracker.state == "home"
     assert tracker.attributes["parking_spot"] == "Garage"
+    assert tracker.attributes["access_point"] == "Garage"
+    assert hass.states.get("sensor.bluey_access_point").state == "Garage"
     assert tracker.attributes["arrived_at"] is not None
     assert tracker.attributes["departed_at"] is None
     assert hass.states.get("sensor.bluey_parking").state == "in_spot"
@@ -114,6 +116,7 @@ async def test_spot_wins_over_wifi(hass: HomeAssistant) -> None:
     assert tracker.attributes["parking_spot"] is None
     assert tracker.attributes["departed_at"] is not None
     assert hass.states.get("sensor.bluey_parking").state == "away"
+    assert hass.states.get("sensor.bluey_access_point").state == "unknown"
     assert hass.states.get("sensor.garage_occupant").state == "empty"
 
 
@@ -192,3 +195,38 @@ async def test_spot_flow_and_parking_option(hass: HomeAssistant) -> None:
     result = await flows.async_configure(result["flow_id"], {"name": "Phone", "parking": False})
     await hass.async_block_till_done()
     assert er.async_get(hass).async_get_entity_id("sensor", DOMAIN, f"{PHONE}_parking") is None
+
+
+async def test_presence_sensor_keeps_a_sleeping_car_home(hass: HomeAssistant) -> None:
+    # Szarik asleep on the driveway: off the Wi-Fi, in no spot, but the Tesla BLE
+    # ESP32 by the street still hears it (Present on).
+    present = "binary_sensor.szarik_present"
+    hass.states.async_set(present, "on")
+    FakeDriver.results = {"ap1": wifi()}
+    sensors(hass, "on", YL_ROOF, "-60", "-93")
+    szarik = car(SZARIK, "Szarik", "szarik")
+    szarik["data"] = {**szarik["data"], "presence_sensor": present}
+    await setup(hass, ap("ap1"), car(BLUEY, "Bluey", "bluey"), szarik, spot())
+
+    tracker = hass.states.get("device_tracker.szarik")
+    assert tracker.state == "home"
+    assert tracker.attributes["arrived_at"] is not None
+    assert hass.states.get("sensor.szarik_parking").state == "outside"
+    assert hass.states.get("sensor.bluey_parking").state == "in_spot"
+
+    # Szarik drives off: Present turns off, and with no Wi-Fi it is away at once.
+    hass.states.async_set(present, "off")
+    await hass.async_block_till_done()
+    tracker = hass.states.get("device_tracker.szarik")
+    assert tracker.state == "not_home"
+    assert tracker.attributes["departed_at"] is not None
+    assert hass.states.get("sensor.szarik_parking").state == "away"
+    assert hass.states.get("sensor.szarik_access_point").state == "unknown"
+
+    # Back, and into the spot: the spot wins over the sensor.
+    hass.states.async_set(present, "on")
+    sensors(hass, "off", "280", "-60", "-93")
+    sensors(hass, "on", YL_ROOF, "-90", "-55")
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.szarik_parking").state == "in_spot"
+    assert hass.states.get("sensor.szarik_access_point").state == "Garage"

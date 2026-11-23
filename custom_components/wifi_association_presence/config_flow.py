@@ -81,6 +81,7 @@ from .const import (
     CONF_PRIV_PROTOCOL,
     CONF_PROFILE,
     CONF_PARKING,
+    CONF_PRESENCE_SENSOR,
     CONF_OCCUPIED,
     CONF_DISTANCE,
     CONF_FLOOR_CM,
@@ -879,6 +880,9 @@ def _sighting_label(mac: str, sighting: Sighting, coordinator: AssociationCoordi
     return label
 
 
+_PRESENCE_SENSOR_SELECTOR = EntitySelector(EntitySelectorConfig(domain="binary_sensor"))
+
+
 class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
     """Add a device to track by its Wi-Fi MAC address, or rename it."""
 
@@ -902,7 +906,11 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
                     return self.async_abort(reason="already_configured")
                 return self.async_create_entry(
                     title=user_input[CONF_NAME].strip(),
-                    data={CONF_MAC: mac, CONF_PARKING: bool(user_input.get(CONF_PARKING))},
+                    data={
+                        CONF_MAC: mac,
+                        CONF_PARKING: bool(user_input.get(CONF_PARKING)),
+                        CONF_PRESENCE_SENSOR: user_input.get(CONF_PRESENCE_SENSOR) or None,
+                    },
                     unique_id=mac,
                 )
 
@@ -931,6 +939,7 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
                         ),
                         vol.Required(CONF_NAME): TextSelector(),
                         vol.Optional(CONF_PARKING, default=False): BooleanSelector(),
+                        vol.Optional(CONF_PRESENCE_SENSOR): _PRESENCE_SENSOR_SELECTOR,
                     }
                 ),
                 user_input or {},
@@ -949,7 +958,11 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
                 self._get_entry(),
                 subentry,
                 title=user_input[CONF_NAME].strip(),
-                data={**subentry.data, CONF_PARKING: bool(user_input.get(CONF_PARKING))},
+                data={
+                    **subentry.data,
+                    CONF_PARKING: bool(user_input.get(CONF_PARKING)),
+                    CONF_PRESENCE_SENSOR: user_input.get(CONF_PRESENCE_SENSOR) or None,
+                },
             )
         return self.async_show_form(
             step_id="reconfigure",
@@ -958,9 +971,14 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
                     {
                         vol.Required(CONF_NAME): TextSelector(),
                         vol.Optional(CONF_PARKING, default=False): BooleanSelector(),
+                        vol.Optional(CONF_PRESENCE_SENSOR): _PRESENCE_SENSOR_SELECTOR,
                     }
                 ),
-                {CONF_NAME: subentry.title, CONF_PARKING: bool(subentry.data.get(CONF_PARKING))},
+                {
+                    CONF_NAME: subentry.title,
+                    CONF_PARKING: bool(subentry.data.get(CONF_PARKING)),
+                    CONF_PRESENCE_SENSOR: subentry.data.get(CONF_PRESENCE_SENSOR),
+                },
             ),
             description_placeholders={"mac": subentry.data[CONF_MAC]},
         )

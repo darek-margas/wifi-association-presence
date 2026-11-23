@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.13.0b2 — a sleeping car outside stays home; the spot shows as the access point
+
+- New option on tracked devices: **Presence sensor**, any binary sensor that is on while
+  the device is near. For a Tesla that is the **Present** sensor of a Tesla BLE ESP32.
+  While it's on, the device is home in that sensor's area, even off the Wi-Fi. A car
+  asleep on the driveway now shows home and `outside` instead of away.
+- Order of evidence: a parking spot, then the presence sensor, then the access points.
+- While a car is in a spot, its **Access point** sensor and the tracker's `access_point`
+  attribute show the spot's name (b1 left them unknown off the Wi-Fi). With the presence
+  sensor on, they show the sensor's device.
+- The tracker's `departed_at` also counts when the presence sensor turned off.
+
 ## 0.13.0b1 — parking spots: a DIY sensor tells which car is in which spot (beta)
 
 **What it does:** you hang one small DIY sensor over each parking space, and the

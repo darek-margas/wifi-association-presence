@@ -1,6 +1,6 @@
 # Design note: parking spots
 
-Status: **built in 0.13.0b1** (beta). Written 2026-11-23.
+Status: **built in 0.13.0b1** (beta); presence sensors in 0.13.0b2. Written 2026-11-23.
 
 A car on the home Wi-Fi can be tracked by its Wi-Fi MAC like a phone, until it goes to sleep. On 23 November one of our Teslas was parked in the garage, and Tesla BLE Fleet had it in its spot. Its tracker here had been `not_home` since 12:23, when it went to sleep and dropped off the Wi-Fi.
 
@@ -32,21 +32,29 @@ A tracked device gets an option, **Car: placed by parking spots**, when it is ad
 
 A spot that has identified a car outranks every other source. The car is **home**, in the **spot's area**, whatever the access points (or, later, Bluetooth) say. The order of evidence for a car's place is:
 1. a parking spot;
-2. Bluetooth (planned);
+2. its presence sensor (0.13.0b2, below), until the Bluetooth source replaces it;
 3. Wi-Fi.
 
 The spot is the only one that knows the car is under it. Both radio sources only know it is near.
 
 What changes for a car in a spot:
-- the **tracker** is home, and its `area` is the area of the spot's device. The spot device starts in the occupancy sensor's area, and can be moved;
+- the **tracker** is home, its `access_point` is the spot's name, and its `area` is the area of the spot's device. The spot device starts in the occupancy sensor's area, and can be moved;
 - `arrived_at` is when the Wi-Fi saw the visit start if the car was already home by Wi-Fi, otherwise when the spot identified it. So it doesn't move when the car later drops off the Wi-Fi;
 - `departed_at`, once it is away, is the later of its last Wi-Fi sighting and when it left the spot;
 - a `parking_spot` attribute (the spot's name, or none) on parking cars' trackers only;
-- the **Area** sensor shows the spot's area.
+- the **Access point** and **Area** sensors show the spot and its area.
 
 New entities:
 - per parking car, **Parking**: `in_spot` (attribute `spot`), `outside` (home by Wi-Fi but in no spot), `away`, or `home` when a spot can't tell (its sensor is unavailable, or two cars are too close in RSSI);
 - per spot, **Occupant**: the car's name, `empty`, `other` (wrong height, or no car heard near it), or `unsure`.
+
+## Presence sensors (0.13.0b2)
+
+The first day of b1 showed the gap at once: Szarik was asleep on the charger on the driveway, off the Wi-Fi and in no spot, so it was away. The Tesla BLE ESP32 by the street still had it Present.
+
+A tracked device can name a **presence sensor**: any binary sensor that is on while the device is near. While it is on, the device is home in that sensor's area (the entity's, else its device's), with the sensor's device name as `access_point`; for a car in no spot that is `outside`. When it turns off, Wi-Fi decides again, and `departed_at` counts the moment it turned off. Unavailable counts as no evidence.
+
+It is the smallest step toward the [Bluetooth source](tesla-ble-source.md): one entity per device instead of every ESP32 as an access point, no RSSI comparison between ESP32s, and the ESP32's own `presence_timeout` as the only smoothing. It is generic, so it works for anything with a presence binary sensor.
 
 ## What stays in Tesla BLE Fleet
 
@@ -58,7 +66,7 @@ Use one of them per spot, not both. With both, a car gets two Parking/Location s
 
 ## Limits
 
-- **Outside or away** comes from the access points. A sleeping Tesla on the driveway, off the Wi-Fi and in no spot, is away until the Bluetooth source exists.
+- **Outside or away** comes from the presence sensor, else the access points. Without a presence sensor, a sleeping Tesla on the driveway, off the Wi-Fi and in no spot, is away.
 - **The latched car isn't saved.** After a restart or reload, a spot identifies its car again from the next readings. A single car with no RSSI is identified at once.
 - **One spot unsure or unavailable** makes every car that isn't in a spot "home, place unclear", because it might be in that spot.
 - A car identified in two spots at once (two spots both hearing it strongest) isn't expected and isn't handled.

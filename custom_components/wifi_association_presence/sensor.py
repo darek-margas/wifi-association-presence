@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from homeassistant.components.sensor import (
     DOMAIN as SENSOR_DOMAIN,
@@ -37,6 +37,7 @@ from .coordinator import (
 from wifi_ap_associations.coverage import AccessPointCoverage, DeviceCounts
 from .entity import access_point_device_info, parking_spot_device_info, tracked_device_info
 from .parking import Location, SpotKind
+from .presence_sensors import LocalPlace
 
 type StateValue = str | int | datetime | None
 
@@ -157,14 +158,16 @@ class TrackedSensorDescription(SensorEntityDescription):
     attrs_fn: Callable[[AssociationCoordinator, Sighting], dict[str, Any]] | None = None
     # Coverage counts of the day: shown while away too (value_fn unused).
     counts_fn: Callable[[DeviceCounts], int] | None = None
-    # While the car is in a parking spot, the spot's area is the value (it wins).
-    spot_area: bool = False
+    # While the device is in a parking spot, or its presence sensor is on, the value
+    # comes from there (it wins): its name for the access point, its area for the area.
+    spot_value: Literal["name", "area"] | None = None
 
 
 TRACKED_SENSORS = (
     TrackedSensorDescription(
         key="access_point",
         translation_key="access_point",
+        spot_value="name",
         value_fn=lambda _, s: s.access_point,
     ),
     TrackedSensorDescription(
@@ -180,7 +183,7 @@ TRACKED_SENSORS = (
         key="area",
         translation_key="area",
         follows_areas=True,
-        spot_area=True,
+        spot_value="area",
         value_fn=_area_name,
         attrs_fn=_area_id,
     ),
@@ -314,14 +317,12 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
         self._attr_unique_id = f"{self._mac}_{description.key}"
         self._attr_device_info = tracked_device_info(subentry)
 
-    def _spot_area(self) -> ar.AreaEntry | None | bool:
-        """The parking spot's area while the car is in one (None: the spot has no
-        area); False when no spot decides this value."""
-        if not self.entity_description.spot_area:
-            return False
-        parking = self.coordinator.parking
-        spot = parking.spot_of(self._subentry_id)
-        return False if spot is None else parking.spot_area(spot.subentry_id)
+    def _local(self) -> LocalPlace | None:
+        """The parking spot or presence sensor the device is at, if this sensor
+        takes its value from it."""
+        if self.entity_description.spot_value is None:
+            return None
+        return self.coordinator.local_place(self._subentry_id)
 
     @property
     def native_value(self) -> StateValue:
@@ -332,8 +333,10 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
         if (counts_fn := self.entity_description.counts_fn) is not None:
             counts = self.coordinator.coverage.counts.get(self._mac)
             return counts_fn(counts) if counts else 0
-        if (area := self._spot_area()) is not False:
-            return area.name if area else None
+        if (local := self._local()) is not None:
+            if self.entity_description.spot_value == "name":
+                return local.name
+            return local.area.name if local.area else None
         sighting = self.coordinator.current_sighting(self._mac)
         return self.entity_description.value_fn(self.coordinator, sighting) if sighting else None
 
@@ -341,8 +344,8 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Details for the current value, while the device is home."""
         attrs_fn = self.entity_description.attrs_fn
-        if attrs_fn is not None and (area := self._spot_area()) is not False:
-            return {"area_id": area.id if area else None}
+        if attrs_fn is not None and (local := self._local()) is not None:
+            return {"area_id": local.area.id if local.area else None}
         sighting = self.coordinator.current_sighting(self._mac)
         if attrs_fn is None or sighting is None:
             return None

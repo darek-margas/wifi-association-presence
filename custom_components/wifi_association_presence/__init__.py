@@ -105,6 +105,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEnt
     entry.async_on_unload(_async_remove_stop_listener)
     # Parking spots follow their sensors as they change, not only on polls.
     entry.async_on_unload(coordinator.parking.async_start())
+    entry.async_on_unload(coordinator.presence_sensors.async_start())
     # Instant arrivals: access points that report changes trigger a poll at once.
     coordinator.async_start_watchers()
     return True

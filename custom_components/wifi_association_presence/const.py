@@ -23,6 +23,9 @@ CONF_MODEL = "model"
 CONF_CONSIDER_HOME = "consider_home"
 # Tracked device: placed by parking spots (a car). Off for devices saved before 0.13.
 CONF_PARKING = "parking"
+# Tracked device: a binary sensor that is on while the device is near (e.g. a Tesla BLE
+# ESP32's Present); while on, the device is home in that sensor's area.
+CONF_PRESENCE_SENSOR = "presence_sensor"
 # Parking spot settings.
 CONF_OCCUPIED = "occupied"
 CONF_DISTANCE = "distance"

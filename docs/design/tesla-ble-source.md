@@ -1,6 +1,6 @@
 # Design note: cars by Bluetooth, from Tesla BLE ESP32s
 
-Status: **planned**, nothing built. Written 2026-10-14. Parking spots, which outrank it, are built: [parking-spots.md](parking-spots.md).
+Status: **planned**, nothing built. Written 2026-10-14. Parking spots, which outrank it, are built: [parking-spots.md](parking-spots.md). Meanwhile 0.13.0b2 lets a tracked device name one presence sensor (e.g. an ESP32's Present), which keeps a sleeping car home.
 
 Many homes have **one access point** for the whole house: Wi-Fi then says "home", never "where". A Tesla owner running [esphome-tesla-ble-multi](https://github.com/darek-margas/esphome-tesla-ble-multi) may have an ESP32 in the garage and another by the driveway. Each knows which cars are near it, by Bluetooth. Used as a presence source here, they give the car a real location, and the existing presence logic (grace period, visits, areas) applies unchanged.
 

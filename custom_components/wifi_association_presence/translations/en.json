@@ -267,20 +267,24 @@
           "data": {
             "mac": "MAC address",
             "name": "Name",
-            "parking": "Car: placed by parking spots"
+            "parking": "Car: placed by parking spots",
+            "presence_sensor": "Presence sensor"
           },
           "data_description": {
-            "parking": "Gives the device a Parking sensor and lets parking spots identify it. A car identified in a spot is home in the spot's area, whatever the access points say."
+            "parking": "Gives the device a Parking sensor and lets parking spots identify it. A car identified in a spot is home in the spot's area, whatever the access points say.",
+            "presence_sensor": "Optional. A binary sensor that is on while the device is near, e.g. a Tesla BLE ESP32's Present for a car. While it's on, the device is home in that sensor's area, even off the Wi-Fi. A parking spot still wins."
           }
         },
         "reconfigure": {
-          "description": "Rename the device with MAC address {mac}, or change whether parking spots place it.",
+          "description": "Rename the device with MAC address {mac}, or change whether parking spots place it and its presence sensor.",
           "data": {
             "name": "Name",
-            "parking": "Car: placed by parking spots"
+            "parking": "Car: placed by parking spots",
+            "presence_sensor": "Presence sensor"
           },
           "data_description": {
-            "parking": "Gives the device a Parking sensor and lets parking spots identify it. A car identified in a spot is home in the spot's area, whatever the access points say."
+            "parking": "Gives the device a Parking sensor and lets parking spots identify it. A car identified in a spot is home in the spot's area, whatever the access points say.",
+            "presence_sensor": "Optional. A binary sensor that is on while the device is near, e.g. a Tesla BLE ESP32's Present for a car. While it's on, the device is home in that sensor's area, even off the Wi-Fi. A parking spot still wins."
           }
         }
       },

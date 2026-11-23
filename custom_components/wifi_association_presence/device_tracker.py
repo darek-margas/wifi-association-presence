@@ -60,16 +60,16 @@ class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntit
 
     @property
     def is_connected(self) -> bool | None:
-        """In a parking spot, or associated now, or within the grace period of the
-        last sighting.
+        """In a parking spot, or its presence sensor is on, or associated now, or
+        within the grace period of the last sighting.
 
         Unknown (None) while no access point is configured: no data source is not
-        evidence of having left.
+        evidence of having left (unless its presence sensor says off).
         """
-        if self.coordinator.parking.spot_of(self._subentry_id) is not None:
+        if self.coordinator.local_place(self._subentry_id) is not None:
             return True
         if not self.coordinator.has_access_points:
-            return None
+            return False if self.coordinator.presence_sensors.is_on(self._subentry_id) is False else None
         return self.coordinator.current_sighting(self.mac_address) is not None
 
     @property
@@ -84,31 +84,34 @@ class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntit
         - away: arrived_at = None, departed_at = when it was last seen.
         The signal has its own sensor.
 
-        A car that uses parking spots also has parking_spot: the spot it is identified
-        in, else None. While it is in one, it is home in the spot's area, and its visit
-        started when it parked (or when Wi-Fi saw it arrive, if earlier).
+        A parking spot, else the device's presence sensor while on, stands in for the
+        access point: it is home in that spot's (or sensor's) area, with its name as
+        access_point; ssid and band stay the Wi-Fi's. Its visit started at the
+        earliest of the Wi-Fi arrival and the spot or sensor. A car that uses parking
+        spots also has parking_spot: the spot it is identified in, else None.
         """
         parking = self.coordinator.parking
         sighting = self.coordinator.data.sightings.get(self.mac_address or "")
         spot = parking.spot_of(self._subentry_id) if self._parking else None
-        if sighting is None and spot is None and not (
-            self._parking and parking.left_spot_at(self._subentry_id)
-        ):
-            return None
+        local = self.coordinator.local_place(self._subentry_id)
         on_wifi = self.coordinator.current_sighting(self.mac_address) is not None
-        if spot is not None:
-            area = parking.spot_area(spot.subentry_id)
-            arrived = parking.in_spot_since(self._subentry_id)
+        # Away: last seen by an access point, left its spot, or its sensor turned off.
+        left = [t for t in (sighting.last_seen if sighting else None,
+                            parking.left_spot_at(self._subentry_id),
+                            self.coordinator.presence_sensors.off_since(self._subentry_id)) if t]
+        if sighting is None and local is None and not left:
+            return None
+        if local is not None:
+            area = local.area
+            starts = [t for t in (local.since, sighting.arrived if on_wifi else None) if t]
+            arrived = min(starts) if starts else None
             departed = None
         else:
             area = self.coordinator.access_point_area(sighting.access_point_id) if sighting else None
             arrived = sighting.arrived if on_wifi else None
-            # Away: last seen by an access point, or when it left its spot if later.
-            left = [t for t in (sighting.last_seen if sighting else None,
-                                parking.left_spot_at(self._subentry_id)) if t]
             departed = None if on_wifi else max(left)
         attrs = {
-            "access_point": sighting.access_point if sighting else None,
+            "access_point": local.name if local else (sighting.access_point if sighting else None),
             "area": area.name if area else None,
             "ssid": sighting.ssid if sighting else None,
             "band": sighting.band if sighting else None,
