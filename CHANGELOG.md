@@ -1,5 +1,80 @@
 # Changelog
 
+## 0.13.0 — parking spots: which car is in which spot, and sleeping cars stay home
+
+**What it's for.** A car on the home Wi-Fi is tracked like a phone until it goes to
+sleep and drops off the Wi-Fi. From then on it showed away, even parked in the garage.
+0.13.0 adds two things that keep it home and say where it is:
+- a **parking spot**: a DIY sensor over each parking space tells which of your cars is
+  parked there;
+- a **presence sensor**: any binary sensor that is on while the device is near. For a
+  Tesla, that's the Present sensor of an esphome-tesla-ble-multi ESP32. It keeps a
+  sleeping car home when it's parked outside, in no spot.
+
+The order of evidence is: a parking spot, then the presence sensor, then the access
+points.
+
+**Building the spot sensor.** We use one per parking space:
+- **Parts:** an ESP32-C3 Super Mini, an HC-SR04 ultrasonic sensor, and a 10k and a 20k
+  resistor.
+- **Box:** polle87's 3D-printed "Universal Distance Sensor for Home Assistant", which
+  also lists the parts: https://makerworld.com/en/models/3368970.
+- **Wiring:**
+  - HC-SR04 Vcc to 5V and Gnd to GND;
+  - Trig to GPIO5;
+  - Echo through the divider (10k on top, 20k to GND) to GPIO3, because the echo is 5 V.
+- **Firmware:** flash ESPHome with
+  [examples/esphome/parking-spot.yaml](https://github.com/darek-margas/wifi-association-presence/blob/main/examples/esphome/parking-spot.yaml),
+  adding your Wi-Fi details and each car's Bluetooth MAC to `secrets.yaml`. The file
+  has the calibration notes.
+- **Mounting:** in the ceiling over the middle of the space. Read Distance with the spot
+  empty: that's the floor distance.
+- **Enable the RSSI sensors.** In Home Assistant, enable the per-car RSSI sensors; they
+  are disabled by default.
+
+Any other occupancy sensor and Bluetooth RSSI sensor will do: the integration only reads
+their entities.
+
+**How a spot decides:**
+- **Is it a car?** Its height (floor distance minus the measured distance) must be in
+  the car band. A ladder, a bin or a person isn't.
+- **Which car?** The one whose Bluetooth signal at the spot is clearly the strongest.
+  With one car, height alone is enough.
+- **Then it holds.** Once identified, the car stays in the spot until the spot is empty.
+  An open tailgate or a weak advert doesn't move it out.
+
+**Setup:**
+1. Reconfigure each car's tracked device. Turn on **Car: placed by parking spots**, and
+   optionally set its **Presence sensor**.
+2. **Add parking spot**, once per space: the occupancy sensor, the distance sensor, the
+   floor distance, and each car's RSSI sensor.
+
+Step by step, with calibration and what to check when it reads wrong:
+[wiki: Parking spots](https://github.com/darek-margas/wifi-association-presence/wiki/Parking-spots).
+
+**What you get:**
+- Per car, a **Parking** sensor: `in_spot` (with the spot's name), `outside` (home, in
+  no spot), `away`, or `home` when a spot can't tell.
+- Per spot, an **Occupant** sensor: the car's name, `empty`, `other` (not one of your
+  cars) or `unsure` (two cars too close to tell).
+- The **tracker** is home while the car is in a spot or its presence sensor is on.
+  - Its Access point and Area come from the spot (its name and its device's area), or
+    from the presence sensor's device. For a Tesla BLE car sub-device, that's the
+    ESP32 it hangs off.
+  - `arrived_at` doesn't move when the car later leaves the Wi-Fi, and `departed_at`
+    counts when it left the spot or the sensor turned off.
+  - Cars get a `parking_spot` attribute.
+- **Diagnostics** show what each spot sees.
+
+**Tesla BLE Fleet** has the same spot logic (one shared file) and decides which car to
+honk when the driveway is blocked. Set up each spot in one of the two, not both.
+
+Nothing changes for existing tracked devices until you turn these on. Tested on two
+Teslas, one in the garage spot and one asleep on the driveway charger.
+
+Also: the release workflow attaches the HACS zip again. 0.13.0b1 was published without
+it, because the tag didn't exist in the checkout yet.
+
 ## 0.13.0b3 — a presence sensor on a sub-device shows the ESP32 that hears it
 
 - With a Tesla BLE ESP32's Present as the presence sensor, the Access point showed the

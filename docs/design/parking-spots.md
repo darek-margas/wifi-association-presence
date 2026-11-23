@@ -1,6 +1,6 @@
 # Design note: parking spots
 
-Status: **built in 0.13.0b1** (beta); presence sensors in 0.13.0b2. Written 2026-11-23.
+Status: **released in 0.13.0** (betas b1–b3); presence sensors from b2. Written 2026-11-23.
 
 A car on the home Wi-Fi can be tracked by its Wi-Fi MAC like a phone, until it goes to sleep. On 23 November one of our Teslas was parked in the garage, and Tesla BLE Fleet had it in its spot. Its tracker here had been `not_home` since 12:23, when it went to sleep and dropped off the Wi-Fi.
 
@@ -32,7 +32,7 @@ A tracked device gets an option, **Car: placed by parking spots**, when it is ad
 
 A spot that has identified a car outranks every other source. The car is **home**, in the **spot's area**, whatever the access points (or, later, Bluetooth) say. The order of evidence for a car's place is:
 1. a parking spot;
-2. its presence sensor (0.13.0b2, below), until the Bluetooth source replaces it;
+2. its presence sensor (below), until the Bluetooth source replaces it;
 3. Wi-Fi.
 
 The spot is the only one that knows the car is under it. Both radio sources only know it is near.
@@ -48,7 +48,7 @@ New entities:
 - per parking car, **Parking**: `in_spot` (attribute `spot`), `outside` (home by Wi-Fi but in no spot), `away`, or `home` when a spot can't tell (its sensor is unavailable, or two cars are too close in RSSI);
 - per spot, **Occupant**: the car's name, `empty`, `other` (wrong height, or no car heard near it), or `unsure`.
 
-## Presence sensors (0.13.0b2)
+## Presence sensors
 
 The first day of b1 showed the gap at once: Szarik was asleep on the charger on the driveway, off the Wi-Fi and in no spot, so it was away. The Tesla BLE ESP32 by the street still had it Present.
 

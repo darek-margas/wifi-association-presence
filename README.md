@@ -97,7 +97,7 @@ and brief gaps, so `not_home` means *gone*, not *quiet*.
   *notify when the kids' tablets are in the garden*, *which floor is everyone on*.
 - It reacts immediately when you move an AP to another area or rename an area.
 
-### Cars in parking spots (beta, 0.13.0b2)
+### Cars in parking spots
 A car on the home Wi-Fi is tracked like a phone until it falls asleep and leaves the
 Wi-Fi. A sensor over the parking space keeps it home, and says which spot it's in.
 
@@ -524,7 +524,7 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
   address for your network.
 - **Devices that drop Wi-Fi to save power** (some Android phones, laptops in sleep)
   disassociate and will show as away unless the grace period covers the gap. A sleeping
-  car does the same; in a [parking spot](#cars-in-parking-spots-beta-0130b2), or with a
+  car does the same; in a [parking spot](#cars-in-parking-spots), or with a
   presence sensor, it stays home.
 
 **Security**
