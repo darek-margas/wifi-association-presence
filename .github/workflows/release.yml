@@ -105,6 +105,9 @@ jobs:
             exit 0
           fi
           rm -rf /tmp/zip && mkdir /tmp/zip
+          # A tag the previous step just created exists only on GitHub, not in this
+          # checkout (0.13.0b1 failed here): fetch it.
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
           git archive "$TAG" custom_components/wifi_association_presence | tar -x -C /tmp/zip
           (cd /tmp/zip/custom_components/wifi_association_presence && zip -r -X "/tmp/$ASSET" .)
           gh release upload "$TAG" "/tmp/$ASSET"
