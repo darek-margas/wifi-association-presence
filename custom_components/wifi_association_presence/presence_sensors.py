@@ -83,22 +83,32 @@ class PresenceSensors:
         if state is None or state.state != STATE_ON:
             return None
         entity = er.async_get(self._hass).async_get(state.entity_id)
-        device = (
-            dr.async_get(self._hass).async_get(entity.device_id)
-            if entity and entity.device_id
-            else None
+        devices = dr.async_get(self._hass)
+        device = devices.async_get(entity.device_id) if entity and entity.device_id else None
+        # A sub-device (an esphome-tesla-ble-multi car on its ESP32) stands for the
+        # device itself: the one it is attached to is what hears the car, and has the
+        # area. Its name and area win; the sub-device's are the fallback.
+        parent = devices.async_get(device.via_device_id) if device and device.via_device_id else None
+        hearing = parent or device
+        name = (hearing.name_by_user or hearing.name) if hearing else state.name
+        area_id = (
+            (entity.area_id if entity else None)
+            or (device.area_id if device else None)
+            or (parent.area_id if parent else None)
         )
-        name = (device.name_by_user or device.name) if device else state.name
-        area_id = (entity.area_id if entity else None) or (device.area_id if device else None)
         area = ar.async_get(self._hass).async_get_area(area_id) if area_id else None
         return LocalPlace(name, area, state.last_changed)
 
     def device_ids(self) -> set[str]:
         """The sensors' devices (their area is the tracked devices' area)."""
         registry = er.async_get(self._hass)
+        devices = dr.async_get(self._hass)
         ids: set[str] = set()
         for entity_id in self.entities.values():
             entity = registry.async_get(entity_id)
             if entity and entity.device_id:
                 ids.add(entity.device_id)
+                device = devices.async_get(entity.device_id)
+                if device and device.via_device_id:
+                    ids.add(device.via_device_id)
         return ids

@@ -230,3 +230,34 @@ async def test_presence_sensor_keeps_a_sleeping_car_home(hass: HomeAssistant) ->
     await hass.async_block_till_done()
     assert hass.states.get("sensor.szarik_parking").state == "in_spot"
     assert hass.states.get("sensor.szarik_access_point").state == "Garage"
+
+
+async def test_presence_sensor_on_a_sub_device(hass: HomeAssistant) -> None:
+    # esphome-tesla-ble-multi: Present is on the car's sub-device ("Szarik", no area),
+    # attached to the ESP32 ("Tesla BLE", in the garage). The ESP32 is what hears it.
+    other = MockConfigEntry(domain="esphome")
+    other.add_to_hass(hass)
+    garage = ar.async_get(hass).async_create("Garage")
+    devices = dr.async_get(hass)
+    esp32 = devices.async_get_or_create(
+        config_entry_id=other.entry_id, identifiers={("esphome", "esp32")}, name="Tesla BLE"
+    )
+    devices.async_update_device(esp32.id, area_id=garage.id)
+    sub = devices.async_get_or_create(
+        config_entry_id=other.entry_id, identifiers={("esphome", "esp32_szarik")},
+        name="Szarik", via_device_id=esp32.id,
+    )
+    entity = er.async_get(hass).async_get_or_create(
+        "binary_sensor", "esphome", "szarik_present", device_id=sub.id,
+        suggested_object_id="szarik_present",
+    )
+    hass.states.async_set(entity.entity_id, "on")
+    FakeDriver.results = {"ap1": wifi()}
+    szarik = car(SZARIK, "Szarik", "szarik")
+    szarik["data"] = {**szarik["data"], "presence_sensor": entity.entity_id}
+    await setup(hass, ap("ap1"), szarik)
+
+    assert hass.states.get("device_tracker.szarik").state == "home"
+    assert hass.states.get("sensor.szarik_access_point").state == "Tesla BLE"
+    assert hass.states.get("sensor.szarik_area").state == "Garage"
+    assert hass.states.get("device_tracker.szarik").attributes["area"] == "Garage"

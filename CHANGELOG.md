@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.0b3 — a presence sensor on a sub-device shows the ESP32 that hears it
+
+- With a Tesla BLE ESP32's Present as the presence sensor, the Access point showed the
+  car's own name and the Area was unknown: esphome-tesla-ble-multi puts each car on a
+  sub-device of the ESP32, with no area. Both now come from the device it is attached
+  to (the ESP32, e.g. "Tesla BLE" in the Garage). An area set on the entity or the
+  sub-device still wins.
+
 ## 0.13.0b2 — a sleeping car outside stays home; the spot shows as the access point
 
 - New option on tracked devices: **Presence sensor**, any binary sensor that is on while

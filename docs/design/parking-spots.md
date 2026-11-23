@@ -52,7 +52,7 @@ New entities:
 
 The first day of b1 showed the gap at once: Szarik was asleep on the charger on the driveway, off the Wi-Fi and in no spot, so it was away. The Tesla BLE ESP32 by the street still had it Present.
 
-A tracked device can name a **presence sensor**: any binary sensor that is on while the device is near. While it is on, the device is home in that sensor's area (the entity's, else its device's), with the sensor's device name as `access_point`; for a car in no spot that is `outside`. When it turns off, Wi-Fi decides again, and `departed_at` counts the moment it turned off. Unavailable counts as no evidence.
+A tracked device can name a **presence sensor**: any binary sensor that is on while the device is near. While it is on, the device is home in that sensor's area (the entity's, else its device's, else that of the device it is attached to), with the name of the device that hears it as `access_point`: for a car sub-device of an esphome-tesla-ble-multi ESP32, the ESP32; for a car in no spot that is `outside`. When it turns off, Wi-Fi decides again, and `departed_at` counts the moment it turned off. Unavailable counts as no evidence.
 
 It is the smallest step toward the [Bluetooth source](tesla-ble-source.md): one entity per device instead of every ESP32 as an access point, no RSSI comparison between ESP32s, and the ESP32's own `presence_timeout` as the only smoothing. It is generic, so it works for anything with a presence binary sensor.
 
