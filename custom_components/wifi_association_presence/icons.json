@@ -23,6 +23,23 @@
       "roams_today": { "default": "mdi:swap-horizontal" },
       "drops_today": { "default": "mdi:wifi-off" },
       "late_roams_today": { "default": "mdi:timer-sand" },
+      "parking": {
+        "default": "mdi:car",
+        "state": {
+          "in_spot": "mdi:garage-variant",
+          "outside": "mdi:car-arrow-right",
+          "away": "mdi:car-off",
+          "home": "mdi:home-question"
+        }
+      },
+      "occupant": {
+        "default": "mdi:car-info",
+        "state": {
+          "empty": "mdi:garage-open-variant",
+          "other": "mdi:help-box-outline",
+          "unsure": "mdi:car-multiple"
+        }
+      },
       "signal": {
         "default": "mdi:wifi-strength-4",
         "range": {

@@ -10,6 +10,9 @@ LOGGER = logging.getLogger(__package__)
 
 SUBENTRY_ACCESS_POINT = "access_point"
 SUBENTRY_TRACKED_DEVICE = "tracked_device"
+# A parking spot: an occupancy sensor over one space, which places the cars that use
+# parking spots (see parking.py and parking_spots.py).
+SUBENTRY_PARKING_SPOT = "parking_spot"
 # A button on the integration page that collects a report; never stored as a subentry.
 SUBENTRY_REPORT = "access_point_report"
 
@@ -18,6 +21,18 @@ CONF_MAC = "mac"
 CONF_NAME = "name"
 CONF_MODEL = "model"
 CONF_CONSIDER_HOME = "consider_home"
+# Tracked device: placed by parking spots (a car). Off for devices saved before 0.13.
+CONF_PARKING = "parking"
+# Parking spot settings.
+CONF_OCCUPIED = "occupied"
+CONF_DISTANCE = "distance"
+CONF_FLOOR_CM = "floor_cm"
+CONF_MIN_HEIGHT_CM = "min_height_cm"
+CONF_MAX_HEIGHT_CM = "max_height_cm"
+CONF_RSSI_MIN = "rssi_min"
+CONF_RSSI_MARGIN = "rssi_margin"
+# Tracked device subentry id -> the entity with that car's RSSI at this spot.
+CONF_RSSI = "rssi"
 # Instant arrivals (option, on by default): access points that can report changes as
 # they happen trigger a poll at once.
 CONF_INSTANT_ARRIVALS = "instant_arrivals"

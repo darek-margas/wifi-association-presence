@@ -125,6 +125,28 @@
       },
       "area": {
         "name": "Area"
+      },
+      "parking": {
+        "name": "Parking",
+        "state": {
+          "in_spot": "In a spot",
+          "outside": "Outside",
+          "away": "Away",
+          "home": "Home, place unclear"
+        },
+        "state_attributes": {
+          "spot": {
+            "name": "Spot"
+          }
+        }
+      },
+      "occupant": {
+        "name": "Occupant",
+        "state": {
+          "empty": "Empty",
+          "other": "Not one of the cars",
+          "unsure": "A car, not sure which"
+        }
       }
     }
   },
@@ -244,13 +266,21 @@
           "description": "Choose a currently associated device or type its Wi-Fi MAC address. For phones with private Wi-Fi addresses, use the address shown in the phone's settings for your network.",
           "data": {
             "mac": "MAC address",
-            "name": "Name"
+            "name": "Name",
+            "parking": "Car: placed by parking spots"
+          },
+          "data_description": {
+            "parking": "Gives the device a Parking sensor and lets parking spots identify it. A car identified in a spot is home in the spot's area, whatever the access points say."
           }
         },
         "reconfigure": {
-          "description": "Rename the device with MAC address {mac}.",
+          "description": "Rename the device with MAC address {mac}, or change whether parking spots place it.",
           "data": {
-            "name": "Name"
+            "name": "Name",
+            "parking": "Car: placed by parking spots"
+          },
+          "data_description": {
+            "parking": "Gives the device a Parking sensor and lets parking spots identify it. A car identified in a spot is home in the spot's area, whatever the access points say."
           }
         }
       },
@@ -342,6 +372,64 @@
       },
       "abort": {
         "report_ready": "**Report collected in {elapsed}.**\n\n⚠️ **Read the whole report before you submit it.** Automatic redaction removes MAC, IP and email addresses, key-like strings and the password, community or keys you typed, but it can't recognise everything: a Wi-Fi passphrase, names, locations or serial numbers can look like ordinary text. Replace anything you don't want public by hand. Issues on GitHub are public.\n\nTo download it, open the [Wi-Fi Association Presence page]({integration_url}), then the menu (⋮) on the **Wi-Fi association presence** row at the top, and choose **Download diagnostics**. The report is the `access_point_report` part of that file.\n\nLater you find it the same way: Settings → Devices & services → Wi-Fi Association Presence → ⋮ → Download diagnostics. It is kept until Home Assistant restarts or you collect another report.\n\nThe file also contains Home Assistant's usual diagnostics details (your Home Assistant version and the list of custom integrations). Once you have read it, attach it to a [New access point model]({issue_url}) issue."
+      }
+    },
+    "parking_spot": {
+      "entry_type": "Parking spot",
+      "initiate_flow": {
+        "user": "Add parking spot"
+      },
+      "step": {
+        "user": {
+          "title": "Add a parking spot",
+          "description": "One parking space: an occupancy sensor over it and, per car, that car's Bluetooth RSSI measured at the spot (e.g. ble_rssi sensors of the ESP32 above it). With one car, no RSSI is needed. Once a car is identified, the spot keeps it until it is empty.",
+          "data": {
+            "name": "Name",
+            "occupied": "Occupancy sensor",
+            "distance": "Distance sensor",
+            "floor_cm": "Floor distance",
+            "min_height_cm": "Lowest car",
+            "max_height_cm": "Highest car",
+            "rssi_min": "Weakest RSSI at the spot",
+            "rssi_margin": "RSSI margin"
+          },
+          "data_description": {
+            "occupied": "On while something is in the space, e.g. an ultrasonic sensor in the ceiling.",
+            "distance": "Optional. What the sensor measures: with it, a ladder or a bin isn't taken for a car.",
+            "floor_cm": "What the distance sensor reads with the spot empty.",
+            "min_height_cm": "Anything lower (floor distance minus distance) is not a car.",
+            "max_height_cm": "Anything higher is not a car.",
+            "rssi_min": "A car heard weaker than this is not near the spot.",
+            "rssi_margin": "The strongest car must beat the next one by this much, or the spot waits."
+          }
+        },
+        "reconfigure": {
+          "title": "Edit the parking spot",
+          "description": "One parking space: an occupancy sensor over it and, per car, that car's Bluetooth RSSI measured at the spot (e.g. ble_rssi sensors of the ESP32 above it). With one car, no RSSI is needed. Once a car is identified, the spot keeps it until it is empty.",
+          "data": {
+            "name": "Name",
+            "occupied": "Occupancy sensor",
+            "distance": "Distance sensor",
+            "floor_cm": "Floor distance",
+            "min_height_cm": "Lowest car",
+            "max_height_cm": "Highest car",
+            "rssi_min": "Weakest RSSI at the spot",
+            "rssi_margin": "RSSI margin"
+          },
+          "data_description": {
+            "occupied": "On while something is in the space, e.g. an ultrasonic sensor in the ceiling.",
+            "distance": "Optional. What the sensor measures: with it, a ladder or a bin isn't taken for a car.",
+            "floor_cm": "What the distance sensor reads with the spot empty.",
+            "min_height_cm": "Anything lower (floor distance minus distance) is not a car.",
+            "max_height_cm": "Anything higher is not a car.",
+            "rssi_min": "A car heard weaker than this is not near the spot.",
+            "rssi_margin": "The strongest car must beat the next one by this much, or the spot waits."
+          }
+        }
+      },
+      "abort": {
+        "no_parking_cars": "No tracked device uses parking spots yet. Reconfigure a car's tracked device and turn on \"Car: placed by parking spots\" first.",
+        "reconfigure_successful": "Parking spot updated."
       }
     }
   },

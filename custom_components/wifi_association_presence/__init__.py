@@ -11,9 +11,10 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.importlib import async_import_module
 
-from .const import DOMAIN, SUBENTRY_TRACKED_DEVICE
+from .const import CONF_OCCUPIED, DOMAIN, SUBENTRY_PARKING_SPOT, SUBENTRY_TRACKED_DEVICE
 from .coordinator import AssociationCoordinator, WifiAssociationConfigEntry
-from .entity import access_point_device_info, tracked_device_info
+from .entity import access_point_device_info, parking_spot_device_info, tracked_device_info
+from .parking_spots import suggested_spot_area
 
 PLATFORMS = [Platform.DEVICE_TRACKER, Platform.SENSOR]
 
@@ -72,6 +73,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEnt
             config_subentry_id=subentry.subentry_id,
             **tracked_device_info(subentry),
         )
+    for subentry in entry.get_subentries_of_type(SUBENTRY_PARKING_SPOT):
+        info = parking_spot_device_info(subentry)
+        if not device_registry.async_get_device_by_identifier(
+            (DOMAIN, subentry.subentry_id), entry.entry_id
+        ) and (area := suggested_spot_area(hass, subentry.data[CONF_OCCUPIED])):
+            # A new spot starts in its occupancy sensor's area; the user can move it.
+            info["suggested_area"] = area
+        device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            config_subentry_id=subentry.subentry_id,
+            **info,
+        )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -90,6 +103,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEnt
             unsubscribe()
 
     entry.async_on_unload(_async_remove_stop_listener)
+    # Parking spots follow their sensors as they change, not only on polls.
+    entry.async_on_unload(coordinator.parking.async_start())
     # Instant arrivals: access points that report changes trigger a poll at once.
     coordinator.async_start_watchers()
     return True

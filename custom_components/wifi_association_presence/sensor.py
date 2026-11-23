@@ -1,4 +1,5 @@
-"""Sensors: access point details and where each tracked device is connected."""
+"""Sensors: access point details, where each tracked device is connected, and the
+parking spots."""
 
 from __future__ import annotations
 
@@ -25,7 +26,7 @@ from homeassistant.helpers import (
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_MAC, DOMAIN, SUBENTRY_TRACKED_DEVICE
+from .const import CONF_MAC, CONF_PARKING, DOMAIN, SUBENTRY_PARKING_SPOT, SUBENTRY_TRACKED_DEVICE
 from .coordinator import (
     AccessPointState,
     AssociationCoordinator,
@@ -34,7 +35,8 @@ from .coordinator import (
     WifiAssociationConfigEntry,
 )
 from wifi_ap_associations.coverage import AccessPointCoverage, DeviceCounts
-from .entity import access_point_device_info, tracked_device_info
+from .entity import access_point_device_info, parking_spot_device_info, tracked_device_info
+from .parking import Location, SpotKind
 
 type StateValue = str | int | datetime | None
 
@@ -155,6 +157,8 @@ class TrackedSensorDescription(SensorEntityDescription):
     attrs_fn: Callable[[AssociationCoordinator, Sighting], dict[str, Any]] | None = None
     # Coverage counts of the day: shown while away too (value_fn unused).
     counts_fn: Callable[[DeviceCounts], int] | None = None
+    # While the car is in a parking spot, the spot's area is the value (it wins).
+    spot_area: bool = False
 
 
 TRACKED_SENSORS = (
@@ -176,6 +180,7 @@ TRACKED_SENSORS = (
         key="area",
         translation_key="area",
         follows_areas=True,
+        spot_area=True,
         value_fn=_area_name,
         attrs_fn=_area_id,
     ),
@@ -237,6 +242,18 @@ async def async_setup_entry(
             [TrackedDeviceSensor(coordinator, subentry, d) for d in TRACKED_SENSORS],
             config_subentry_id=subentry.subentry_id,
         )
+        if subentry.data.get(CONF_PARKING):
+            async_add_entities(
+                [ParkingSensor(coordinator, subentry)], config_subentry_id=subentry.subentry_id
+            )
+        elif entity_id := registry.async_get_entity_id(
+            SENSOR_DOMAIN, DOMAIN, f"{subentry.data[CONF_MAC]}_parking"
+        ):
+            registry.async_remove(entity_id)  # the device no longer uses parking spots
+    for subentry in entry.get_subentries_of_type(SUBENTRY_PARKING_SPOT):
+        async_add_entities(
+            [OccupantSensor(coordinator, subentry)], config_subentry_id=subentry.subentry_id
+        )
 
 
 class AccessPointSensor(CoordinatorEntity[AssociationCoordinator], SensorEntity):
@@ -293,8 +310,18 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
         super().__init__(coordinator)
         self.entity_description = description
         self._mac = subentry.data[CONF_MAC]
+        self._subentry_id = subentry.subentry_id
         self._attr_unique_id = f"{self._mac}_{description.key}"
         self._attr_device_info = tracked_device_info(subentry)
+
+    def _spot_area(self) -> ar.AreaEntry | None | bool:
+        """The parking spot's area while the car is in one (None: the spot has no
+        area); False when no spot decides this value."""
+        if not self.entity_description.spot_area:
+            return False
+        parking = self.coordinator.parking
+        spot = parking.spot_of(self._subentry_id)
+        return False if spot is None else parking.spot_area(spot.subentry_id)
 
     @property
     def native_value(self) -> StateValue:
@@ -305,6 +332,8 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
         if (counts_fn := self.entity_description.counts_fn) is not None:
             counts = self.coordinator.coverage.counts.get(self._mac)
             return counts_fn(counts) if counts else 0
+        if (area := self._spot_area()) is not False:
+            return area.name if area else None
         sighting = self.coordinator.current_sighting(self._mac)
         return self.entity_description.value_fn(self.coordinator, sighting) if sighting else None
 
@@ -312,6 +341,8 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Details for the current value, while the device is home."""
         attrs_fn = self.entity_description.attrs_fn
+        if attrs_fn is not None and (area := self._spot_area()) is not False:
+            return {"area_id": area.id if area else None}
         sighting = self.coordinator.current_sighting(self._mac)
         if attrs_fn is None or sighting is None:
             return None
@@ -350,3 +381,67 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
         self.async_on_remove(
             self.hass.bus.async_listen(ar.EVENT_AREA_REGISTRY_UPDATED, _area_changed)
         )
+
+
+class ParkingSensor(CoordinatorEntity[AssociationCoordinator], SensorEntity):
+    """Where a car that uses parking spots is: in a spot, outside, away, or home with
+    the place unclear (a spot can't tell: its sensor is unavailable, or two cars are
+    too close in RSSI)."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "parking"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = [loc.value for loc in Location]
+
+    def __init__(self, coordinator: AssociationCoordinator, subentry: ConfigSubentry) -> None:
+        super().__init__(coordinator)
+        self._subentry_id = subentry.subentry_id
+        self._attr_unique_id = f"{subentry.data[CONF_MAC]}_parking"
+        self._attr_device_info = tracked_device_info(subentry)
+
+    @property
+    def native_value(self) -> str | None:
+        place = self.coordinator.parking.places.get(self._subentry_id)
+        return place.location.value if place and place.location else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        spot = self.coordinator.parking.spot_of(self._subentry_id)
+        return {"spot": spot.title if spot else None}
+
+
+# What a spot holds when it isn't one of the cars (enum options next to the car names).
+_OCCUPANT_STATES = {SpotKind.EMPTY: "empty", SpotKind.OTHER: "other", SpotKind.UNSURE: "unsure"}
+
+
+class OccupantSensor(CoordinatorEntity[AssociationCoordinator], SensorEntity):
+    """What is in a parking spot: a car's name, empty, something else (wrong height, or
+    no car heard near it), or a car but not sure which. Unknown while the occupancy
+    sensor is unavailable."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "occupant"
+    _attr_device_class = SensorDeviceClass.ENUM
+
+    def __init__(self, coordinator: AssociationCoordinator, subentry: ConfigSubentry) -> None:
+        super().__init__(coordinator)
+        self._spot_id = subentry.subentry_id
+        self._attr_unique_id = f"{subentry.subentry_id}_occupant"
+        self._attr_device_info = parking_spot_device_info(subentry)
+        cars = coordinator.parking.cars
+        self._attr_options = [*_OCCUPANT_STATES.values(), *(c.title for c in cars.values())]
+
+    @property
+    def available(self) -> bool:
+        """The spot reads its own sensors: it works while the access points fail."""
+        return True
+
+    @property
+    def native_value(self) -> str | None:
+        state = self.coordinator.parking.occupant(self._spot_id)
+        if state is None or state.kind is SpotKind.UNKNOWN:
+            return None
+        if state.kind is SpotKind.CAR:
+            car = self.coordinator.parking.cars.get(state.car_id or "")
+            return car.title if car else None
+        return _OCCUPANT_STATES[state.kind]

@@ -1,6 +1,6 @@
 # Design note: cars by Bluetooth, from Tesla BLE ESP32s
 
-Status: **planned**, nothing built. Written 2026-10-14.
+Status: **planned**, nothing built. Written 2026-10-14. Parking spots, which outrank it, are built: [parking-spots.md](parking-spots.md).
 
 Many homes have **one access point** for the whole house: Wi-Fi then says "home", never "where". A Tesla owner running [esphome-tesla-ble-multi](https://github.com/darek-margas/esphome-tesla-ble-multi) may have an ESP32 in the garage and another by the driveway. Each knows which cars are near it, by Bluetooth. Used as a presence source here, they give the car a real location, and the existing presence logic (grace period, visits, areas) applies unchanged.
 
@@ -35,6 +35,7 @@ Many homes have **one access point** for the whole house: Wi-Fi then says "home"
 - Today the strongest signal (quality 0–100) wins across access points.
 - Wi-Fi and Bluetooth signal levels aren't comparable, so: **a Bluetooth sighting wins the area while there is one**, because it's the local, finer one. Wi-Fi decides home/away and the area only when no Bluetooth source sees the car.
 - Between two Bluetooth sources, the stronger BLE Advert RSSI wins, with a few dB of hysteresis so the area doesn't flip between two ESP32s that hear the car equally.
+- A **parking spot** that has identified the car outranks both (built in 0.13.0b1, [parking-spots.md](parking-spots.md)): Bluetooth knows the car is near the garage, the spot knows it is in it.
 
 ## Why here and not in Tesla BLE Fleet
 

@@ -97,6 +97,38 @@ and brief gaps, so `not_home` means *gone*, not *quiet*.
   *notify when the kids' tablets are in the garden*, *which floor is everyone on*.
 - It reacts immediately when you move an AP to another area or rename an area.
 
+### Cars in parking spots (beta, 0.13.0b1)
+A car on the home Wi-Fi is tracked like a phone until it falls asleep and leaves the
+Wi-Fi. A sensor over the parking space keeps it home, and says which spot it's in.
+
+- Turn on **Car: placed by parking spots** for the car's tracked device (Reconfigure).
+- **Add parking spot** on the integration, once per space: an occupancy sensor, ideally
+  its distance sensor, the floor distance (what it reads empty), and each car's
+  Bluetooth RSSI measured at the spot. With one car, the RSSI can be left out.
+- A car the spot identifies is **home, in the spot's area**, whatever the access points
+  say: the spot outranks Wi-Fi. The tracker gets a `parking_spot` attribute and its
+  Area sensor shows the spot's area.
+- Per car, **Parking**: `in_spot` (attribute `spot`), `outside` (home by Wi-Fi, in no
+  spot), `away`, or `home` when a spot can't tell. Per spot, **Occupant**: the car's
+  name, `empty`, `other` (a ladder, a bin, a guest's car) or `unsure` (two cars too close
+  in RSSI to tell).
+- **Height** tells a car from a ladder or a bin. **RSSI** tells which car: the strongest
+  advert at the spot, if clearly ahead of the next. Once identified, a car stays in the
+  spot until it's empty.
+
+What we use: an ESP32-C3 Super Mini and an HC-SR04 ultrasonic sensor in the ceiling,
+which also scans the cars' Bluetooth adverts. The ESPHome config, with wiring and
+calibration notes: [examples/esphome/parking-spot.yaml](examples/esphome/parking-spot.yaml).
+The box is polle87's
+[Universal Distance Sensor for Home Assistant](https://makerworld.com/en/models/3368970)
+on MakerWorld, whose page lists the parts. Any occupancy sensor and any RSSI sensor will
+do.
+
+Outside and away still come from the access points: a sleeping car on the driveway, off
+the Wi-Fi, shows away. Tesla owners: [Tesla BLE Fleet](https://github.com/darek-margas/tesla-ble-fleet)
+has the same parking logic and the "which car is outside" answer for the horn; use one
+of the two per spot. Design: [docs/design/parking-spots.md](docs/design/parking-spots.md).
+
 ### Arrival and departure times
 Every tracker tells you **when** the device arrived or left, not just whether it is home:
 
@@ -487,7 +519,9 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
   (e.g. iOS "Rotating" private address) will stop matching; set them to a fixed private
   address for your network.
 - **Devices that drop Wi-Fi to save power** (some Android phones, laptops in sleep)
-  disassociate and will show as away unless the grace period covers the gap.
+  disassociate and will show as away unless the grace period covers the gap. A sleeping
+  car does the same; in a [parking spot](#cars-in-parking-spots-beta-0130b1) it stays
+  home.
 
 **Security**
 - **SSH types (D-Link, OpenWrt) log in with a password and do not verify the AP's host

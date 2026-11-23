@@ -8,6 +8,7 @@ recorded too, so someone who closed the window can see what happened.
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -79,5 +80,30 @@ async def async_get_config_entry_diagnostics(
             for subentry in entry.get_subentries_of_type(SUBENTRY_ACCESS_POINT)
         ),
         "tracked_devices": len(entry.get_subentries_of_type(SUBENTRY_TRACKED_DEVICE)),
+        "parking": _parking(entry),
         "access_point_report": hass.data.get(DATA_AP_REPORT) or NO_REPORT,
+    }
+
+
+def _parking(entry: ConfigEntry) -> dict[str, Any]:
+    """What each spot sees and where it places the cars (names only, no MACs)."""
+    parking = getattr(getattr(entry, "runtime_data", None), "parking", None)
+    if parking is None:
+        return {}
+    cars = {car_id: car.title for car_id, car in parking.cars.items()}
+    return {
+        "spots": {
+            spot.title: {
+                "kind": (state := parking.occupant(spot_id)) and state.kind.value,
+                "car": cars.get(state.car_id) if state and state.car_id else None,
+                "height_cm": state.height_cm if state else None,
+                "config": asdict(spot.tracker.config),
+                "cars_with_rssi": sorted(cars.get(c, c) for c in spot.rssi),
+            }
+            for spot_id, spot in parking.spots.items()
+        },
+        "cars": {
+            cars[car_id]: {"location": place.location and place.location.value, "spot": place.spot and parking.spots[place.spot].title}
+            for car_id, place in parking.places.items()
+        },
     }

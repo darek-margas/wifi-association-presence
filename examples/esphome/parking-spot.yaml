@@ -1,0 +1,191 @@
+# -----------------------------------------------------------------------------
+# Parking spot sensor for Wi-Fi Association Presence: an ESP32-C3 Super Mini and an
+# HC-SR04 ultrasonic sensor in the ceiling over one parking space, scanning the
+# cars' Bluetooth adverts so the spot can tell which car is in it.
+#
+# This is the author's garage-parking-1, in one file. Box: "Universal Distance
+# Sensor for Home Assistant" by polle87 on MakerWorld (not ours; its page lists
+# the parts): https://makerworld.com/en/models/3368970
+#
+# In Home Assistant, add a parking spot with:
+#   Occupancy sensor  binary_sensor.<name>_car_present
+#   Distance sensor   sensor.<name>_distance
+#   Floor distance    what Distance reads with the spot empty
+#   <car> RSSI        sensor.<name>_car_1_rssi, sensor.<name>_car_2_rssi
+# The RSSI sensors are disabled by default (diagnostic): enable them first.
+#
+# Wiring:
+#   HC-SR04 Vcc  -> 5V   (only live when the board is powered over USB-C)
+#   HC-SR04 Gnd  -> GND
+#   HC-SR04 Trig -> GPIO5
+#   HC-SR04 Echo -> divider -> GPIO3 (5 V echo down to about 3.3 V): 10k on top,
+#                   20k to GND
+# GPIO3 rather than GPIO2: GPIO2 is a C3 strapping pin and the divider's
+# pull-down could upset boot.
+#
+# Hung about 3 m above the floor: the empty floor read 280 cm, a Model Y roof
+# 113-118 cm, a bonnet about 200 cm. Car Present turns on below the threshold
+# (adjustable from Home Assistant) and off above threshold + hysteresis.
+# -----------------------------------------------------------------------------
+
+substitutions:
+  devicename: garage-parking-1
+  friendly_name: "Garage Parking 1"
+  threshold_cm: "230"
+  hysteresis_cm: "20"
+
+esphome:
+  name: ${devicename}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: ESP32C3
+  framework:
+    type: esp-idf
+
+logger:
+  logs:
+    ultrasonic.sensor: ERROR                     # "Measurement start timed out" every second otherwise
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  output_power: 8.5dB                            # Super Mini antenna layout: full power made Wi-Fi worse
+  on_connect:
+    - esp32_ble_tracker.start_scan:
+        continuous: true
+  on_disconnect:
+    - esp32_ble_tracker.stop_scan:
+
+status_led:
+  pin:
+    number: GPIO8                                # on-board blue LED
+    inverted: true
+
+# The C3 shares one radio between Wi-Fi and Bluetooth: scan about 9 % of the time
+# (interval 211 / window 120 took 57 %, too much for Wi-Fi), and only once Wi-Fi is up.
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 320ms
+    window: 30ms
+    active: true
+    continuous: false
+
+# Optional: also a Bluetooth proxy for Home Assistant.
+bluetooth_proxy:
+  active: true
+
+number:
+  - platform: template
+    name: "Occupied Threshold"
+    id: threshold
+    icon: "mdi:arrow-collapse-down"
+    unit_of_measurement: "cm"
+    min_value: 50
+    max_value: 350
+    step: 5
+    initial_value: ${threshold_cm}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+sensor:
+  # Every ping, unfiltered (NaN = no echo). For calibration.
+  - platform: ultrasonic
+    id: distance_echo
+    name: "Distance Echo"
+    trigger_pin: GPIO5
+    echo_pin: GPIO3
+    update_interval: 1s
+    timeout: 4m
+    unit_of_measurement: "cm"
+    device_class: distance
+    state_class: measurement
+    accuracy_decimals: 0
+    filters:
+      # m -> cm, plus 2.9 %: this sensor read 272 cm for a floor tape-measured at
+      # 280 cm (ESPHome assumes sound at 343 m/s; a warm garage reads short).
+      - multiply: 102.9
+    entity_category: diagnostic
+    disabled_by_default: true
+
+  # Median of the last 5 pings: what Car Present decides on. Median ignores the
+  # missed echoes off a sloped windscreen.
+  - platform: copy
+    source_id: distance_echo
+    id: distance_median
+    name: "Distance Median"
+    accuracy_decimals: 0
+    filters:
+      - median:
+          window_size: 5
+          send_every: 1
+          send_first_at: 1
+    entity_category: diagnostic
+    disabled_by_default: true
+
+  # The same value, rate-limited for Home Assistant's history: the spot's Distance.
+  - platform: copy
+    source_id: distance_median
+    name: "Distance"
+    unit_of_measurement: "cm"
+    device_class: distance
+    state_class: measurement
+    accuracy_decimals: 0
+    filters:
+      - or:
+          - throttle: 60s
+          - delta: 10.0
+
+  # Each car's Bluetooth advert at this spot. Cars advertise for the phone key even
+  # asleep; this only listens, so it doesn't disturb a Tesla BLE connection.
+  - platform: ble_rssi
+    mac_address: !secret ble_mac_car_1
+    name: "Car 1 RSSI"
+    entity_category: diagnostic
+    disabled_by_default: true
+    filters:
+      - timeout:                                 # no advert for 2 min: gone
+          timeout: 120s
+          value: -127
+      - sliding_window_moving_average:
+          window_size: 6
+          send_every: 2
+
+  - platform: ble_rssi
+    mac_address: !secret ble_mac_car_2
+    name: "Car 2 RSSI"
+    entity_category: diagnostic
+    disabled_by_default: true
+    filters:
+      - timeout:
+          timeout: 120s
+          value: -127
+      - sliding_window_moving_average:
+          window_size: 6
+          send_every: 2
+
+binary_sensor:
+  - platform: template
+    name: "Car Present"
+    device_class: occupancy
+    icon: "mdi:car"
+    lambda: |-
+      float d = id(distance_median).state;
+      if (std::isnan(d)) return {};              // no echo: keep the previous state
+      float thr = id(threshold).state;
+      if (d < thr) return true;
+      if (d > thr + ${hysteresis_cm}) return false;
+      return {};                                 // inside the hysteresis band: no change
+    filters:
+      - delayed_on: 5s                           # people walking underneath
+      - delayed_off: 30s                         # bad readings while parking or leaving

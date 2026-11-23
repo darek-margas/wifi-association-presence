@@ -54,6 +54,7 @@ from .const import (
     WATCH_RETRY_MIN,
     WATCH_STABLE,
 )
+from .parking_spots import Parking
 
 __all__ = ["AccessPointState", "Sighting"]
 
@@ -158,6 +159,12 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
             poll_interval=SCAN_INTERVAL,
             fast_departure=timedelta(seconds=fast) if fast else None,
         )
+        # Parking spots: they place the tracked devices that use them (cars), and an
+        # identified car is home in the spot's area whatever the access points say.
+        self.parking = Parking(
+            hass, entry, self._home_by_access_points, self._arrived_by_access_points,
+            self.async_update_listeners,
+        )
         # D-Link DAPs report joins as SNMP traps to this port (one listener for all).
         snmp_trap.LISTENER.configure(
             port=int(entry.options.get(CONF_SNMP_TRAP_PORT, DEFAULT_SNMP_TRAP_PORT))
@@ -211,6 +218,23 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         return self.tracker.to_storage(dt_util.utcnow(), clean=clean)
 
     async def _async_update_data(self) -> PresenceData:
+        """Poll, then place the cars in the parking spots on the new presence."""
+        data = await self._async_poll()
+        self.parking.evaluate()
+        return data
+
+    def _home_by_access_points(self, mac: str) -> bool | None:
+        """Whether the access points have the MAC home; None without access points."""
+        if not self.access_points:
+            return None
+        return self.tracker.current(mac, dt_util.utcnow()) is not None
+
+    def _arrived_by_access_points(self, mac: str) -> datetime | None:
+        """When the MAC's visit started, if the access points have it home."""
+        sighting = self.tracker.current(mac, dt_util.utcnow()) if self.access_points else None
+        return sighting.arrived if sighting else None
+
+    async def _async_poll(self) -> PresenceData:
         """Read every AP in parallel; keep previous sightings for APs that fail."""
         if not self.access_points:
             now = dt_util.utcnow()
@@ -400,8 +424,9 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         return next((d for d in devices if d.area_id), devices[0] if devices else None)
 
     def access_point_device_ids(self) -> set[str]:
-        """Ids of the devices whose area changes affect the tracked devices."""
-        ids: set[str] = set()
+        """Ids of the devices whose area changes affect the tracked devices: the
+        access points' and the parking spots'."""
+        ids: set[str] = self.parking.spot_device_ids()
         for ap in self.access_points:
             if device := self.access_point_device(ap):
                 ids.add(device.id)

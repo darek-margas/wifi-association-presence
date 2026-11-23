@@ -1,4 +1,5 @@
-"""UI setup: one hub entry, with access points and tracked devices as subentries.
+"""UI setup: one hub entry, with access points, tracked devices and parking spots as
+subentries.
 
 Tracked devices are keyed only by MAC and are independent of the access points, so
 access points can be removed, replaced or switched to another driver type without
@@ -26,6 +27,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.importlib import async_import_module
 from homeassistant.helpers.selector import (
     BooleanSelector,
+    EntitySelector,
+    EntitySelectorConfig,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -77,6 +80,16 @@ from .const import (
     CONF_PRIV_KEY,
     CONF_PRIV_PROTOCOL,
     CONF_PROFILE,
+    CONF_PARKING,
+    CONF_OCCUPIED,
+    CONF_DISTANCE,
+    CONF_FLOOR_CM,
+    CONF_MIN_HEIGHT_CM,
+    CONF_MAX_HEIGHT_CM,
+    CONF_RSSI,
+    CONF_RSSI_MIN,
+    CONF_RSSI_MARGIN,
+    SUBENTRY_PARKING_SPOT,
     SECRET_KEYS,
     SNMP_COLLECT_TIMEOUT,
     SNMP_MAX_VALUES,
@@ -90,6 +103,7 @@ from .const import (
 )
 from .coordinator import AssociationCoordinator, user_named
 from .diagnostics import store_failed_attempt, store_report
+from .parking import SpotConfig
 from wifi_ap_associations.presence import Sighting
 
 
@@ -120,12 +134,13 @@ class WifiAssociationPresenceConfigFlow(ConfigFlow, domain=DOMAIN):
     def async_get_supported_subentry_types(
         cls, config_entry: ConfigEntry
     ) -> dict[str, type[ConfigSubentryFlow]]:
-        """Buttons on the integration page: add an access point or a tracked device, or
-        collect a report from an access point that isn't supported yet (that one never
-        creates a subentry)."""
+        """Buttons on the integration page: add an access point, a tracked device or a
+        parking spot, or collect a report from an access point that isn't supported yet
+        (that one never creates a subentry)."""
         return {
             SUBENTRY_ACCESS_POINT: AccessPointSubentryFlow,
             SUBENTRY_TRACKED_DEVICE: TrackedDeviceSubentryFlow,
+            SUBENTRY_PARKING_SPOT: ParkingSpotSubentryFlow,
             SUBENTRY_REPORT: CollectReportSubentryFlow,
         }
 
@@ -886,7 +901,9 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
                 if mac in tracked:
                     return self.async_abort(reason="already_configured")
                 return self.async_create_entry(
-                    title=user_input[CONF_NAME].strip(), data={CONF_MAC: mac}, unique_id=mac
+                    title=user_input[CONF_NAME].strip(),
+                    data={CONF_MAC: mac, CONF_PARKING: bool(user_input.get(CONF_PARKING))},
+                    unique_id=mac,
                 )
 
         coordinator = getattr(entry, "runtime_data", None)
@@ -913,6 +930,7 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
                             )
                         ),
                         vol.Required(CONF_NAME): TextSelector(),
+                        vol.Optional(CONF_PARKING, default=False): BooleanSelector(),
                     }
                 ),
                 user_input or {},
@@ -923,18 +941,103 @@ class TrackedDeviceSubentryFlow(ConfigSubentryFlow):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Rename the device (the MAC identifies it and stays fixed)."""
+        """Rename the device, or switch parking spots on or off for it (the MAC
+        identifies it and stays fixed)."""
         subentry = self._get_reconfigure_subentry()
         if user_input is not None:
             return self.async_update_and_abort(
-                self._get_entry(), subentry, title=user_input[CONF_NAME].strip()
+                self._get_entry(),
+                subentry,
+                title=user_input[CONF_NAME].strip(),
+                data={**subentry.data, CONF_PARKING: bool(user_input.get(CONF_PARKING))},
             )
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=self.add_suggested_values_to_schema(
-                vol.Schema({vol.Required(CONF_NAME): TextSelector()}),
-                {CONF_NAME: subentry.title},
+                vol.Schema(
+                    {
+                        vol.Required(CONF_NAME): TextSelector(),
+                        vol.Optional(CONF_PARKING, default=False): BooleanSelector(),
+                    }
+                ),
+                {CONF_NAME: subentry.title, CONF_PARKING: bool(subentry.data.get(CONF_PARKING))},
             ),
             description_placeholders={"mac": subentry.data[CONF_MAC]},
         )
 
+
+
+def _cm(minimum: float, maximum: float) -> NumberSelector:
+    return NumberSelector(NumberSelectorConfig(
+        min=minimum, max=maximum, step=1, unit_of_measurement="cm", mode=NumberSelectorMode.BOX))
+
+
+def _db(minimum: float, maximum: float) -> NumberSelector:
+    return NumberSelector(NumberSelectorConfig(
+        min=minimum, max=maximum, step=1, unit_of_measurement="dB", mode=NumberSelectorMode.BOX))
+
+
+class ParkingSpotSubentryFlow(ConfigSubentryFlow):
+    """A parking spot: an occupancy sensor over the space, its distance sensor, and the
+    RSSI of each car that uses parking spots, measured at the spot."""
+
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        if not self._rssi_fields():
+            return self.async_abort(reason="no_parking_cars")
+        if user_input is not None:
+            data = self._data(user_input)
+            return self.async_create_entry(title=data[CONF_NAME], data=data)
+        return self.async_show_form(step_id="user", data_schema=self._schema({}))
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        subentry = self._get_reconfigure_subentry()
+        if user_input is not None:
+            data = self._data(user_input)
+            return self.async_update_and_abort(
+                self._get_entry(), subentry, title=data[CONF_NAME], data=data)
+        current = {**subentry.data, CONF_NAME: subentry.title}
+        return self.async_show_form(step_id="reconfigure", data_schema=self._schema(current))
+
+    def _rssi_fields(self) -> dict[str, str]:
+        """Form field per car that uses parking spots ("Bluey RSSI") -> its subentry id."""
+        fields: dict[str, str] = {}
+        for sub in self._get_entry().get_subentries_of_type(SUBENTRY_TRACKED_DEVICE):
+            if sub.data.get(CONF_PARKING):
+                label = f"{sub.title} RSSI"
+                if label in fields:  # two devices with one name
+                    label = f"{sub.title} ({sub.data[CONF_MAC]}) RSSI"
+                fields[label] = sub.subentry_id
+        return fields
+
+    def _schema(self, current: dict[str, Any]) -> vol.Schema:
+        d = SpotConfig()
+        rssi = current.get(CONF_RSSI, {})
+
+        def suggested(value: Any) -> dict[str, Any]:
+            return {"suggested_value": value} if value is not None else {}
+
+        fields: dict[Any, Any] = {
+            vol.Required(CONF_NAME, default=current.get(CONF_NAME, "Garage")): TextSelector(),
+            vol.Required(CONF_OCCUPIED, description=suggested(current.get(CONF_OCCUPIED))):
+                EntitySelector(EntitySelectorConfig(domain="binary_sensor")),
+            vol.Optional(CONF_DISTANCE, description=suggested(current.get(CONF_DISTANCE))):
+                EntitySelector(EntitySelectorConfig(domain="sensor", device_class="distance")),
+            vol.Required(CONF_FLOOR_CM, default=current.get(CONF_FLOOR_CM, d.floor_cm)): _cm(50, 600),
+            vol.Required(CONF_MIN_HEIGHT_CM, default=current.get(CONF_MIN_HEIGHT_CM, d.min_height_cm)): _cm(0, 300),
+            vol.Required(CONF_MAX_HEIGHT_CM, default=current.get(CONF_MAX_HEIGHT_CM, d.max_height_cm)): _cm(0, 300),
+            vol.Required(CONF_RSSI_MIN, default=current.get(CONF_RSSI_MIN, d.rssi_min)): _db(-127, 0),
+            vol.Required(CONF_RSSI_MARGIN, default=current.get(CONF_RSSI_MARGIN, d.rssi_margin)): _db(0, 40),
+        }
+        for label, car in self._rssi_fields().items():
+            fields[vol.Optional(label, description=suggested(rssi.get(car)))] = EntitySelector(
+                EntitySelectorConfig(domain="sensor", device_class="signal_strength"))
+        return vol.Schema(fields)
+
+    def _data(self, user_input: dict[str, Any]) -> dict[str, Any]:
+        labels = self._rssi_fields()
+        data = {k: v for k, v in user_input.items() if k not in labels}
+        data[CONF_NAME] = str(data[CONF_NAME]).strip()
+        data[CONF_RSSI] = {car: user_input[label] for label, car in labels.items() if user_input.get(label)}
+        return data

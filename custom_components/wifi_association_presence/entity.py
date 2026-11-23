@@ -40,3 +40,8 @@ def tracked_device_info(subentry: ConfigSubentry) -> DeviceInfo:
         connections={(CONNECTION_NETWORK_MAC, subentry.data[CONF_MAC])},
         name=subentry.title,
     )
+
+
+def parking_spot_device_info(subentry: ConfigSubentry) -> DeviceInfo:
+    """The parking spot as a device: its area is where the cars in it are."""
+    return DeviceInfo(identifiers={(DOMAIN, subentry.subentry_id)}, name=subentry.title)

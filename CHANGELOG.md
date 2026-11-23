@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.13.0b1 — parking spots: a car in its spot is home (beta)
+
+A sleeping car drops off the Wi-Fi and turned away, even parked in the garage. A sensor
+over the parking space now keeps it home and says which spot it is in.
+
+- New: **Add parking spot**, as many as you have. Each takes an occupancy sensor over the
+  space, optionally its distance sensor (to tell a car from a ladder or a bin), the floor
+  distance, a car height band, and each car's Bluetooth RSSI measured at the spot (to
+  tell the cars apart; not needed with one car).
+- New option on tracked devices: **Car: placed by parking spots** (Reconfigure). Off for
+  existing devices.
+- A spot that has identified a car outranks the access points: the car is home, in the
+  spot's area (the spot's device starts in its occupancy sensor's area). The tracker gets
+  `parking_spot`; `arrived_at` doesn't move when the car later leaves the Wi-Fi, and
+  `departed_at` counts when it left the spot. The Area sensor shows the spot's area.
+- New sensors: per car **Parking** (`in_spot`, `outside`, `away`, or `home` when a spot
+  can't tell), per spot **Occupant** (the car's name, `empty`, `other`, `unsure`).
+  Diagnostics include what each spot sees.
+- The spot logic is the same file as in Tesla BLE Fleet's parking. Use one of the two
+  per spot.
+- The ESPHome config of our sensor (ESP32-C3 Super Mini, HC-SR04, `ble_rssi` per car) is
+  in `examples/esphome/parking-spot.yaml`, with a link to the 3D-printed box it lives in.
+
+Not yet: a sleeping car outside, off the Wi-Fi and in no spot, still shows away. That
+waits for the Bluetooth source (`docs/design/tesla-ble-source.md`).
+
 ## 0.12.2 — ready for Home Assistant 2026.11's tracker change
 
 - Each tracker now names its device itself (the device of its sensors, by its MAC).
