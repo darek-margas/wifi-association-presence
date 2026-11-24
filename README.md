@@ -98,6 +98,8 @@ and brief gaps, so `not_home` means *gone*, not *quiet*.
 - It reacts immediately when you move an AP to another area or rename an area.
 
 ### Cars in parking spots
+<img src="docs/images/parking-spot-sensor.jpg" alt="The parking spot sensor: a white 3D-printed box with the HC-SR04's two transducers facing down, clipped to the garage door opener's rail" width="240" align="right">
+
 A car on the home Wi-Fi is tracked like a phone until it falls asleep and leaves the
 Wi-Fi. A sensor over the parking space keeps it home, and says which spot it's in.
 
@@ -120,13 +122,18 @@ Wi-Fi. A sensor over the parking space keeps it home, and says which spot it's i
   advert at the spot, if clearly ahead of the next. Once identified, a car stays in the
   spot until it's empty.
 
-What we use: an ESP32-C3 Super Mini and an HC-SR04 ultrasonic sensor in the ceiling,
-which also scans the cars' Bluetooth adverts. The ESPHome config, with wiring and
-calibration notes: [examples/esphome/parking-spot.yaml](examples/esphome/parking-spot.yaml).
-The box is polle87's
+**What we use** (the photo): an ESP32-C3 Super Mini and an HC-SR04 ultrasonic sensor,
+looking down at the car from the garage door opener's rail. The ESP32 also scans the
+cars' Bluetooth adverts. The box is polle87's
 [Universal Distance Sensor for Home Assistant](https://makerworld.com/en/models/3368970)
-on MakerWorld, whose page lists the parts. Any occupancy sensor and any RSSI sensor will
-do.
+on MakerWorld, whose page lists the parts. The ESPHome config, with calibration notes:
+[examples/esphome/parking-spot.yaml](examples/esphome/parking-spot.yaml).
+
+<img src="docs/images/parking-spot-wiring.svg" alt="Wiring: 5V to Vcc, GND to Gnd, GPIO5 to Trig, Echo through a 10 kOhm resistor to GPIO3 with 20 kOhm from GPIO3 to GND" width="640">
+
+Echo goes to **GPIO3**, not GPIO2 as in the box's original diagram: GPIO2 is a strapping
+pin, and the divider's pull-down on it could upset boot. Any occupancy
+sensor and any RSSI sensor will do instead of ours.
 
 Without a presence sensor, outside and away come from the access points, and a sleeping
 car on the driveway, off the Wi-Fi, shows away. Tesla owners: [Tesla BLE Fleet](https://github.com/darek-margas/tesla-ble-fleet)

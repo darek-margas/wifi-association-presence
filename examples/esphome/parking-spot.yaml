@@ -14,14 +14,17 @@
 #   <car> RSSI        sensor.<name>_car_1_rssi, sensor.<name>_car_2_rssi
 # The RSSI sensors are disabled by default (diagnostic): enable them first.
 #
-# Wiring:
+# Wiring (diagram: docs/images/parking-spot-wiring.svg; photo of ours:
+# docs/images/parking-spot-sensor.jpg):
 #   HC-SR04 Vcc  -> 5V   (only live when the board is powered over USB-C)
 #   HC-SR04 Gnd  -> GND
 #   HC-SR04 Trig -> GPIO5
 #   HC-SR04 Echo -> divider -> GPIO3 (5 V echo down to about 3.3 V): 10k on top,
 #                   20k to GND
-# GPIO3 rather than GPIO2: GPIO2 is a C3 strapping pin and the divider's
-# pull-down could upset boot.
+# GPIO3 rather than GPIO2: the box's original diagram uses GPIO2, but GPIO2 is a
+# C3 strapping pin, and the divider's 20k to GND holds it low at power-up, which
+# could upset boot. GPIO3 is the next pin on the same side, so
+# only the wire moves.
 #
 # Hung about 3 m above the floor: the empty floor read 280 cm, a Model Y roof
 # 113-118 cm, a bonnet about 200 cm. Car Present turns on below the threshold
@@ -104,7 +107,7 @@ sensor:
     id: distance_echo
     name: "Distance Echo"
     trigger_pin: GPIO5
-    echo_pin: GPIO3
+    echo_pin: GPIO3                              # NOT GPIO2 (the box's original diagram): strapping pin, see the header
     update_interval: 1s
     timeout: 4m
     unit_of_measurement: "cm"

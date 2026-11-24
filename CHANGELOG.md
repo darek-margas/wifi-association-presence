@@ -15,6 +15,10 @@ The order of evidence is: a parking spot, then the presence sensor, then the acc
 points.
 
 **Building the spot sensor.** We use one per parking space:
+
+<img src="https://raw.githubusercontent.com/darek-margas/wifi-association-presence/main/docs/images/parking-spot-sensor.jpg" alt="Our parking spot sensor on the garage door opener's rail" width="240">
+<img src="https://raw.githubusercontent.com/darek-margas/wifi-association-presence/main/docs/images/parking-spot-wiring.svg?sanitize=true" alt="Wiring diagram" width="560">
+
 - **Parts:** an ESP32-C3 Super Mini, an HC-SR04 ultrasonic sensor, and a 10k and a 20k
   resistor.
 - **Box:** polle87's 3D-printed "Universal Distance Sensor for Home Assistant", which
@@ -23,6 +27,8 @@ points.
   - HC-SR04 Vcc to 5V and Gnd to GND;
   - Trig to GPIO5;
   - Echo through the divider (10k on top, 20k to GND) to GPIO3, because the echo is 5 V.
+    Not GPIO2 as in the box's original diagram: it's a strapping pin, and the divider's
+    pull-down could upset boot.
 - **Firmware:** flash ESPHome with
   [examples/esphome/parking-spot.yaml](https://github.com/darek-margas/wifi-association-presence/blob/main/examples/esphome/parking-spot.yaml),
   adding your Wi-Fi details and each car's Bluetooth MAC to `secrets.yaml`. The file
