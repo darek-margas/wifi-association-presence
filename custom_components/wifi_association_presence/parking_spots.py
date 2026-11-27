@@ -5,13 +5,20 @@ A spot that identifies a car outranks every other source: the car is home and in
 the spot's area, whatever Wi-Fi (or later Bluetooth) says. A sleeping Tesla leaves
 the Wi-Fi within the hour, and its Bluetooth advert at an ESP32 by the garage door
 is as strong whether it is parked inside or on the driveway.
+
+A spot whose occupancy sensor stops reporting (its ESP32 restarts, or Home Assistant
+starts) keeps its car for the grace period, as a Wi-Fi device stays home while its
+access point can't be read. The car in each spot is saved with the sightings, so a
+restart doesn't make a parked car leave and arrive again.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Any
 
 from homeassistant.const import STATE_ON, STATE_OFF, UnitOfLength
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
@@ -36,6 +43,7 @@ from .const import (
     SUBENTRY_TRACKED_DEVICE,
 )
 from .parking import CarPlace, Location, SpotConfig, SpotKind, SpotState, SpotTracker, locate_cars
+from .presence_sensors import RESTORE_MAX_AGE, parse_time
 
 # A distance sensor in another unit is converted to centimetres.
 _TO_CM = {UnitOfLength.CENTIMETERS: 1.0, UnitOfLength.MILLIMETERS: 0.1, UnitOfLength.METERS: 100.0}
@@ -88,15 +96,18 @@ class Parking:
         self,
         hass: HomeAssistant,
         entry,
+        grace: timedelta,
         present: Callable[[str], bool | None],
         arrived: Callable[[str], datetime | None],
         on_change: Callable[[], None],
     ) -> None:
-        """present(mac): whether the other sources (Wi-Fi) have the car home, None if
+        """grace: how long a spot keeps its car while its sensor doesn't report.
+        present(mac): whether the other sources (Wi-Fi) have the car home, None if
         they can't tell. arrived(mac): when they saw its current visit start, if it is
         home by them. on_change: called when a spot or a car's place changed."""
         self._hass = hass
         self._entry_id = entry.entry_id
+        self._grace = grace
         self._present = present
         self._arrived = arrived
         self._on_change = on_change
@@ -121,6 +132,8 @@ class Parking:
         # When each car was identified in its spot, and when it last left one.
         self._since: dict[str, datetime] = {}
         self._left: dict[str, datetime] = {}
+        # Spots not reporting while they held a car: spot -> (the car, since when).
+        self._silent: dict[str, tuple[str, datetime]] = {}
 
     @property
     def active(self) -> bool:
@@ -132,7 +145,11 @@ class Parking:
         ids = {i for spot in self.spots.values() for i in spot.entity_ids()}
         if not self.active or not ids:
             return lambda: None
-        return async_track_state_change_event(self._hass, sorted(ids), self._state_changed)
+        unsubscribe = async_track_state_change_event(self._hass, sorted(ids), self._state_changed)
+        # What changed between the first poll and now (the platforms were being set up).
+        if self.evaluate():
+            self._on_change()
+        return unsubscribe
 
     @callback
     def _state_changed(self, _event: Event[EventStateChangedData]) -> None:
@@ -143,20 +160,22 @@ class Parking:
         """Read the spots and place the cars; whether anything changed."""
         if not self.active:
             return False
+        now = dt_util.utcnow()
         states: dict[str, SpotState] = {}
+        present = {car_id: self._present(car.mac) for car_id, car in self.cars.items()}
+        monotonic = time.monotonic()
         for spot in self.spots.values():
             rssi = {car: self._number(entity) for car, entity in spot.rssi.items() if car in self.cars}
             if not rssi and len(self.cars) == 1:
                 # One car uses parking spots and has no RSSI here: anything car-shaped
                 # in the spot is that car (a guest car too; an RSSI tells them apart).
                 rssi = {next(iter(self.cars)): 0.0}
-            states[spot.subentry_id] = spot.tracker.update(
-                self._occupied(spot.occupied), self._distance_cm(spot.distance), rssi
+            state = spot.tracker.update(
+                self._occupied(spot.occupied), self._distance_cm(spot.distance), rssi,
+                present, monotonic,
             )
-        places = locate_cars(
-            {car_id: self._present(car.mac) for car_id, car in self.cars.items()}, states
-        )
-        now = dt_util.utcnow()
+            states[spot.subentry_id] = self._ride_out(spot.subentry_id, state, now)
+        places = locate_cars(present, states)
         for car_id, place in places.items():
             before = self.places.get(car_id)
             in_spot = place.location is Location.IN_SPOT
@@ -172,6 +191,60 @@ class Parking:
         self.spot_states = states
         self.places = places
         return changed
+
+    def _ride_out(self, spot_id: str, state: SpotState, now: datetime) -> SpotState:
+        """A spot that held a car and stops reporting keeps it for the grace period."""
+        if state.kind is not SpotKind.UNKNOWN:
+            self._silent.pop(spot_id, None)
+            return state
+        held = self._silent.get(spot_id)
+        if held is None:
+            before = self.spot_states.get(spot_id)
+            if before is None or before.kind is not SpotKind.CAR or before.car_id is None:
+                return state
+            held = self._silent[spot_id] = (before.car_id, now)
+        if held[0] in self.cars and now - held[1] <= self._grace:
+            return SpotState(SpotKind.CAR, held[0])
+        # Past the grace period: unknown. The entry stays (no car is held from it
+        # again) until the sensor reports.
+        return state
+
+    def to_storage(self) -> dict[str, Any]:
+        """The car in each spot and the cars' times, to take up after a restart."""
+        return {
+            "saved": dt_util.utcnow().isoformat(),
+            "spots": {
+                spot_id: state.car_id
+                for spot_id, state in self.spot_states.items()
+                if state.kind is SpotKind.CAR and state.car_id
+            },
+            "since": {car: at.isoformat() for car, at in self._since.items()},
+            "left": {car: at.isoformat() for car, at in self._left.items()},
+        }
+
+    def restore(self, stored: Mapping[str, Any] | None) -> None:
+        """Take up what to_storage() saved. A spot that held a car holds it again, as
+        not reporting from now: its sensor has the grace period to report (its ESP32
+        may not be connected yet). If it then reports occupied, the car stays; if
+        empty, it left. Saved too long ago, the spots start afresh."""
+        stored = stored or {}
+        now = dt_util.utcnow()
+        for car, at in (stored.get("left") or {}).items():
+            if car in self.cars and (when := parse_time(at)):
+                self._left[car] = when
+        saved_at = parse_time(stored.get("saved"))
+        if saved_at is None or now - saved_at > RESTORE_MAX_AGE:
+            return
+        since = stored.get("since") or {}
+        for spot_id, car in (stored.get("spots") or {}).items():
+            spot = self.spots.get(spot_id)
+            if spot is None or car not in self.cars:
+                continue
+            spot.tracker.restore(car)  # latched, as it was
+            self.spot_states[spot_id] = SpotState(SpotKind.CAR, car)
+            self.places[car] = CarPlace(Location.IN_SPOT, spot_id)
+            self._silent[spot_id] = (car, now)
+            self._since[car] = parse_time(since.get(car)) or now
 
     def spot_of(self, car_id: str) -> ConfiguredSpot | None:
         """The spot the car is identified in, if any."""

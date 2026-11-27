@@ -325,6 +325,12 @@ class TrackedDeviceSensor(CoordinatorEntity[AssociationCoordinator], SensorEntit
         return self.coordinator.local_place(self._subentry_id)
 
     @property
+    def available(self) -> bool:
+        """Also while no access point can be read, for a value that a parking spot or
+        the presence sensor gives."""
+        return super().available or self._local() is not None
+
+    @property
     def native_value(self) -> StateValue:
         """Value while the device is home (within the grace period), else unknown.
 
@@ -401,6 +407,11 @@ class ParkingSensor(CoordinatorEntity[AssociationCoordinator], SensorEntity):
         self._subentry_id = subentry.subentry_id
         self._attr_unique_id = f"{subentry.data[CONF_MAC]}_parking"
         self._attr_device_info = tracked_device_info(subentry)
+
+    @property
+    def available(self) -> bool:
+        """The spots read their own sensors: it works while the access points fail."""
+        return True
 
     @property
     def native_value(self) -> str | None:

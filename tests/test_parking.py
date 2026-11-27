@@ -70,6 +70,55 @@ class SpotTests(unittest.TestCase):
     def test_no_distance_sensor_trusts_occupancy(self):
         self.assertEqual(SpotTracker().update(True, None, {BLUEY: -60}).car_id, BLUEY)
 
+    def test_missed_advert_keeps_last_reading(self):
+        # Szarik drives in, Bluey sits on the driveway at -80. Szarik's advert is
+        # missed just as the spot turns occupied: it must not lose to Bluey.
+        t = SpotTracker()
+        t.update(False, 280, {BLUEY: -80, SZARIK: -55}, now=100)
+        s = t.update(True, 118, {BLUEY: -80, SZARIK: None}, now=105)
+        self.assertEqual(s.car_id, SZARIK)
+
+    def test_old_reading_is_not_held(self):
+        t = SpotTracker()
+        t.update(False, 280, {BLUEY: -80, SZARIK: -55}, now=100)
+        s = t.update(True, 118, {BLUEY: -80, SZARIK: None}, now=100 + 31)
+        self.assertEqual(s.car_id, BLUEY)
+
+    def test_without_now_nothing_is_held(self):
+        t = SpotTracker()
+        t.update(False, 280, {SZARIK: -55})
+        self.assertIs(t.update(True, 118, {SZARIK: None}).kind, SpotKind.OTHER)
+
+    def test_quick_swap_drops_the_latch(self):
+        # Szarik leaves and Bluey drives in before the occupancy sensor turns off.
+        t = SpotTracker()
+        t.update(True, 118, {BLUEY: -80, SZARIK: -55}, {BLUEY: True, SZARIK: True}, now=0)
+        s = t.update(True, YL_ROOF, {BLUEY: -55, SZARIK: None}, {BLUEY: True, SZARIK: False}, now=60)
+        self.assertEqual(s.car_id, BLUEY)
+
+    def test_latch_stays_while_its_car_is_home_or_heard(self):
+        t = SpotTracker()
+        t.update(True, 118, {BLUEY: -80, SZARIK: -55}, {BLUEY: True, SZARIK: True}, now=0)
+        # Advert gone but still home: Bluey driving past doesn't take the spot.
+        s = t.update(True, 118, {BLUEY: -55, SZARIK: None}, {BLUEY: True, SZARIK: True}, now=60)
+        self.assertEqual(s.car_id, SZARIK)
+        # Presence says away (asleep, off the Wi-Fi) but the advert is still heard.
+        s = t.update(True, 118, {BLUEY: -55, SZARIK: -70}, {BLUEY: True, SZARIK: False}, now=120)
+        self.assertEqual(s.car_id, SZARIK)
+        # Away and unheard, but nobody else is clearly here either.
+        s = t.update(True, 118, {BLUEY: -90, SZARIK: None}, {BLUEY: True, SZARIK: False}, now=180)
+        self.assertEqual(s.car_id, SZARIK)
+
+    def test_restored_latch(self):
+        t = SpotTracker()
+        t.restore(BLUEY)
+        self.assertIs(t.update(None, None, {}).kind, SpotKind.UNKNOWN)      # ESP32 not back yet
+        # Occupied, advert not heard yet: still Bluey, not "Not a Tesla"
+        self.assertEqual(t.update(True, YL_ROOF, {BLUEY: None}).car_id, BLUEY)
+        self.assertEqual(t.latched, BLUEY)
+        t.update(False, 280, {})
+        self.assertIsNone(t.latched)
+
 
 class LocateTests(unittest.TestCase):
     def spot(self, occupied, distance, rssi):

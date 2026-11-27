@@ -95,9 +95,11 @@ def _parking(entry: ConfigEntry) -> dict[str, Any]:
     if parking is None:
         return {}
     cars = {car_id: car.title for car_id, car in parking.cars.items()}
+    # Lists, not dicts by name: two spots or two cars may share a name.
     return {
-        "spots": {
-            spot.title: {
+        "spots": [
+            {
+                "name": spot.title,
                 "kind": (state := parking.occupant(spot_id)) and state.kind.value,
                 "car": cars.get(state.car_id) if state and state.car_id else None,
                 "height_cm": state.height_cm if state else None,
@@ -105,9 +107,13 @@ def _parking(entry: ConfigEntry) -> dict[str, Any]:
                 "cars_with_rssi": sorted(cars.get(c, c) for c in spot.rssi),
             }
             for spot_id, spot in parking.spots.items()
-        },
-        "cars": {
-            cars[car_id]: {"location": place.location and place.location.value, "spot": place.spot and parking.spots[place.spot].title}
+        ],
+        "cars": [
+            {
+                "name": cars.get(car_id, car_id),
+                "location": place.location and place.location.value,
+                "spot": parking.spots[place.spot].title if place.spot in parking.spots else None,
+            }
             for car_id, place in parking.places.items()
-        },
+        ],
     }

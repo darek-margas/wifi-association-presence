@@ -48,6 +48,14 @@ New entities:
 - per parking car, **Parking**: `in_spot` (attribute `spot`), `outside` (home by Wi-Fi but in no spot), `away`, or `home` when a spot can't tell (its sensor is unavailable, or two cars are too close in RSSI);
 - per spot, **Occupant**: the car's name, `empty`, `other` (wrong height, or no car heard near it), or `unsure`.
 
+## Sensors that stop reporting (0.14.0b3)
+
+b1 to 0.14.0b2 treated an unavailable sensor as "the car isn't there". ESPHome devices are unavailable at every Home Assistant restart until they connect, and whenever the ESP32 restarts, so a sleeping car turned away and arrived again each time, and arrival automations fired.
+
+Now a spot that held a car, or a presence sensor that was on, keeps its answer for the **grace period** after it stops reporting, the same rule as for a device whose access point can't be read. Past it, the spot is unknown and the presence sensor says nothing, and `departed_at` is the moment it stopped reporting. The latch itself survives: a spot that reports occupied again still has its car.
+
+The car in each spot, when its visit started and when it left are saved with the sightings (every 10 minutes, at stop and at unload). The presence sensors' visit times are kept by the integration and saved too, because Home Assistant's `last_changed` starts again at every restart.
+
 ## Presence sensors
 
 The first day of b1 showed the gap at once: Szarik was asleep on the charger on the driveway, off the Wi-Fi and in no spot, so it was away. The Tesla BLE ESP32 by the street still had it Present.
@@ -67,7 +75,7 @@ Use one of them per spot, not both. With both, a car gets two Parking/Location s
 ## Limits
 
 - **Outside or away** comes from the presence sensor, else the access points. Without a presence sensor, a sleeping Tesla on the driveway, off the Wi-Fi and in no spot, is away.
-- **The latched car isn't saved.** After a restart or reload, a spot identifies its car again from the next readings. A single car with no RSSI is identified at once.
+- **A restart after more than an hour starts afresh.** The car in each spot is saved with the sightings and taken up again at a restart or reload, but not if it was saved over an hour ago: the cars may have been swapped meanwhile. The spot then identifies its car again from the next readings.
 - **One spot unsure or unavailable** makes every car that isn't in a spot "home, place unclear", because it might be in that spot.
 - A car identified in two spots at once (two spots both hearing it strongest) isn't expected and isn't handled.
 

@@ -162,12 +162,16 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         )
         # Parking spots: they place the tracked devices that use them (cars), and an
         # identified car is home in the spot's area whatever the access points say.
+        # A spot or presence sensor that stops reporting is ridden out for the grace
+        # period too, like an access point that can't be read.
         self.parking = Parking(
-            hass, entry, self._home_by_others, self._arrived_by_others,
-            self.async_update_listeners,
+            hass, entry, self.tracker.consider_home, self._home_by_others,
+            self._arrived_by_others, self.async_update_listeners,
         )
         # Presence sensors (e.g. a Tesla BLE ESP32's Present): home while on.
-        self.presence_sensors = PresenceSensors(hass, entry, self._on_presence_sensor)
+        self.presence_sensors = PresenceSensors(
+            hass, entry, self.tracker.consider_home, self._on_presence_sensor
+        )
         # D-Link DAPs report joins as SNMP traps to this port (one listener for all).
         snmp_trap.LISTENER.configure(
             port=int(entry.options.get(CONF_SNMP_TRAP_PORT, DEFAULT_SNMP_TRAP_PORT))
@@ -207,6 +211,9 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
         now = dt_util.utcnow()
         # Visits, and today's coverage counts, survive a reload or restart.
         self.tracker.restore(stored, now, dt_util.as_local(now).date())
+        # The cars in the parking spots and the presence sensors' visits too.
+        self.presence_sensors.restore((stored or {}).get("presence_sensors"))
+        self.parking.restore((stored or {}).get("parking"))
         # Fast departures that were pending at the restart are still due on time.
         for at in self.tracker.pending_departures(now):
             self._book_departure_poll((at - now).total_seconds())
@@ -218,13 +225,20 @@ class AssociationCoordinator(DataUpdateCoordinator[PresenceData]):
 
     def _storage_data(self, clean: bool = False) -> dict[str, Any]:
         """What is saved: the sightings and today's coverage counts."""
-        return self.tracker.to_storage(dt_util.utcnow(), clean=clean)
+        data = self.tracker.to_storage(dt_util.utcnow(), clean=clean)
+        if self.parking.active:
+            data["parking"] = self.parking.to_storage()
+        if self.presence_sensors.entities:
+            data["presence_sensors"] = self.presence_sensors.to_storage()
+        return data
 
     async def _async_update_data(self) -> PresenceData:
         """Poll, then place the cars in the parking spots on the new presence."""
-        data = await self._async_poll()
-        self.parking.evaluate()
-        return data
+        try:
+            return await self._async_poll()
+        finally:
+            # Also when no access point could be read: the spots have their own sensors.
+            self.parking.evaluate()
 
     def _home_by_others(self, mac: str) -> bool | None:
         """Whether the device is home without a parking spot: by its presence sensor,

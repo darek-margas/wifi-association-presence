@@ -59,6 +59,12 @@ class AssociationTracker(CoordinatorEntity[AssociationCoordinator], ScannerEntit
         return True
 
     @property
+    def available(self) -> bool:
+        """Also while no access point can be read, if a parking spot or the presence
+        sensor has the device: they don't depend on the access points."""
+        return super().available or self.coordinator.local_place(self._subentry_id) is not None
+
+    @property
     def is_connected(self) -> bool | None:
         """In a parking spot, or its presence sensor is on, or associated now, or
         within the grace period of the last sighting.

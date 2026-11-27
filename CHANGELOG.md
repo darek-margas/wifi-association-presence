@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.14.0b3 — a parked car no longer leaves and arrives when its sensor restarts (beta)
+
+Found in a review of the 0.13 and 0.14 code.
+
+- **Fixed: a sleeping car turned away, then arrived again,** whenever the sensor that
+  kept it home stopped reporting: at every Home Assistant restart (ESPHome devices
+  connect after the first poll), and whenever the spot's or the presence sensor's ESP32
+  restarted or lost its Wi-Fi. Arrival automations fired each time.
+  - A spot or presence sensor that stops reporting now keeps its car for the grace
+    period, as a Wi-Fi device stays home while its access point can't be read.
+  - The car in each spot and the visits' times are saved with the sightings, so a
+    restart continues the visit with the same `arrived_at`. What was saved more than an
+    hour ago is not taken up again.
+  - `arrived_at` and `departed_at` no longer come from the presence sensor's
+    `last_changed`, which Home Assistant resets at every restart.
+- **Spots, from Tesla BLE Fleet 0.1.1b1 (the shared `parking.py`):** a car's missed
+  advert keeps its last RSSI for 30 seconds, so a car driving in doesn't lose the spot
+  to a weaker one on the driveway; and a spot drops its car when that car is away and
+  unheard while another is clearly at the spot.
+- **Restart button:** a D-Link restart counts only once the AP stops answering, and an
+  OpenWrt `reboot` that hangs is an error (library 0.15.2). Before, both could report
+  a restart that didn't happen.
+- A car held by its spot or presence sensor stays available while no access point can
+  be read, as do its Parking, Access point and Area sensors.
+- The spot form refuses a height band that is upside down or above the floor distance.
+- Spots catch a sensor change made while the integration was starting, instead of at
+  the next poll.
+- Diagnostics list spots and cars, so two with the same name don't overwrite each other.
+
 ## 0.14.0b2 — Restart for OpenWrt too; D-Link's confirmed (beta)
 
 - **OpenWrt access points get the Restart button** as well: `reboot` over SSH, with the

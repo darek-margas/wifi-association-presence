@@ -1002,21 +1002,45 @@ class ParkingSpotSubentryFlow(ConfigSubentryFlow):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         if not self._rssi_fields():
             return self.async_abort(reason="no_parking_cars")
+        errors: dict[str, str] = {}
         if user_input is not None:
             data = self._data(user_input)
-            return self.async_create_entry(title=data[CONF_NAME], data=data)
-        return self.async_show_form(step_id="user", data_schema=self._schema({}))
+            if not (errors := self._errors(data)):
+                return self.async_create_entry(title=data[CONF_NAME], data=data)
+        return self.async_show_form(
+            step_id="user", data_schema=self._schema(self._entered(user_input)), errors=errors
+        )
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
         subentry = self._get_reconfigure_subentry()
+        errors: dict[str, str] = {}
         if user_input is not None:
             data = self._data(user_input)
-            return self.async_update_and_abort(
-                self._get_entry(), subentry, title=data[CONF_NAME], data=data)
-        current = {**subentry.data, CONF_NAME: subentry.title}
-        return self.async_show_form(step_id="reconfigure", data_schema=self._schema(current))
+            if not (errors := self._errors(data)):
+                return self.async_update_and_abort(
+                    self._get_entry(), subentry, title=data[CONF_NAME], data=data)
+        current = self._entered(user_input) or {**subentry.data, CONF_NAME: subentry.title}
+        return self.async_show_form(
+            step_id="reconfigure", data_schema=self._schema(current), errors=errors
+        )
+
+    def _entered(self, user_input: dict[str, Any] | None) -> dict[str, Any]:
+        """What was typed, in the shape _schema() takes, to show the form again."""
+        return self._data(user_input) if user_input is not None else {}
+
+    @staticmethod
+    def _errors(data: dict[str, Any]) -> dict[str, str]:
+        """A height band no car can be in would make the spot never see one."""
+        errors: dict[str, str] = {}
+        if not data[CONF_NAME]:
+            errors[CONF_NAME] = "name_required"
+        if data[CONF_MIN_HEIGHT_CM] >= data[CONF_MAX_HEIGHT_CM]:
+            errors[CONF_MAX_HEIGHT_CM] = "height_band"
+        elif data[CONF_MIN_HEIGHT_CM] >= data[CONF_FLOOR_CM]:
+            errors[CONF_MIN_HEIGHT_CM] = "height_above_floor"
+        return errors
 
     def _rssi_fields(self) -> dict[str, str]:
         """Form field per car that uses parking spots ("Bluey RSSI") -> its subentry id."""

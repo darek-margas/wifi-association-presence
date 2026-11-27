@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -15,7 +18,9 @@ from custom_components.wifi_association_presence.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 
-from test_core_ha import PHONE, PHONE_SUB, FakeDriver, ap, fake_driver  # noqa: F401
+from test_core_ha import (  # noqa: F401
+    PHONE, PHONE_SUB, FakeDriver, ap, fake_driver, refresh_after,
+)
 
 BLUEY = "0C:29:8F:00:00:01"
 SZARIK = "0C:29:8F:00:00:02"
@@ -95,9 +100,9 @@ async def test_spot_wins_over_wifi(hass: HomeAssistant) -> None:
     assert hass.states.get("sensor.phone_parking") is None
 
     diag = (await async_get_config_entry_diagnostics(hass, entry))["parking"]
-    assert diag["spots"]["Garage"]["kind"] == "car"
-    assert diag["spots"]["Garage"]["car"] == "Bluey"
-    assert diag["cars"]["Szarik"] == {"location": "away", "spot": None}
+    assert [(s["name"], s["kind"], s["car"]) for s in diag["spots"]] == [("Garage", "car", "Bluey")]
+    assert {"name": "Szarik", "location": "away", "spot": None} in diag["cars"]
+    assert {"name": "Bluey", "location": "in_spot", "spot": "Garage"} in diag["cars"]
 
     # The spot's device takes an area: the car's Area sensor follows.
     garage = ar.async_get(hass).async_create("Garage")
@@ -261,3 +266,160 @@ async def test_presence_sensor_on_a_sub_device(hass: HomeAssistant) -> None:
     assert hass.states.get("sensor.szarik_access_point").state == "Tesla BLE"
     assert hass.states.get("sensor.szarik_area").state == "Garage"
     assert hass.states.get("device_tracker.szarik").attributes["area"] == "Garage"
+
+
+PRESENT = "binary_sensor.szarik_present"
+
+
+def szarik_with_sensor() -> ConfigSubentryData:
+    sub = car(SZARIK, "Szarik", "szarik")
+    sub["data"] = {**sub["data"], "presence_sensor": PRESENT}
+    return sub
+
+
+async def test_spot_sensor_not_reporting_is_ridden_out(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    # The spot's ESP32 restarts: unavailable is no evidence that the car left.
+    FakeDriver.results = {"ap1": wifi()}
+    sensors(hass, "on", YL_ROOF, "-60", "-90")
+    entry = await setup(hass, ap("ap1"), *CARS, spot())
+    arrived = hass.states.get("device_tracker.bluey").attributes["arrived_at"]
+
+    hass.states.async_set(OCCUPIED, "unavailable")
+    await hass.async_block_till_done()
+    await refresh_after(hass, freezer, entry.runtime_data, 61)
+    tracker = hass.states.get("device_tracker.bluey")
+    assert (tracker.state, tracker.attributes["arrived_at"]) == ("home", arrived)
+    assert hass.states.get("sensor.bluey_parking").state == "in_spot"
+    assert hass.states.get("sensor.garage_occupant").state == "Bluey"
+
+    hass.states.async_set(OCCUPIED, "on")
+    await hass.async_block_till_done()
+    tracker = hass.states.get("device_tracker.bluey")
+    assert (tracker.state, tracker.attributes["arrived_at"]) == ("home", arrived)
+
+    # Not reporting for longer than the grace period (180 s): the spot no longer knows.
+    hass.states.async_set(OCCUPIED, "unavailable")
+    await hass.async_block_till_done()
+    for _ in range(4):
+        await refresh_after(hass, freezer, entry.runtime_data, 61)
+    assert hass.states.get("device_tracker.bluey").state == "not_home"
+    assert hass.states.get("sensor.garage_occupant").state == "unknown"
+    # Reporting again, still occupied: the same car (the spot kept its latch).
+    hass.states.async_set(OCCUPIED, "on")
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.garage_occupant").state == "Bluey"
+
+
+async def test_presence_sensor_not_reporting_is_ridden_out(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    FakeDriver.results = {"ap1": wifi()}
+    hass.states.async_set(PRESENT, "on")
+    entry = await setup(hass, ap("ap1"), szarik_with_sensor())
+    arrived = hass.states.get("device_tracker.szarik").attributes["arrived_at"]
+
+    freezer.tick(timedelta(seconds=30))
+    hass.states.async_set(PRESENT, "unavailable")
+    await hass.async_block_till_done()
+    silent_at = hass.states.get(PRESENT).last_changed
+    tracker = hass.states.get("device_tracker.szarik")
+    assert (tracker.state, tracker.attributes["arrived_at"]) == ("home", arrived)
+
+    await refresh_after(hass, freezer, entry.runtime_data, 61)
+    hass.states.async_set(PRESENT, "on")
+    await hass.async_block_till_done()
+    tracker = hass.states.get("device_tracker.szarik")
+    assert (tracker.state, tracker.attributes["arrived_at"]) == ("home", arrived)
+
+    # Silent past the grace period: away, since the moment it stopped reporting.
+    hass.states.async_set(PRESENT, "unavailable")
+    await hass.async_block_till_done()
+    silent_at = hass.states.get(PRESENT).last_changed
+    for _ in range(4):
+        await refresh_after(hass, freezer, entry.runtime_data, 61)
+    tracker = hass.states.get("device_tracker.szarik")
+    assert tracker.state == "not_home"
+    assert tracker.attributes["departed_at"] == silent_at.isoformat()
+
+
+async def test_restart_keeps_parked_and_present_cars(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    # Home Assistant restarts: the ESP32s aren't connected yet at the first poll.
+    FakeDriver.results = {"ap1": wifi()}
+    hass.states.async_set(PRESENT, "on")
+    sensors(hass, "on", YL_ROOF, "-60", "-93")
+    entry = await setup(hass, ap("ap1"), car(BLUEY, "Bluey", "bluey"), szarik_with_sensor(), spot())
+    arrived = {
+        name: hass.states.get(f"device_tracker.{name}").attributes["arrived_at"]
+        for name in ("bluey", "szarik")
+    }
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    freezer.tick(timedelta(minutes=5))
+    sensors(hass, "unavailable", "unavailable", "unavailable", "unavailable")
+    hass.states.async_set(PRESENT, "unavailable")
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    for name in ("bluey", "szarik"):
+        tracker = hass.states.get(f"device_tracker.{name}")
+        assert (tracker.state, tracker.attributes["arrived_at"]) == ("home", arrived[name]), name
+    assert hass.states.get("sensor.bluey_parking").state == "in_spot"
+    assert hass.states.get("sensor.szarik_parking").state == "outside"
+
+    # The ESP32s connect: nothing changes.
+    sensors(hass, "on", YL_ROOF, "-60", "-93")
+    hass.states.async_set(PRESENT, "on")
+    await hass.async_block_till_done()
+    for name in ("bluey", "szarik"):
+        tracker = hass.states.get(f"device_tracker.{name}")
+        assert (tracker.state, tracker.attributes["arrived_at"]) == ("home", arrived[name]), name
+
+
+async def test_restart_then_spot_is_empty(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    # The car left while Home Assistant was down: the saved latch goes with the first
+    # "empty" report.
+    FakeDriver.results = {"ap1": wifi()}
+    sensors(hass, "on", YL_ROOF, "-60", "-93")
+    entry = await setup(hass, ap("ap1"), *CARS, spot())
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    freezer.tick(timedelta(minutes=5))
+    sensors(hass, "off", "280", "unknown", "unknown")
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get("device_tracker.bluey").state == "not_home"
+    assert hass.states.get("sensor.garage_occupant").state == "empty"
+
+
+async def test_long_downtime_starts_afresh(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    # Saved over an hour ago: too much may have happened; nothing is held.
+    FakeDriver.results = {"ap1": wifi()}
+    sensors(hass, "on", YL_ROOF, "-60", "-93")
+    entry = await setup(hass, ap("ap1"), *CARS, spot())
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    freezer.tick(timedelta(hours=2))
+    sensors(hass, "unavailable", "unavailable", "unavailable", "unavailable")
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get("device_tracker.bluey").state == "not_home"
+
+
+async def test_spot_form_rejects_an_impossible_height_band(hass: HomeAssistant) -> None:
+    FakeDriver.results = {"ap1": wifi()}
+    entry = await setup(hass, ap("ap1"), car(BLUEY, "Bluey", "bluey"))
+    flows = hass.config_entries.subentries
+    result = await flows.async_init((entry.entry_id, "parking_spot"), context={"source": "user"})
+    entered = {"name": "Garage", "occupied": OCCUPIED, "floor_cm": 280, "min_height_cm": 195,
+               "max_height_cm": 135, "rssi_min": -85, "rssi_margin": 6}
+    result = await flows.async_configure(result["flow_id"], entered)
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"max_height_cm": "height_band"}
+    result = await flows.async_configure(
+        result["flow_id"], {**entered, "min_height_cm": 285, "max_height_cm": 295}
+    )
+    assert result["errors"] == {"min_height_cm": "height_above_floor"}
+    result = await flows.async_configure(
+        result["flow_id"], {**entered, "min_height_cm": 135, "max_height_cm": 195}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY

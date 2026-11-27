@@ -434,6 +434,11 @@
       "abort": {
         "no_parking_cars": "No tracked device uses parking spots yet. Reconfigure a car's tracked device and turn on \"Car: placed by parking spots\" first.",
         "reconfigure_successful": "Parking spot updated."
+      },
+      "error": {
+        "name_required": "Give the spot a name.",
+        "height_band": "The highest car must be higher than the lowest.",
+        "height_above_floor": "The lowest car is taller than the floor distance: nothing could be that high under this sensor."
       }
     }
   },
