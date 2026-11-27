@@ -464,6 +464,8 @@ The full guide is in the [wiki](../../wiki/OpenWrt).
 
 - Works with OpenWrt's standard hostapd (`wpad-basic-*`, `wpad-*`), which exposes every
   radio on ubus. Log in as `root` (or a user allowed to run `ubus`) with a password.
+- **Restart** (beta, 0.14.0b2): a button on the AP's device page, running `reboot` over
+  the same login. A user that isn't root needs to be allowed to run it.
 - What you get depends on the release, as read from OpenWrt's hostapd source:
 
   | OpenWrt | Clients, band | Signal | SSID name |
@@ -503,7 +505,7 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
   the [wiki](../../wiki/D-Link-DAP#port-162-on-your-installation) for Container and Core).
 - **Restart** (beta, 0.14.0b1): a button on the AP's device page. It uses the AP's web
   interface (HTTP, port 80) with the same login, because the console's `reboot` fails
-  on firmware v2.06.
+  on firmware v2.06. Confirmed on a DAP-2610.
 
 ## Limitations
 

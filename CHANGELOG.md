@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.0b2 — Restart for OpenWrt too; D-Link's confirmed (beta)
+
+- **OpenWrt access points get the Restart button** as well: `reboot` over SSH, with the
+  login they already use. Checked on OpenWrt 25.12.5 and 22.03.7.
+- **The D-Link Restart works:** pressed on a DAP-2610 (firmware v2.06) in Home
+  Assistant, the AP was back in about 35 seconds with its uptime reset.
+- Library 0.15.1.
+
 ## 0.14.0b1 — a Restart button for D-Link DAPs (beta)
 
 - **Restart** on a D-Link DAP's device page (Configuration). It logs in to the AP's

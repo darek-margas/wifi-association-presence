@@ -13,8 +13,8 @@
     "wifi_ap_associations"
   ],
   "requirements": [
-    "wifi-ap-associations==0.15.0"
+    "wifi-ap-associations==0.15.1"
   ],
   "single_config_entry": true,
-  "version": "0.14.0b1"
+  "version": "0.14.0b2"
 }
