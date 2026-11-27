@@ -16,7 +16,7 @@ from .coordinator import AssociationCoordinator, WifiAssociationConfigEntry
 from .entity import access_point_device_info, parking_spot_device_info, tracked_device_info
 from .parking_spots import suggested_spot_area
 
-PLATFORMS = [Platform.DEVICE_TRACKER, Platform.SENSOR]
+PLATFORMS = [Platform.BUTTON, Platform.DEVICE_TRACKER, Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: WifiAssociationConfigEntry) -> bool:

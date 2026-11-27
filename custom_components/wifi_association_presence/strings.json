@@ -442,5 +442,10 @@
       "title": "{name} needs its controller's login",
       "description": "{name} ({type}) used to read its clients through another Home Assistant integration. Since 0.12 it logs in to the controller itself, so it needs the controller's address and a local account. Open Settings → Devices & services → Wi-Fi Association Presence, find {name} under Access points and choose Reconfigure. Until then its devices count as away after the grace period."
     }
+  },
+  "exceptions": {
+    "restart_failed": {
+      "message": "Could not restart {name}: {error}"
+    }
   }
 }

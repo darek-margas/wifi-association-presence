@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.14.0b1 — a Restart button for D-Link DAPs (beta)
+
+- **Restart** on a D-Link DAP's device page (Configuration). It logs in to the AP's
+  web interface with the same username and password as the console and presses its
+  Restart. The AP is gone for a minute or two; its devices ride it out on the grace
+  period, as for any AP that can't be read. Needs the web interface reachable from Home
+  Assistant over HTTP (port 80).
+- Why the web interface: the console's `reboot` fails on a DAP-2610 with firmware v2.06
+  (`sh: can't open '/dev/null': Permission denied`, the AP stays up), and SNMP's restart
+  object takes the value and ignores it.
+- **Beta:** the login and the replay counter the page keeps were checked against a real
+  DAP-2610, but not the reboot itself. If it fails, the button says why, and the log
+  has `Restarting access point <name> failed: <reason>`. Please report that line.
+- Library 0.15.0.
+
 ## 0.13.0 — parking spots: which car is in which spot, and sleeping cars stay home
 
 **What it's for.** A car on the home Wi-Fi is tracked like a phone until it goes to

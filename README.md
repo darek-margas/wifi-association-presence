@@ -501,6 +501,9 @@ The full guide is in the [wiki](../../wiki/D-Link-DAP).
 - Instant arrivals: set the DAP's **SNMP trap server** to Home Assistant's address. The
   integration listens on UDP 162 (nothing to do on Home Assistant OS and Supervised; see
   the [wiki](../../wiki/D-Link-DAP#port-162-on-your-installation) for Container and Core).
+- **Restart** (beta, 0.14.0b1): a button on the AP's device page. It uses the AP's web
+  interface (HTTP, port 80) with the same login, because the console's `reboot` fails
+  on firmware v2.06.
 
 ## Limitations
 
