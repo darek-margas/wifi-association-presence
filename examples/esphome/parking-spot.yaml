@@ -87,6 +87,12 @@ esp32_ble_tracker:
 bluetooth_proxy:
   active: true
 
+# A Restart button on the device page in Home Assistant.
+button:
+  - platform: restart
+    name: "Restart"
+    entity_category: config
+
 number:
   - platform: template
     name: "Occupied Threshold"
